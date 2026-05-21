@@ -7,7 +7,7 @@
 @layer base {
   :root {
     /* Fresh health-focused palette */
-    --background: 120 20% 98%;
+    --background: 0 0% 97%;
     --foreground: 150 30% 15%;
 
     --card: 0 0% 100%;
@@ -34,11 +34,11 @@
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 120 15% 90%;
-    --input: 120 15% 90%;
+    --border: 0 0% 88%;
+    --input: 0 0% 88%;
     --ring: 145 65% 42%;
 
-    --radius: 1rem;
+    --radius: 0.75rem;
 
     /* Custom colors for nutrition */
     --calories: 25 90% 55%;
@@ -111,7 +111,7 @@
     --destructive-foreground: 0 0% 100%;
 
     --border: 150 15% 20%;
-    --input: 150 15% 20%;
+    --input: 0 0% 88%;
     --ring: 145 65% 50%;
 
     --sidebar-background: 240 5.9% 10%;
@@ -171,6 +171,35 @@
   .glass {
     backdrop-filter: blur(20px);
     background: hsl(0 0% 100% / 0.8);
+  }
+
+  /* Safe-area padding for pages with BottomNav */
+  .pb-nav-safe {
+    padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* iOS typography scale */
+  .page-title {
+    font-size: 30px;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+  .section-header {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  /* iOS shadow scale */
+  .shadow-ios-sm {
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.06);
+  }
+  .shadow-ios {
+    box-shadow: 0 4px 12px 0 rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.06);
+  }
+  .shadow-ios-lg {
+    box-shadow: 0 12px 32px 0 rgb(0 0 0 / 0.10), 0 4px 8px -4px rgb(0 0 0 / 0.08);
   }
 }
 
@@ -246,4 +275,125 @@
 .animate-slide-up-delay-3 {
   animation: slide-up 0.6s ease-out 0.3s forwards;
   opacity: 0;
+}
+
+/* ── Animated background icons ────────────────────────────────────── */
+@keyframes calocare-drift {
+  0% {
+    transform: translate(0px, 0px) rotate(0deg);
+  }
+  25% {
+    transform: translate(var(--dx, 40px), var(--dy, 35px)) rotate(6deg);
+  }
+  50% {
+    transform: translate(
+        calc(var(--dx, 40px) * 0.3),
+        calc(var(--dy, 35px) * 1.4)
+      )
+      rotate(-4deg);
+  }
+  75% {
+    transform: translate(
+        calc(var(--dx, 40px) * -0.4),
+        calc(var(--dy, 35px) * 0.6)
+      )
+      rotate(3deg);
+  }
+  100% {
+    transform: translate(0px, 0px) rotate(0deg);
+  }
+}
+
+.calocare-bg-icon {
+  animation: calocare-drift var(--dur, 45s) ease-in-out infinite;
+  will-change: transform;
+  mix-blend-mode: multiply;
+}
+
+/* ── Auth / Welcome page ────────────────────────────────────────────── */
+.auth-bg-pattern {
+  background-image: url("/welcome-bg-2.png");
+  background-size: cover;
+  background-position: center;
+}
+
+.auth-dark-veil {
+  background: linear-gradient(
+    to top,
+    rgba(11, 31, 18, 0.72) 0%,
+    rgba(11, 31, 18, 0.42) 22%,
+    rgba(11, 31, 18, 0.1) 42%,
+    transparent 58%
+  );
+}
+
+.auth-top-soft-fade {
+  background: linear-gradient(to bottom, rgba(11, 31, 18, 0.55), transparent);
+}
+
+.auth-text-readable {
+  text-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.9),
+    0 2px 14px rgba(0, 0, 0, 0.55);
+}
+
+.auth-logo-badge {
+  background: rgba(11, 31, 18, 0.55);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.auth-ai-badge {
+  background: rgba(52, 211, 153, 0.12);
+  border: 1px solid rgba(52, 211, 153, 0.25);
+}
+
+.auth-gradient-text {
+  background-image: linear-gradient(
+    90deg,
+    #6ee7b7 0%,
+    #34d399 50%,
+    #10b981 100%
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: none;
+  filter: drop-shadow(0 2px 18px rgba(52, 211, 153, 0.55));
+}
+
+.auth-feature-chip {
+  background: rgba(255, 255, 255, 0.08);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.auth-form-glass-logo {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.auth-submit-btn {
+  background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.35);
+}
+
+.auth-submit-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #047857 0%, #059669 100%);
+}
+
+@keyframes auth-cta-pulse {
+  0%,
+  100% {
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  }
+  50% {
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), 0 0 0 6px rgba(255, 255, 255, 0.18);
+  }
+}
+
+.auth-cta-btn {
+  animation: auth-cta-pulse 2.8s ease-in-out infinite;
 }
