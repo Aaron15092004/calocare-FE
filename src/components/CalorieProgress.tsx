@@ -61,8 +61,8 @@ export const CalorieProgress: React.FC<CalorieProgressProps> = ({
               x2="100%"
               y2="0%"
             >
-              <stop offset="0%" stopColor="hsl(145, 65%, 42%)" />
-              <stop offset="100%" stopColor="hsl(160, 60%, 45%)" />
+              <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="1" />
+              <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0.8" />
             </linearGradient>
 
             <linearGradient
@@ -72,8 +72,8 @@ export const CalorieProgress: React.FC<CalorieProgressProps> = ({
               x2="100%"
               y2="0%"
             >
-              <stop offset="0%" stopColor="hsl(0, 75%, 55%)" />
-              <stop offset="100%" stopColor="hsl(0, 65%, 45%)" />
+              <stop offset="0%" stopColor="hsl(var(--destructive))" stopOpacity="1" />
+              <stop offset="100%" stopColor="hsl(var(--destructive))" stopOpacity="0.85" />
             </linearGradient>
           </defs>
         </svg>
@@ -88,7 +88,7 @@ export const CalorieProgress: React.FC<CalorieProgressProps> = ({
             {diff}
           </span>
           <span className="text-sm text-muted-foreground font-medium">
-            {isOver ? "kcal over" : "kcal left"}
+            {isOver ? "kcal vượt" : "kcal còn lại"}
           </span>
         </div>
       </div>
@@ -102,7 +102,7 @@ export const CalorieProgress: React.FC<CalorieProgressProps> = ({
               {consumed}
             </span>
           </div>
-          <span className="text-xs text-muted-foreground">Eaten</span>
+          <span className="text-xs text-muted-foreground">Đã ăn</span>
         </div>
         <div className="flex flex-col items-center">
           <div className="flex items-center gap-1">
@@ -111,7 +111,7 @@ export const CalorieProgress: React.FC<CalorieProgressProps> = ({
               {burned}
             </span>
           </div>
-          <span className="text-xs text-muted-foreground">Burned</span>
+          <span className="text-xs text-muted-foreground">Đã đốt</span>
         </div>
         <div className="flex flex-col items-center">
           <div className="flex items-center gap-1">
@@ -120,7 +120,7 @@ export const CalorieProgress: React.FC<CalorieProgressProps> = ({
               {goal}
             </span>
           </div>
-          <span className="text-xs text-muted-foreground">Goal</span>
+          <span className="text-xs text-muted-foreground">Mục tiêu</span>
         </div>
       </div>
     </div>
