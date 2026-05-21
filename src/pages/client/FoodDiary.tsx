@@ -599,9 +599,19 @@ const FoodDiary: React.FC = () => {
             <main className="container px-4 py-6 space-y-6">
                 {/* Page Header */}
                 <section className="animate-slide-up">
-                    <div className="flex items-center gap-3 mb-1">
-                        <BookOpen className="w-7 h-7 text-primary" />
-                        <h2 className="text-2xl font-bold text-foreground">{t("diary.title")}</h2>
+                    <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-3">
+                            <BookOpen className="w-7 h-7 text-primary" />
+                            <h2 className="page-title text-foreground">{t("diary.title")}</h2>
+                        </div>
+                        <Button
+                            size="sm"
+                            onClick={() => setShowLogModal(true)}
+                            className="gap-1"
+                        >
+                            <Plus className="w-4 h-4" />
+                            {t("diary.logMeal")}
+                        </Button>
                     </div>
                     <p className="text-muted-foreground">{t("diary.subtitle")}</p>
                 </section>
