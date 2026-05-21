@@ -27,7 +27,7 @@ const AuthCallback = () => {
     }, []);
 
     return (
-        <div className="min-h-screen gradient-fresh flex items-center justify-center">
+        <div className="min-h-screen gradient-fresh flex items-center justify-center px-5">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
         </div>
     );

@@ -192,11 +192,11 @@ const Settings: React.FC = () => {
   /* ── Sub-screen header ──────────────────────────────────────────── */
   const SubHeader: React.FC<{ title: string; showSave?: boolean }> = ({ title, showSave }) => (
     <header className="sticky top-0 z-50 glass border-b border-border/50">
-      <div className="container flex items-center h-16 px-4 gap-3">
+      <div className="container flex items-center h-16 px-5 gap-3">
         <Button variant="ghost" size="icon" onClick={() => setScreen(null)}>
           <ArrowLeft className="w-5 h-5" />
         </Button>
-        <h1 className="text-lg font-bold flex-1">{title}</h1>
+        <h1 className="page-title flex-1">{title}</h1>
         {showSave && (
           <Button size="sm" onClick={handleSave} disabled={isSaving} className="min-w-[60px]">
             {isSaving
@@ -213,7 +213,7 @@ const Settings: React.FC = () => {
     return (
       <div className="min-h-screen bg-background pb-nav-safe">
         <SubHeader title={t("settings.menu.profile")} showSave />
-        <main className="container isolate px-4 py-6 space-y-5 max-w-lg mx-auto">
+        <main className="container isolate px-5 py-6 space-y-5 max-w-lg mx-auto">
           <div className="space-y-2">
             <Label htmlFor="email">{t("settings.profile.email")}</Label>
             <Input id="email" value={user?.email || ""} disabled className="bg-muted" />
@@ -245,7 +245,7 @@ const Settings: React.FC = () => {
     return (
       <div className="min-h-screen bg-background pb-nav-safe">
         <SubHeader title={t("settings.menu.physical")} showSave />
-        <main className="container isolate px-4 py-6 space-y-6 max-w-lg mx-auto">
+        <main className="container isolate px-5 py-6 space-y-6 max-w-lg mx-auto">
           {/* Age & Gender */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -380,7 +380,7 @@ const Settings: React.FC = () => {
     return (
       <div className="min-h-screen bg-background pb-nav-safe">
         <SubHeader title={t("settings.menu.nutrition")} showSave />
-        <main className="container isolate px-4 py-6 space-y-6 max-w-lg mx-auto">
+        <main className="container isolate px-5 py-6 space-y-6 max-w-lg mx-auto">
           {/* Macro distribution bar */}
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
@@ -485,7 +485,7 @@ const Settings: React.FC = () => {
     return (
       <div className="min-h-screen bg-background pb-nav-safe">
         <SubHeader title={t("settings.menu.dietary")} />
-        <main className="container isolate px-4 py-6 max-w-lg mx-auto">
+        <main className="container isolate px-5 py-6 max-w-lg mx-auto">
           <DietaryPreferences />
         </main>
         <BottomNav />
@@ -498,7 +498,7 @@ const Settings: React.FC = () => {
     return (
       <div className="min-h-screen bg-background pb-nav-safe">
         <SubHeader title={t("settings.language.title")} />
-        <main className="container isolate px-4 py-6 space-y-3 max-w-lg mx-auto">
+        <main className="container isolate px-5 py-6 space-y-3 max-w-lg mx-auto">
           {([
             { code: "vi", flag: "VN", label: t("settings.language.vietnamese") },
             { code: "en", flag: "EN", label: t("settings.language.english") },
@@ -538,7 +538,7 @@ const Settings: React.FC = () => {
     return (
       <div className="min-h-screen bg-background pb-nav-safe">
         <SubHeader title={t("settings.menu.store")} />
-        <main className="container isolate px-4 py-6 space-y-4 max-w-lg mx-auto">
+        <main className="container isolate px-5 py-6 space-y-4 max-w-lg mx-auto">
           <div className="rounded-2xl overflow-hidden shadow-md bg-gradient-to-br from-amber-400 via-red-500 to-red-700">
             <div className="px-5 pt-5 pb-4">
               <div className="flex items-center justify-between mb-4">
@@ -747,15 +747,15 @@ const Settings: React.FC = () => {
   return (
     <div className="min-h-screen bg-background pb-nav-safe">
       <header className="sticky top-0 z-50 glass border-b border-border/50">
-        <div className="container flex items-center h-16 px-4 gap-4">
+        <div className="container flex items-center h-16 px-5 gap-4">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <h1 className="text-lg font-bold">{t("settings.title")}</h1>
+          <h1 className="page-title">{t("settings.title")}</h1>
         </div>
       </header>
 
-      <main className="container isolate px-4 py-6 space-y-4 max-w-lg mx-auto">
+      <main className="container isolate px-5 py-6 space-y-4 max-w-lg mx-auto">
 
         {/* User card */}
         <div className="flex items-center gap-4 px-4 py-4 bg-card border border-border rounded-2xl">

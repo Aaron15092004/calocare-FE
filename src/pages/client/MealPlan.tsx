@@ -141,15 +141,15 @@ const MealPlan: React.FC = () => {
         return (
             <div className="min-h-screen gradient-fresh pb-nav-safe">
                 <header className="sticky top-0 z-50 glass border-b border-border/50">
-                    <div className="container px-4 py-4 flex items-center gap-3">
+                    <div className="container px-5 py-4 flex items-center gap-3">
                         <Button variant="ghost" size="icon" onClick={() => navigate("/")} className="rounded-xl">
                             <ArrowLeft className="w-5 h-5" />
                         </Button>
-                        <h1 className="text-xl font-bold text-foreground">Kế hoạch</h1>
+                        <h1 className="page-title text-foreground">Kế hoạch</h1>
                     </div>
                 </header>
 
-                <main className="container px-4 py-6 space-y-4 max-w-lg mx-auto">
+                <main className="container px-5 py-6 space-y-4 max-w-lg mx-auto">
                     {isPremium ? (
                         <>
                             {/* AI hero — visible immediately, no tabs */}
@@ -284,12 +284,12 @@ const MealPlan: React.FC = () => {
         <div className="min-h-screen gradient-fresh pb-nav-safe">
             {/* Header */}
             <header className="sticky top-0 z-50 glass border-b border-border/50">
-                <div className="container px-4 py-3 flex items-center gap-2">
+                <div className="container px-5 py-3 flex items-center gap-2">
                     <Button variant="ghost" size="icon" onClick={() => navigate("/")} className="rounded-xl shrink-0">
                         <ArrowLeft className="w-5 h-5" />
                     </Button>
                     <div className="flex-1 min-w-0">
-                        <h1 className="text-base font-bold text-foreground truncate">{planInfo.title}</h1>
+                        <h1 className="page-title text-foreground truncate">{planInfo.title}</h1>
                         <p className="text-xs text-muted-foreground">
                             {planInfo.total_days} ngày
                             {planInfo.goal_type && ` · ${planInfo.goal_type.replace(/_/g, " ")}`}
@@ -317,7 +317,7 @@ const MealPlan: React.FC = () => {
             </header>
 
             {mainTab === "ai" && isPremium ? (
-                <main className="container px-4 py-5 space-y-4 max-w-lg mx-auto">
+                <main className="container px-5 py-5 space-y-4 max-w-lg mx-auto">
                     <div className="rounded-2xl gradient-primary p-5 text-primary-foreground shadow-md shadow-primary/20">
                         <div className="flex items-center gap-3 mb-3">
                             <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
@@ -372,7 +372,7 @@ const MealPlan: React.FC = () => {
                     )}
                 </main>
             ) : (
-            <main className="container px-4 py-6 space-y-6">
+            <main className="container px-5 py-6 space-y-6">
                 {/* Progress Overview */}
                 <Card variant="gradient" className="animate-slide-up">
                     <CardContent className="p-5">

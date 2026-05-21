@@ -99,7 +99,7 @@ const QuickActions = ({ onBarcode }: { onBarcode: () => void }) => {
 
     return (
         <section>
-            <h3 className="text-base font-bold text-foreground mb-3">Tính năng</h3>
+            <h3 className="section-header text-foreground mb-3">Tính năng</h3>
             <div className="grid grid-cols-4 gap-2.5">
                 {actions.map((action) => (
                     <button
@@ -224,13 +224,13 @@ const Index = () => {
             {/* Barcode scanner overlay */}
             {showBarcode && <BarcodeScanner onClose={() => setShowBarcode(false)} />}
 
-            <main className="container px-4 py-5 space-y-5">
+            <main className="container px-5 py-5 space-y-5">
                 {/* Greeting — compact */}
                 <section className="animate-slide-up flex items-center justify-between">
                     <div>
                         <div className="flex items-center gap-2">
                             <GreetingIcon className={`w-5 h-5 ${greeting.iconColor}`} />
-                            <h2 className="text-lg font-bold text-foreground">{greeting.title}</h2>
+                            <h2 className="page-title text-foreground">{greeting.title}</h2>
                         </div>
                         <p className="text-xs text-muted-foreground ml-7">{greeting.subtitle}</p>
                     </div>

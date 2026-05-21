@@ -87,7 +87,7 @@ const CommunityMealPlans: React.FC = () => {
         <div className="min-h-screen gradient-fresh pb-nav-safe">
             {/* Header */}
             <header className="sticky top-0 z-50 glass border-b border-border/50">
-                <div className="container px-4 py-4">
+                <div className="container px-5 py-4">
                     <div className="flex items-center gap-3">
                         <Button
                             variant="ghost"
@@ -98,7 +98,7 @@ const CommunityMealPlans: React.FC = () => {
                             <ArrowLeft className="w-5 h-5" />
                         </Button>
                         <div className="flex-1">
-                            <h1 className="text-xl font-bold text-foreground">Community Plans</h1>
+                            <h1 className="page-title text-foreground">Community Plans</h1>
                             <p className="text-sm text-muted-foreground">
                                 Browse and use approved meal plans
                             </p>
@@ -108,7 +108,7 @@ const CommunityMealPlans: React.FC = () => {
                 </div>
             </header>
 
-            <main className="container px-4 py-6 space-y-4">
+            <main className="container px-5 py-6 space-y-4">
                 {/* Search & Filter */}
                 <div className="space-y-3">
                     <div className="relative">

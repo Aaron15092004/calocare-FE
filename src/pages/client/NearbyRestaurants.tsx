@@ -353,10 +353,10 @@ const NearbyRestaurants: React.FC = () => {
         <div className="min-h-screen bg-background pb-nav-safe">
             {/* Header */}
             <div className="glass border-b border-border/50 sticky top-0 z-10">
-                <div className="px-4 pt-4 pb-3 space-y-2">
+                <div className="px-5 pt-4 pb-3 space-y-2">
                     <div className="flex items-center gap-2">
                         <MapPin className="w-5 h-5 text-primary flex-shrink-0" />
-                        <h1 className="text-xl font-bold flex-1">Quán ăn</h1>
+                        <h1 className="page-title flex-1">Quán ăn</h1>
                         {/* List / Map toggle */}
                         <div className="flex items-center border border-border rounded-lg overflow-hidden">
                             <button type="button"
@@ -421,7 +421,7 @@ const NearbyRestaurants: React.FC = () => {
 
             {/* List view */}
             {viewMode === "list" && (
-                <div className="max-w-lg mx-auto px-4 py-4 space-y-4">
+                <div className="max-w-lg mx-auto px-5 py-4 space-y-4">
                     {loading ? (
                         <div className="flex justify-center py-16">
                             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />

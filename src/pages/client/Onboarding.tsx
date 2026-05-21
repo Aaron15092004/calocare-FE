@@ -33,7 +33,62 @@ import {
   Loader2,
   CheckCircle2,
   Languages,
+  Leaf,
+  Clock,
 } from "lucide-react";
+
+const DIET_TYPES = [
+  { value: "omnivore",    label: "Ăn tạp", desc: "Ăn mọi thứ" },
+  { value: "vegetarian",  label: "Ăn chay (có trứng/sữa)", desc: "Không thịt, có trứng & sữa" },
+  { value: "vegan",       label: "Thuần chay", desc: "Không sản phẩm động vật" },
+  { value: "pescatarian", label: "Pescatarian", desc: "Không thịt, ăn cá" },
+  { value: "halal",       label: "Halal", desc: "Theo tiêu chuẩn Halal" },
+];
+
+const ALLERGY_OPTIONS = [
+  "Sữa",
+  "Gluten",
+  "Trứng",
+  "Hải sản",
+  "Đậu phộng",
+  "Đậu nành",
+  "Hạt cây",
+  "Mè",
+];
+
+function calcMealSchedule(wakeTime: string, sleepTime: string): Record<string, string> {
+  const toMins = (t: string) => {
+    const [h, m] = t.split(":").map(Number);
+    return h * 60 + (m || 0);
+  };
+  const toStr = (mins: number) => {
+    const h = Math.floor(((mins % 1440) + 1440) % 1440 / 60);
+    const m = ((mins % 1440) + 1440) % 1440 % 60;
+    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  };
+  const wake  = toMins(wakeTime  || "06:30");
+  const sleep = toMins(sleepTime || "23:00");
+  return {
+    breakfast: toStr(wake + 60),
+    lunch:     toStr(Math.max(12 * 60, wake + 270)),
+    snack:     toStr(Math.round((Math.max(12 * 60, wake + 270) + Math.max(17 * 60, sleep - 210)) / 2)),
+    dinner:    toStr(Math.max(17 * 60, sleep - 210)),
+  };
+}
+
+const MEAL_LABEL_VI: Record<string, string> = {
+  breakfast: "Bữa sáng",
+  lunch:     "Bữa trưa",
+  snack:     "Bữa phụ",
+  dinner:    "Bữa tối",
+};
+
+const MEAL_TIP: Record<string, string> = {
+  breakfast: "60 phút sau khi thức dậy — khởi động trao đổi chất",
+  lunch:     "Cách bữa sáng 4–5 tiếng — duy trì năng lượng",
+  snack:     "Giữa trưa và tối — tránh ăn quá nhiều vào bữa tối",
+  dinner:    "Trước khi ngủ ít nhất 3 tiếng — hỗ trợ tiêu hóa",
+};
 
 const Onboarding: React.FC = () => {
   const navigate = useNavigate();
@@ -52,9 +107,13 @@ const Onboarding: React.FC = () => {
     weight_kg: "",
     activity_level: "moderate",
     goal: "maintain",
+    dietary_preference: "omnivore",
+    allergies: [] as string[],
+    wake_time: "06:30",
+    sleep_time: "23:00",
   });
 
-  const totalSteps = 4;
+  const totalSteps = 6;
   const progress = (currentStep / totalSteps) * 100;
 
   const handleNext = () => {
@@ -139,6 +198,8 @@ const Onboarding: React.FC = () => {
         goal: formData.goal as "lose" | "maintain" | "gain",
       });
 
+      const goalMap: Record<string, string> = { lose: "weight_loss", gain: "muscle_gain", maintain: "maintenance" };
+      const mealSchedule = calcMealSchedule(formData.wake_time, formData.sleep_time);
       await updateProfile({
         display_name: formData.display_name,
         preferences: {
@@ -147,6 +208,10 @@ const Onboarding: React.FC = () => {
           height_cm: Number(formData.height_cm),
           weight_kg: Number(formData.weight_kg),
           activity_level: formData.activity_level,
+          goal: goalMap[formData.goal] ?? "maintenance",
+          dietary_preference: formData.dietary_preference,
+          allergies: formData.allergies,
+          meal_schedule: mealSchedule,
         },
         daily_nutrition_goals: goals,
       });
@@ -170,25 +235,22 @@ const Onboarding: React.FC = () => {
 
   const getStepDescription = () => {
     switch (currentStep) {
-      case 0:
-        return t("onboarding.language.description");
-      case 1:
-        return t("onboarding.basicInfo.description");
-      case 2:
-        return t("onboarding.physicalStats.description");
-      case 3:
-        return t("onboarding.goals.description");
-      default:
-        return "";
+      case 0: return t("onboarding.language.description");
+      case 1: return t("onboarding.basicInfo.description");
+      case 2: return t("onboarding.physicalStats.description");
+      case 3: return t("onboarding.goals.description");
+      case 4: return "Cho chúng tôi biết chế độ ăn và dị ứng thực phẩm để cá nhân hóa gợi ý";
+      case 5: return "Thiết lập giờ ăn khoa học dựa theo nhịp sinh học của bạn";
+      default: return "";
     }
   };
 
   return (
-    <div className="min-h-screen gradient-fresh flex items-center justify-center p-4">
+    <div className="min-h-screen gradient-fresh flex items-center justify-center px-5 py-4">
       <Card className="w-full max-w-lg">
         <CardHeader>
           <div className="flex items-center justify-between mb-2">
-            <CardTitle className="text-2xl">
+            <CardTitle className="page-title">
               {t("onboarding.welcome")}
             </CardTitle>
             {currentStep > 0 && (
@@ -450,6 +512,135 @@ const Onboarding: React.FC = () => {
               </Card>
             </div>
           )}
+
+          {/* Step 4: Dietary Preferences */}
+          {currentStep === 4 && (
+            <div className="space-y-5 animate-slide-up">
+              <div className="flex items-center gap-2 text-primary mb-2">
+                <Leaf className="w-5 h-5" />
+                <h3 className="font-semibold">Chế độ ăn & Dị ứng</h3>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Phong cách ăn uống</Label>
+                <div className="grid grid-cols-1 gap-2">
+                  {DIET_TYPES.map((d) => (
+                    <button
+                      key={d.value}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, dietary_preference: d.value })}
+                      className={`flex items-center gap-3 p-3 rounded-xl border text-left transition-colors ${
+                        formData.dietary_preference === d.value
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:bg-muted/50"
+                      }`}
+                    >
+                      <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${
+                        formData.dietary_preference === d.value ? "border-primary bg-primary" : "border-muted-foreground"
+                      }`} />
+                      <div>
+                        <p className="text-sm font-medium">{d.label}</p>
+                        <p className="text-xs text-muted-foreground">{d.desc}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Dị ứng thực phẩm (chọn tất cả phù hợp)</Label>
+                <div className="flex flex-wrap gap-2">
+                  {ALLERGY_OPTIONS.map((a) => {
+                    const active = formData.allergies.includes(a);
+                    return (
+                      <button
+                        key={a}
+                        type="button"
+                        onClick={() => setFormData({
+                          ...formData,
+                          allergies: active
+                            ? formData.allergies.filter((x) => x !== a)
+                            : [...formData.allergies, a],
+                        })}
+                        className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+                          active
+                            ? "border-destructive bg-destructive/10 text-destructive"
+                            : "border-border text-muted-foreground hover:bg-muted"
+                        }`}
+                      >
+                        {active ? "✕ " : ""}{a}
+                      </button>
+                    );
+                  })}
+                </div>
+                {formData.allergies.length === 0 && (
+                  <p className="text-xs text-muted-foreground">Không có dị ứng — để trống</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Step 5: Meal Timing (MP-05) */}
+          {currentStep === 5 && (() => {
+            const schedule = calcMealSchedule(formData.wake_time, formData.sleep_time);
+            return (
+              <div className="space-y-4 animate-slide-up">
+                <div className="flex items-center gap-2 text-primary mb-2">
+                  <Clock className="w-5 h-5" />
+                  <h3 className="font-semibold">Lịch ăn khoa học</h3>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="wake_time">Giờ thức dậy</Label>
+                    <input
+                      id="wake_time"
+                      type="time"
+                      title="Giờ thức dậy"
+                      value={formData.wake_time}
+                      onChange={(e) => setFormData({ ...formData, wake_time: e.target.value })}
+                      className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="sleep_time">Giờ đi ngủ</Label>
+                    <input
+                      id="sleep_time"
+                      type="time"
+                      title="Giờ đi ngủ"
+                      value={formData.sleep_time}
+                      onChange={(e) => setFormData({ ...formData, sleep_time: e.target.value })}
+                      className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Lịch đề xuất</p>
+                  {(["breakfast", "lunch", "snack", "dinner"] as const).map((k) => (
+                    <div key={k} className="flex items-center justify-between p-2.5 rounded-xl bg-muted/50 border border-border">
+                      <div>
+                        <p className="text-sm font-medium">{MEAL_LABEL_VI[k]}</p>
+                        <p className="text-[11px] text-muted-foreground">{MEAL_TIP[k]}</p>
+                      </div>
+                      <span className="text-base font-bold text-primary tabular-nums">{schedule[k]}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <Card className="bg-primary/5 border-primary/20">
+                  <CardContent className="pt-4 pb-4">
+                    <div className="flex items-start gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                      <p className="text-xs text-muted-foreground">
+                        Lịch ăn được tính toán theo nhịp sinh học. Bạn có thể thay đổi sau trong Cài đặt.
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            );
+          })()}
 
           {/* Navigation Buttons */}
           <div className="flex gap-3 pt-4">

@@ -469,11 +469,11 @@ const MyRecipes: React.FC = () => {
         return (
             <div className="min-h-screen bg-gray-50 pb-nav-safe">
                 {/* Header */}
-                <div className="bg-white border-b sticky top-0 z-10 px-4 py-3 flex items-center gap-3">
+                <div className="bg-white border-b sticky top-0 z-10 px-5 py-3 flex items-center gap-3">
                     <Button variant="ghost" size="icon" onClick={() => setViewMode("list")}>
                         <ArrowLeft className="w-5 h-5" />
                     </Button>
-                    <h1 className="font-semibold text-lg flex-1">
+                    <h1 className="page-title flex-1">
                         {form.id ? "Edit Recipe" : "New Recipe"}
                     </h1>
                     <Button size="sm" onClick={handleSave} disabled={saving}>
@@ -481,7 +481,7 @@ const MyRecipes: React.FC = () => {
                     </Button>
                 </div>
 
-                <div className="max-w-lg mx-auto px-4 py-4 space-y-5">
+                <div className="max-w-lg mx-auto px-5 py-4 space-y-5">
                     {/* Basic info */}
                     <Card>
                         <CardContent className="pt-4 space-y-3">
@@ -901,18 +901,18 @@ const MyRecipes: React.FC = () => {
     return (
         <div className="min-h-screen bg-gray-50 pb-nav-safe">
             {/* Header */}
-            <div className="bg-white border-b sticky top-0 z-10 px-4 py-3 flex items-center gap-3">
+            <div className="bg-white border-b sticky top-0 z-10 px-5 py-3 flex items-center gap-3">
                 <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
                     <ArrowLeft className="w-5 h-5" />
                 </Button>
-                <h1 className="font-semibold text-lg flex-1">My Recipes</h1>
+                <h1 className="page-title flex-1">My Recipes</h1>
                 <Button size="sm" onClick={openCreate}>
                     <Plus className="w-4 h-4 mr-1" />
                     New
                 </Button>
             </div>
 
-            <div className="max-w-lg mx-auto px-4 py-4 space-y-3">
+            <div className="max-w-lg mx-auto px-5 py-4 space-y-3">
                 {loading ? (
                     <div className="flex justify-center py-12">
                         <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />

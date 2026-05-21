@@ -352,18 +352,18 @@ const MyMealPlans: React.FC = () => {
         return (
             <div className="min-h-screen gradient-fresh pb-nav-safe">
                 <header className="sticky top-0 z-50 glass border-b border-border/50">
-                    <div className="container px-4 py-4 flex items-center gap-3">
+                    <div className="container px-5 py-4 flex items-center gap-3">
                         <Button variant="ghost" size="icon" onClick={() => setViewMode("list")} className="rounded-xl">
                             <ArrowLeft className="w-5 h-5" />
                         </Button>
-                        <h1 className="flex-1 text-xl font-bold">{form.id ? "Edit Plan" : "New Plan"}</h1>
+                        <h1 className="flex-1 page-title">{form.id ? "Edit Plan" : "New Plan"}</h1>
                         <Button onClick={handleSave} disabled={saving || !form.title.trim()} size="sm">
                             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save"}
                         </Button>
                     </div>
                 </header>
 
-                <main className="container px-4 py-6 space-y-6">
+                <main className="container px-5 py-6 space-y-6">
                     {/* Basic info */}
                     <Card>
                         <CardContent className="p-4 space-y-4">
@@ -678,18 +678,18 @@ const MyMealPlans: React.FC = () => {
     return (
         <div className="min-h-screen gradient-fresh pb-nav-safe">
             <header className="sticky top-0 z-50 glass border-b border-border/50">
-                <div className="container px-4 py-4 flex items-center gap-3">
+                <div className="container px-5 py-4 flex items-center gap-3">
                     <Button variant="ghost" size="icon" onClick={() => navigate("/")} className="rounded-xl">
                         <ArrowLeft className="w-5 h-5" />
                     </Button>
-                    <h1 className="flex-1 text-xl font-bold">My Meal Plans</h1>
+                    <h1 className="flex-1 page-title">My Meal Plans</h1>
                     <Button size="sm" onClick={handleNew} className="gap-1">
                         <Plus className="w-4 h-4" /> New
                     </Button>
                 </div>
             </header>
 
-            <main className="container px-4 py-6 space-y-4">
+            <main className="container px-5 py-6 space-y-4">
                 {loading ? (
                     <div className="flex justify-center py-12">
                         <Loader2 className="w-6 h-6 animate-spin text-primary" />

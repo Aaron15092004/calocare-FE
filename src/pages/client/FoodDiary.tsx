@@ -577,7 +577,7 @@ const FoodDiary: React.FC = () => {
         return (
             <div className="min-h-screen gradient-fresh pb-nav-safe">
                 <Header />
-                <main className="container px-4 py-6">
+                <main className="container px-5 py-6">
                     <Card className="p-8 text-center">
                         <BookOpen className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
                         <h2 className="text-xl font-bold mb-2">{t("auth.signIn")}</h2>
