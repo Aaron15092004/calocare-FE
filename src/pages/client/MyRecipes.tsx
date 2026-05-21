@@ -12,6 +12,8 @@ import {
     ChevronDown,
     ChevronUp,
     Flame,
+    GripVertical,
+    ListOrdered,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -26,7 +28,15 @@ import {
     DialogTitle,
     DialogFooter,
 } from "@/components/ui/dialog";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { BottomNav } from "@/components/BottomNav";
+import { MultiImageUpload } from "@/components/MultiImageUpload";
 import { useToast } from "@/hooks/use-toast";
 import api from "@/lib/api";
 
@@ -46,6 +56,16 @@ interface Ingredient {
     sort_order: number;
 }
 
+interface RecipeCategory {
+    _id: string;
+    name_vi: string;
+    name_en?: string;
+}
+
+interface RecipeStep {
+    description: string;
+}
+
 interface RecipeAPI {
     _id: string;
     name_vi: string;
@@ -61,9 +81,12 @@ interface RecipeAPI {
     cook_time?: number;
     tags?: string[];
     image_url?: string;
+    images?: string[];
     is_public?: boolean;
     is_approved?: boolean;
     ingredients?: Ingredient[];
+    instructions?: { step_number: number; description: string }[];
+    category_id?: string | RecipeCategory;
 }
 
 interface RecipeForm {
@@ -75,7 +98,8 @@ interface RecipeForm {
     cook_time: number;
     servings: number;
     tags: string[];
-    image_url: string;
+    images: string[];
+    category_id: string;
 }
 
 const emptyForm: RecipeForm = {
@@ -86,7 +110,8 @@ const emptyForm: RecipeForm = {
     cook_time: 0,
     servings: 1,
     tags: [],
-    image_url: "",
+    images: [],
+    category_id: "",
 };
 
 // New food form for inline creation
@@ -153,9 +178,13 @@ const MyRecipes: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [expandedId, setExpandedId] = useState<string | null>(null);
 
+    // Categories
+    const [categories, setCategories] = useState<RecipeCategory[]>([]);
+
     // Form state
     const [viewMode, setViewMode] = useState<ViewMode>("list");
     const [form, setForm] = useState<RecipeForm>(emptyForm);
+    const [steps, setSteps] = useState<RecipeStep[]>([]);
     const [saving, setSaving] = useState(false);
     const [tagInput, setTagInput] = useState("");
 
@@ -176,6 +205,10 @@ const MyRecipes: React.FC = () => {
     const [deleting, setDeleting] = useState(false);
 
     // ── Data fetching ──────────────────────────────────────────────────────────
+
+    useEffect(() => {
+        api.get("/recipe-categories").then((res) => setCategories(res.data || [])).catch(() => {});
+    }, []);
 
     const fetchRecipes = useCallback(async () => {
         setLoading(true);
@@ -288,10 +321,14 @@ const MyRecipes: React.FC = () => {
     const openCreate = () => {
         setForm(emptyForm);
         setIngredients([]);
+        setSteps([]);
         setViewMode("form");
     };
 
     const openEdit = async (recipe: RecipeAPI) => {
+        const catId = typeof recipe.category_id === "object"
+            ? (recipe.category_id as RecipeCategory)?._id ?? ""
+            : recipe.category_id ?? "";
         setForm({
             id: recipe._id,
             name_vi: recipe.name_vi,
@@ -301,7 +338,8 @@ const MyRecipes: React.FC = () => {
             cook_time: recipe.cook_time || 0,
             servings: recipe.servings || 1,
             tags: recipe.tags || [],
-            image_url: recipe.image_url || "",
+            images: recipe.images?.length ? recipe.images : (recipe.image_url ? [recipe.image_url] : []),
+            category_id: catId,
         });
         // Load ingredients
         try {
@@ -320,8 +358,11 @@ const MyRecipes: React.FC = () => {
                 fiber_per_100g: ing.food_id?.fiber || 0,
                 sort_order: idx,
             })));
+            const rawSteps: any[] = res.data?.instructions || [];
+            setSteps(rawSteps.map((s: any) => ({ description: s.description || s.text || "" })));
         } catch {
             setIngredients([]);
+            setSteps([]);
         }
         setViewMode("form");
     };
@@ -356,7 +397,12 @@ const MyRecipes: React.FC = () => {
                 cook_time: form.cook_time || undefined,
                 servings: form.servings || 1,
                 tags: form.tags,
-                image_url: form.image_url.trim() || undefined,
+                images: form.images,
+                image_url: form.images[0] || undefined,
+                category_id: form.category_id || undefined,
+                instructions: steps
+                    .filter((s) => s.description.trim())
+                    .map((s, idx) => ({ step_number: idx + 1, description: s.description.trim() })),
                 calories: nut.calories,
                 protein: nut.protein,
                 carbs: nut.carbs,
@@ -421,7 +467,7 @@ const MyRecipes: React.FC = () => {
         const nut = calcRecipeNutrition(ingredients);
 
         return (
-            <div className="min-h-screen bg-gray-50 pb-24">
+            <div className="min-h-screen bg-gray-50 pb-nav-safe">
                 {/* Header */}
                 <div className="bg-white border-b sticky top-0 z-10 px-4 py-3 flex items-center gap-3">
                     <Button variant="ghost" size="icon" onClick={() => setViewMode("list")}>
@@ -499,14 +545,35 @@ const MyRecipes: React.FC = () => {
                                     />
                                 </div>
                             </div>
+                            {/* Category */}
                             <div>
-                                <Label className="text-xs">Image URL (optional)</Label>
-                                <Input
-                                    className="mt-1"
-                                    value={form.image_url}
-                                    onChange={(e) => setForm({ ...form, image_url: e.target.value })}
-                                    placeholder="https://..."
-                                />
+                                <Label className="text-xs">Danh mục</Label>
+                                <Select
+                                    value={form.category_id || "none"}
+                                    onValueChange={(v) => setForm({ ...form, category_id: v === "none" ? "" : v })}
+                                >
+                                    <SelectTrigger className="mt-1">
+                                        <SelectValue placeholder="Chọn danh mục..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="none">-- Không chọn --</SelectItem>
+                                        {categories.map((c) => (
+                                            <SelectItem key={c._id} value={c._id}>{c.name_vi}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            {/* Images */}
+                            <div>
+                                <Label className="text-xs">Hình ảnh (tối đa 5)</Label>
+                                <div className="mt-1">
+                                    <MultiImageUpload
+                                        value={form.images}
+                                        onChange={(urls) => setForm({ ...form, images: urls })}
+                                        folder="calocare/recipes"
+                                        maxImages={5}
+                                    />
+                                </div>
                             </div>
                             {/* Tags */}
                             <div>
@@ -634,6 +701,66 @@ const MyRecipes: React.FC = () => {
                                     Search above to add ingredients
                                 </p>
                             )}
+                        </CardContent>
+                    </Card>
+
+                    {/* Cooking steps */}
+                    <Card>
+                        <CardContent className="pt-4 space-y-3">
+                            <div className="flex items-center justify-between">
+                                <h3 className="font-medium text-sm flex items-center gap-1.5">
+                                    <ListOrdered className="w-4 h-4 text-primary" />
+                                    Các bước thực hiện
+                                    <span className="text-xs text-muted-foreground font-normal">(không bắt buộc)</span>
+                                </h3>
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 text-xs"
+                                    onClick={() => setSteps([...steps, { description: "" }])}
+                                >
+                                    <Plus className="w-3 h-3 mr-1" />
+                                    Thêm bước
+                                </Button>
+                            </div>
+
+                            {steps.length === 0 && (
+                                <p className="text-xs text-muted-foreground text-center py-2">
+                                    Nhấn "Thêm bước" để mô tả cách thực hiện món ăn
+                                </p>
+                            )}
+
+                            <div className="space-y-2">
+                                {steps.map((step, i) => (
+                                    <div key={i} className="flex gap-2 items-start">
+                                        <div className="flex items-center gap-1.5 flex-shrink-0 mt-2">
+                                            <GripVertical className="w-3.5 h-3.5 text-muted-foreground" />
+                                            <span className="w-5 h-5 rounded-full bg-primary/10 text-primary text-[10px] font-bold flex items-center justify-center">
+                                                {i + 1}
+                                            </span>
+                                        </div>
+                                        <Textarea
+                                            rows={2}
+                                            className="flex-1 text-sm resize-none"
+                                            placeholder={`Bước ${i + 1}...`}
+                                            value={step.description}
+                                            onChange={(e) => {
+                                                const updated = [...steps];
+                                                updated[i].description = e.target.value;
+                                                setSteps(updated);
+                                            }}
+                                        />
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-7 w-7 text-red-400 flex-shrink-0 mt-1"
+                                            onClick={() => setSteps(steps.filter((_, idx) => idx !== i))}
+                                        >
+                                            <X className="w-3.5 h-3.5" />
+                                        </Button>
+                                    </div>
+                                ))}
+                            </div>
                         </CardContent>
                     </Card>
 
@@ -772,7 +899,7 @@ const MyRecipes: React.FC = () => {
     // ── Render: List view ─────────────────────────────────────────────────────
 
     return (
-        <div className="min-h-screen bg-gray-50 pb-24">
+        <div className="min-h-screen bg-gray-50 pb-nav-safe">
             {/* Header */}
             <div className="bg-white border-b sticky top-0 z-10 px-4 py-3 flex items-center gap-3">
                 <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>

@@ -20,12 +20,19 @@ import {
     MapPin,
     Plus,
     TrendingUp,
+    PenLine,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { getGreeting } from "@/utils/greetings";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useFoodDiary } from "@/hooks/useFoodDiary";
 import api from "@/lib/api";
+import { AdBanner } from "@/components/AdBanner";
+import { HomeBannerCarousel } from "@/components/HomeBannerCarousel";
+import { ChatbotWidget } from "@/components/ChatbotWidget";
+import { AdSenseUnit } from "@/components/AdSenseUnit";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Crown, Zap, X, Sparkles, ChevronRight } from "lucide-react";
 
 // Quick action items shown on the home page
 const QuickActions = ({ onBarcode }: { onBarcode: () => void }) => {
@@ -40,9 +47,16 @@ const QuickActions = ({ onBarcode }: { onBarcode: () => void }) => {
             onClick: onBarcode,
         },
         {
+            icon: PenLine,
+            label: "Ghi bữa ăn",
+            sublabel: "Thêm bữa ăn",
+            color: "bg-green-500/10 text-green-600",
+            onClick: () => navigate("/diary?action=log"),
+        },
+        {
             icon: BookOpen,
             label: "Nhật ký",
-            sublabel: "Ghi bữa ăn",
+            sublabel: "Xem lịch sử",
             color: "bg-orange-500/10 text-orange-600",
             onClick: () => navigate("/diary"),
         },
@@ -118,11 +132,18 @@ const Index = () => {
     const { profile, user } = useAuthContext();
     const greeting = getGreeting(profile?.display_name);
     const GreetingIcon = greeting.icon;
-    const { getTodaysTotals } = useFoodDiary(user?.id);
+    const { getTodaysTotals, refetch: refetchDiary } = useFoodDiary(user?.id);
     const todaysTotals = getTodaysTotals();
 
     const [planItems, setPlanItems] = useState<any[]>([]);
     const [showBarcode, setShowBarcode] = useState(false);
+    const [showPostScanAd, setShowPostScanAd] = useState(false);
+
+    const handleScanComplete = () => {
+        if (sessionStorage.getItem("post_scan_ad_shown") !== "1") {
+            setShowPostScanAd(true);
+        }
+    };
 
     useEffect(() => {
         if (profile?.id) {
@@ -161,13 +182,23 @@ const Index = () => {
                         day: item.day_number,
                         mealType: item.meal_type,
                         title:
-                            item.recipe_id?.name_vi || item.food_id?.name_vi || "Unknown",
+                            item.recipe_id?.name_vi ||
+                            item.custom_food?.name ||
+                            item.food_id?.name_vi ||
+                            "Unknown",
                         calories: Math.round(
-                            (item.recipe_id?.calories || item.food_id?.energy_kcal || 0) *
-                                (item.serving_size || 1),
+                            // Use stored AI-calculated calories when available (most accurate)
+                            item.calories ??
+                            (item.recipe_id
+                                ? (item.recipe_id.calories || 0) * (item.serving_size || 1)
+                                : item.food_id
+                                ? ((item.food_id.energy_kcal || 0) / 100) * (item.serving_size || 100)
+                                : (item.custom_food?.calories_kcal || 0) * (item.serving_size || 1))
                         ),
                         time: mealTime[item.meal_type] || "—",
+                        image: item.recipe_id?.image_url || item.food_id?.image_url,
                         isToday: true,
+                        planId: item.user_meal_plan_id || item.meal_plan_id,
                     })),
             );
         } catch (err) {
@@ -179,8 +210,12 @@ const Index = () => {
     const calorieGoal = goals?.calories || 2000;
     const caloriePercent = Math.min(100, Math.round((todaysTotals.calories / calorieGoal) * 100));
 
+    const tier = profile?.subscription_tier ?? "free";
+    const isPremiumUser = tier === "premium" || tier === "pro";
+    const isProUser = tier === "pro";
+
     return (
-        <div className="min-h-screen gradient-fresh pb-24">
+        <div className="min-h-screen gradient-fresh pb-nav-safe">
             <Header />
 
             {/* Onboarding tour for first-time users */}
@@ -284,13 +319,46 @@ const Index = () => {
                 {/* AI Food Scanner — prominent feature */}
                 <section className="animate-slide-up-delay-3">
                     <h3 className="text-base font-bold text-foreground mb-3">AI Food Scanner</h3>
-                    <FoodScanner />
+                    <FoodScanner onScanComplete={handleScanComplete} onSaved={refetchDiary} />
                 </section>
 
                 {/* Quick Actions */}
                 <section className="animate-slide-up-delay-3">
                     <QuickActions onBarcode={() => setShowBarcode(true)} />
                 </section>
+
+                {/* CaloCare AI spotlight — premium/pro only */}
+                {isPremiumUser && (
+                    <section>
+                        <button
+                            type="button"
+                            onClick={() => navigate("/generate-meal-plan")}
+                            className="w-full gradient-primary rounded-2xl p-4 text-primary-foreground flex items-center gap-4 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 active:scale-[0.98] transition-all duration-150"
+                        >
+                            <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center shrink-0">
+                                <Sparkles className="w-6 h-6" />
+                            </div>
+                            <div className="flex-1 text-left min-w-0">
+                                <div className="flex items-center gap-2 mb-0.5">
+                                    <p className="font-bold text-sm">CaloCare AI</p>
+                                    <span className="text-[10px] font-semibold bg-white/20 px-1.5 py-0.5 rounded-full">
+                                        {isProUser ? "Pro · 21 ngày" : "Premium · 7 ngày"}
+                                    </span>
+                                </div>
+                                <p className="text-xs text-primary-foreground/80 leading-snug">
+                                    Tạo thực đơn cá nhân hóa — có công thức & hướng dẫn nấu ăn chi tiết
+                                </p>
+                            </div>
+                            <ChevronRight className="w-5 h-5 text-primary-foreground/60 shrink-0" />
+                        </button>
+                    </section>
+                )}
+
+                {/* Rotating banner carousel (admin-managed + house ads) */}
+                <HomeBannerCarousel />
+
+                {/* AdSense unit — between actions and meal plan, free users only */}
+                <AdSenseUnit slot={import.meta.env.VITE_ADSENSE_SLOT_HOME ?? ""} format="auto" className="min-h-[100px]" />
 
                 {/* Today's Meal Plan */}
                 <section>
@@ -314,7 +382,11 @@ const Index = () => {
                     {planItems.length > 0 ? (
                         <div className="space-y-2">
                             {planItems.slice(0, 3).map((meal, index) => (
-                                <MealPlanCard key={index} {...meal} />
+                                <MealPlanCard
+                            key={index}
+                            {...meal}
+                            onClick={() => navigate("/meal-plan")}
+                        />
                             ))}
                             {planItems.length > 3 && (
                                 <button
@@ -326,18 +398,46 @@ const Index = () => {
                                 </button>
                             )}
                         </div>
+                    ) : isPremiumUser ? (
+                        /* Premium/Pro: show AI as primary CTA */
+                        <div className="space-y-2">
+                            <button
+                                type="button"
+                                onClick={() => navigate("/generate-meal-plan")}
+                                className="w-full gradient-primary rounded-2xl p-4 text-primary-foreground flex items-center gap-3 shadow-md shadow-primary/20 active:scale-[0.98] transition-all"
+                            >
+                                <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                                    <Sparkles className="w-5 h-5" />
+                                </div>
+                                <div className="flex-1 text-left">
+                                    <p className="text-sm font-bold">Tạo thực đơn bằng AI</p>
+                                    <p className="text-xs text-primary-foreground/80">
+                                        {isProUser ? "21" : "7"} ngày · cá nhân hóa · có công thức nấu ăn
+                                    </p>
+                                </div>
+                                <ChevronRight className="w-4 h-4 text-primary-foreground/60 shrink-0" />
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => navigate("/community-plans")}
+                                className="w-full flex items-center gap-3 p-3 rounded-xl border border-border bg-card hover:bg-accent/50 transition-colors active:scale-[0.98]"
+                            >
+                                <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                                    <TrendingUp className="w-4 h-4 text-muted-foreground" />
+                                </div>
+                                <span className="text-sm text-foreground">Thực đơn cộng đồng</span>
+                                <ChevronRight className="w-4 h-4 text-muted-foreground ml-auto" />
+                            </button>
+                        </div>
                     ) : (
+                        /* Free tier: standard empty state */
                         <Card className="border-dashed">
                             <CardContent className="p-5 text-center">
                                 <Calendar className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
                                 <p className="text-sm text-muted-foreground mb-3">
                                     {t("home.noPlanYet", "Chưa có thực đơn hôm nay")}
                                 </p>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => navigate("/community-plans")}
-                                >
+                                <Button variant="outline" size="sm" onClick={() => navigate("/community-plans")}>
                                     <Plus className="w-3 h-3 mr-1" />
                                     {t("home.browsePlans", "Chọn thực đơn")}
                                 </Button>
@@ -347,6 +447,102 @@ const Index = () => {
                 </section>
             </main>
 
+            {/* Post-scan upgrade modal (free users, once per session) */}
+            <Dialog
+                open={showPostScanAd}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        sessionStorage.setItem("post_scan_ad_shown", "1");
+                        setShowPostScanAd(false);
+                    }
+                }}
+            >
+                <DialogContent className="max-w-sm p-0 overflow-hidden rounded-3xl border-0">
+                    {/* Hero gradient */}
+                    <div className="relative bg-gradient-to-br from-violet-600 via-purple-700 to-indigo-700 px-6 pt-8 pb-6 text-white overflow-hidden">
+                        {/* Decorative circles */}
+                        <div className="pointer-events-none absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/10" />
+                        <div className="pointer-events-none absolute -bottom-8 -left-6 w-28 h-28 rounded-full bg-white/10" />
+
+                        <button
+                            type="button"
+                            aria-label="Đóng"
+                            onClick={() => {
+                                sessionStorage.setItem("post_scan_ad_shown", "1");
+                                setShowPostScanAd(false);
+                            }}
+                            className="absolute top-4 right-4 w-7 h-7 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
+                        >
+                            <X className="w-3.5 h-3.5" />
+                        </button>
+
+                        <div className="relative">
+                            <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center mb-4 shadow-lg">
+                                <Crown className="w-7 h-7 text-amber-300" />
+                            </div>
+                            <p className="text-xs font-semibold text-white/60 uppercase tracking-wide mb-1">Scan thành công!</p>
+                            <h3 className="text-xl font-bold leading-snug">Nâng cấp để scan<br />không giới hạn</h3>
+                            <p className="text-sm text-white/75 mt-2">
+                                Gói Free: <strong className="text-white">2 lần/ngày</strong> · Premium: <strong className="text-white">10 lần</strong> · Pro: <strong className="text-white">20 lần</strong>
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Plan options */}
+                    <div className="p-5 space-y-2.5 bg-white">
+                        <button
+                            type="button"
+                            className="w-full flex items-center gap-3.5 p-3.5 rounded-2xl border-2 border-violet-200 bg-violet-50 hover:bg-violet-100 active:scale-[0.98] transition-all text-left"
+                            onClick={() => {
+                                sessionStorage.setItem("post_scan_ad_shown", "1");
+                                setShowPostScanAd(false);
+                                navigate("/subscription");
+                            }}
+                        >
+                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shrink-0 shadow-md shadow-violet-200">
+                                <Zap className="w-5 h-5 text-white" />
+                            </div>
+                            <div className="flex-1">
+                                <p className="text-sm font-bold text-violet-900">Premium · 79.000₫/tháng</p>
+                                <p className="text-xs text-violet-600 mt-0.5">10 scan/ngày · Phân tích vitamin · Không quảng cáo</p>
+                            </div>
+                            <span className="text-violet-400 text-lg">›</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            className="w-full flex items-center gap-3.5 p-3.5 rounded-2xl border-2 border-amber-200 bg-amber-50 hover:bg-amber-100 active:scale-[0.98] transition-all text-left"
+                            onClick={() => {
+                                sessionStorage.setItem("post_scan_ad_shown", "1");
+                                setShowPostScanAd(false);
+                                navigate("/subscription");
+                            }}
+                        >
+                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shrink-0 shadow-md shadow-amber-200">
+                                <Crown className="w-5 h-5 text-white" />
+                            </div>
+                            <div className="flex-1">
+                                <p className="text-sm font-bold text-amber-900">Pro · 179.000₫/tháng</p>
+                                <p className="text-xs text-amber-700 mt-0.5">20 scan/ngày · Tất cả tính năng · Nhiều cửa hàng</p>
+                            </div>
+                            <span className="text-amber-400 text-lg">›</span>
+                        </button>
+
+                        <Button
+                            variant="ghost"
+                            className="w-full text-sm text-muted-foreground h-9"
+                            onClick={() => {
+                                sessionStorage.setItem("post_scan_ad_shown", "1");
+                                setShowPostScanAd(false);
+                            }}
+                        >
+                            Để sau
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            <ChatbotWidget />
             <BottomNav />
         </div>
     );

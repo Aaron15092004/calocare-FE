@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { invalidateMealPlanCache } from "@/pages/client/MealPlan";
 import {
     ArrowLeft,
     Plus,
@@ -11,6 +12,11 @@ import {
     ChevronUp,
     Search,
     X,
+    Eye,
+    ShoppingBasket,
+    ChefHat,
+    BookOpen,
+    Copy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -30,17 +36,27 @@ import { useToast } from "@/hooks/use-toast";
 import api from "@/lib/api";
 import { MealPlanAPI } from "@/types/mealPlan";
 
+interface RecipeData {
+    description?: string;
+    protein?: number;
+    carbs?: number;
+    fat?: number;
+    instructions?: Array<{ type: string; items: any[] }>;
+}
+
 interface MealItem {
     id?: string;
     day_number: number;
     meal_type: string;
     recipe_id: string | null;
     food_id: string | null;
-    serving_size: number;
+    serving_size: number; // grams for food, multiplier for recipe
     sort_order: number;
     recipe_name?: string;
     food_name?: string;
-    calories?: number;
+    calories?: number;          // kcal per serving (recipe) or per 100g (food)
+    calories_per_100g?: number; // food items only
+    recipe_data?: RecipeData;   // recipe items only
 }
 
 interface PlanForm {
@@ -96,6 +112,9 @@ const MyMealPlans: React.FC = () => {
 
     const [deleteId, setDeleteId] = useState<string | null>(null);
     const [submitId, setSubmitId] = useState<string | null>(null);
+    const [recipeDetailItem, setRecipeDetailItem] = useState<MealItem | null>(null);
+    const [shoppingList, setShoppingList] = useState<{ name: string; sources: string[] }[] | null>(null);
+    const [shoppingLoading, setShoppingLoading] = useState(false);
 
     useEffect(() => {
         fetchPlans();
@@ -110,6 +129,28 @@ const MyMealPlans: React.FC = () => {
             console.error(err);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleDuplicate = async (planId: string) => {
+        try {
+            await api.post(`/meal-plans/${planId}/duplicate`);
+            toast({ title: "Đã sao chép", description: "Bản sao đã được tạo trong danh sách của bạn." });
+            fetchPlans();
+        } catch {
+            toast({ title: "Lỗi", description: "Không sao chép được thực đơn.", variant: "destructive" });
+        }
+    };
+
+    const handleShoppingList = async (planId: string) => {
+        setShoppingLoading(true);
+        try {
+            const { data } = await api.get(`/meal-plans/${planId}/shopping-list`);
+            setShoppingList((data as { items: { name: string; sources: string[] }[] }).items);
+        } catch {
+            toast({ title: "Lỗi", description: "Không tải được danh sách mua sắm.", variant: "destructive" });
+        } finally {
+            setShoppingLoading(false);
         }
     };
 
@@ -132,18 +173,29 @@ const MyMealPlans: React.FC = () => {
         try {
             const { data } = await api.get(`/meal-plans/${plan._id}`);
             setItems(
-                (data.items || []).map((item: any) => ({
-                    id: item._id,
-                    day_number: item.day_number,
-                    meal_type: item.meal_type,
-                    recipe_id: item.recipe_id?._id || item.recipe_id,
-                    food_id: item.food_id?._id || item.food_id,
-                    serving_size: item.serving_size || 1,
-                    sort_order: item.sort_order || 0,
-                    recipe_name: item.recipe_id?.name_vi,
-                    food_name: item.food_id?.name_vi,
-                    calories: item.recipe_id?.calories || item.food_id?.energy_kcal || 0,
-                })),
+                (data.items || []).map((item: any) => {
+                    const isFood = !!item.food_id;
+                    return {
+                        id: item._id,
+                        day_number: item.day_number,
+                        meal_type: item.meal_type,
+                        recipe_id: item.recipe_id?._id || item.recipe_id,
+                        food_id: item.food_id?._id || item.food_id,
+                        serving_size: item.serving_size || (isFood ? 100 : 1),
+                        sort_order: item.sort_order || 0,
+                        recipe_name: item.recipe_id?.name_vi,
+                        food_name: item.food_id?.name_vi,
+                        calories: isFood ? (item.food_id?.energy_kcal || 0) : (item.recipe_id?.calories || 0),
+                        calories_per_100g: isFood ? (item.food_id?.energy_kcal || 0) : undefined,
+                        recipe_data: isFood ? undefined : {
+                            description: item.recipe_id?.description,
+                            protein: item.recipe_id?.protein,
+                            carbs: item.recipe_id?.carbs,
+                            fat: item.recipe_id?.fat,
+                            instructions: item.recipe_id?.instructions,
+                        },
+                    };
+                }),
             );
         } catch (err) {
             console.error(err);
@@ -215,6 +267,7 @@ const MyMealPlans: React.FC = () => {
         try {
             await api.post("/user-meal-plans", { meal_plan_id: planId });
             toast({ title: "Plan activated!", description: "This is now your active meal plan." });
+            invalidateMealPlanCache();
             navigate("/meal-plan");
         } catch {
             toast({ title: "Error", description: "Could not activate plan.", variant: "destructive" });
@@ -236,21 +289,38 @@ const MyMealPlans: React.FC = () => {
 
     const addItem = (result: any) => {
         if (addingDay === null) return;
+        const isFood = itemSearchType === "food";
         const newItem: MealItem = {
             day_number: addingDay,
             meal_type: addingMeal,
-            recipe_id: itemSearchType === "recipe" ? result.id : null,
-            food_id: itemSearchType === "food" ? result.id : null,
-            serving_size: 1,
+            recipe_id: isFood ? null : result.id,
+            food_id: isFood ? result.id : null,
+            serving_size: isFood ? 100 : 1,
             sort_order: items.filter((i) => i.day_number === addingDay && i.meal_type === addingMeal).length,
-            recipe_name: itemSearchType === "recipe" ? result.name_vi : undefined,
-            food_name: itemSearchType === "food" ? result.name_vi : undefined,
-            calories: result.calories || result.energy_kcal || 0,
+            recipe_name: isFood ? undefined : result.name_vi,
+            food_name: isFood ? result.name_vi : undefined,
+            calories: isFood ? (result.energy_kcal || 0) : (result.calories || 0),
+            calories_per_100g: isFood ? (result.energy_kcal || 0) : undefined,
+            recipe_data: isFood ? undefined : {
+                description: result.description,
+                protein: result.protein,
+                carbs: result.carbs,
+                fat: result.fat,
+                instructions: result.instructions,
+            },
         };
         setItems([...items, newItem]);
         setItemSearch("");
         setItemResults([]);
         setShowAddDialog(false);
+    };
+
+    const getItemCalories = (item: MealItem): number => {
+        if (item.food_id) {
+            const per100g = item.calories_per_100g ?? item.calories ?? 0;
+            return (per100g * (item.serving_size || 100)) / 100;
+        }
+        return (item.calories || 0) * (item.serving_size || 1);
     };
 
     const removeItem = (index: number) => setItems(items.filter((_, i) => i !== index));
@@ -280,7 +350,7 @@ const MyMealPlans: React.FC = () => {
         const days = Array.from({ length: form.total_days }, (_, i) => i + 1);
 
         return (
-            <div className="min-h-screen gradient-fresh pb-24">
+            <div className="min-h-screen gradient-fresh pb-nav-safe">
                 <header className="sticky top-0 z-50 glass border-b border-border/50">
                     <div className="container px-4 py-4 flex items-center gap-3">
                         <Button variant="ghost" size="icon" onClick={() => setViewMode("list")} className="rounded-xl">
@@ -412,11 +482,41 @@ const MyMealPlans: React.FC = () => {
                                                             </div>
                                                             {mealItems.map((item, idx) => {
                                                                 const globalIdx = items.indexOf(item);
+                                                                const isFood = !!item.food_id;
                                                                 return (
-                                                                    <div key={idx} className="flex items-center justify-between text-sm py-1 pl-2 rounded hover:bg-accent/50">
-                                                                        <span className="flex-1 truncate">{item.recipe_name || item.food_name}</span>
-                                                                        <span className="text-xs text-muted-foreground mr-2">{item.calories} kcal</span>
-                                                                        <button type="button" onClick={() => removeItem(globalIdx)}>
+                                                                    <div key={idx} className="flex items-center gap-2 text-sm py-1.5 pl-2 pr-1 rounded-lg border border-border/40 bg-accent/30 mb-1">
+                                                                        <span className="flex-1 truncate font-medium">{item.recipe_name || item.food_name}</span>
+                                                                        <span className="text-xs text-muted-foreground shrink-0">{Math.round(getItemCalories(item))} kcal</span>
+                                                                        <div className="flex items-center gap-1 shrink-0">
+                                                                            <input
+                                                                                type="number"
+                                                                                aria-label={isFood ? "Grams" : "Serving multiplier"}
+                                                                                min={isFood ? 10 : 0.5}
+                                                                                step={isFood ? 10 : 0.5}
+                                                                                value={item.serving_size}
+                                                                                onChange={(e) => {
+                                                                                    const updated = [...items];
+                                                                                    updated[globalIdx] = {
+                                                                                        ...updated[globalIdx],
+                                                                                        serving_size: parseFloat(e.target.value) || (isFood ? 100 : 1),
+                                                                                    };
+                                                                                    setItems(updated);
+                                                                                }}
+                                                                                className="w-14 h-6 text-xs border border-border rounded px-1 bg-background"
+                                                                            />
+                                                                            <span className="text-xs text-muted-foreground w-4">{isFood ? "g" : "×"}</span>
+                                                                        </div>
+                                                                        {!isFood && (
+                                                                            <button
+                                                                                type="button"
+                                                                                title="View recipe"
+                                                                                onClick={() => setRecipeDetailItem(item)}
+                                                                                className="text-blue-500 hover:text-blue-600"
+                                                                            >
+                                                                                <Eye className="w-3.5 h-3.5" />
+                                                                            </button>
+                                                                        )}
+                                                                        <button type="button" title="Remove" onClick={() => removeItem(globalIdx)}>
                                                                             <X className="w-3.5 h-3.5 text-destructive" />
                                                                         </button>
                                                                     </div>
@@ -433,6 +533,86 @@ const MyMealPlans: React.FC = () => {
                         })}
                     </div>
                 </main>
+
+                {/* Recipe detail dialog */}
+                <Dialog open={!!recipeDetailItem} onOpenChange={(o) => !o && setRecipeDetailItem(null)}>
+                    <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+                        <DialogHeader>
+                            <DialogTitle className="flex items-center gap-2">
+                                <BookOpen className="w-4 h-4 text-primary" />
+                                {recipeDetailItem?.recipe_name}
+                            </DialogTitle>
+                        </DialogHeader>
+                        {recipeDetailItem && (() => {
+                            const d = recipeDetailItem.recipe_data;
+                            const ingredients = d?.instructions?.find((s) => s.type === "ingredients")?.items as Array<{ name: string; amount: string; kcal: number }> | undefined;
+                            const steps = d?.instructions?.find((s) => s.type === "steps")?.items as string[] | undefined;
+                            return (
+                                <div className="space-y-4">
+                                    <div className="grid grid-cols-4 gap-2">
+                                        {[
+                                            { label: "Calo", value: recipeDetailItem.calories, unit: "kcal", color: "text-orange-500" },
+                                            { label: "Protein", value: d?.protein, unit: "g", color: "text-blue-500" },
+                                            { label: "Carbs", value: d?.carbs, unit: "g", color: "text-yellow-500" },
+                                            { label: "Fat", value: d?.fat, unit: "g", color: "text-red-400" },
+                                        ].map((n) => (
+                                            <div key={n.label} className="bg-muted/50 rounded-xl p-2 text-center">
+                                                <p className={`text-sm font-bold ${n.color}`}>{n.value ?? "—"}</p>
+                                                <p className="text-[10px] text-muted-foreground">{n.unit}</p>
+                                                <p className="text-[10px] text-muted-foreground">{n.label}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    {d?.description && (
+                                        <p className="text-sm text-muted-foreground">{d.description}</p>
+                                    )}
+                                    {ingredients && ingredients.length > 0 && (
+                                        <div>
+                                            <h4 className="text-sm font-semibold mb-2 flex items-center gap-1.5">
+                                                <ShoppingBasket className="w-4 h-4 text-primary" /> Nguyên liệu
+                                            </h4>
+                                            <div className="space-y-1">
+                                                {ingredients.map((ing, i) => (
+                                                    <div key={i} className="flex justify-between text-sm py-1 border-b border-border/40 last:border-0">
+                                                        <span>{ing.name}</span>
+                                                        <div className="text-right">
+                                                            <span className="text-muted-foreground">{ing.amount}</span>
+                                                            {ing.kcal > 0 && <span className="text-orange-400 ml-2">{ing.kcal} kcal</span>}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                    {steps && steps.length > 0 && (
+                                        <div>
+                                            <h4 className="text-sm font-semibold mb-2 flex items-center gap-1.5">
+                                                <ChefHat className="w-4 h-4 text-primary" /> Cách làm
+                                            </h4>
+                                            <div className="space-y-2">
+                                                {steps.map((step, i) => (
+                                                    <div key={i} className="flex gap-2 text-sm">
+                                                        <div className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 text-xs font-bold mt-0.5">
+                                                            {i + 1}
+                                                        </div>
+                                                        <p className="leading-relaxed flex-1">
+                                                            {typeof step === "string" ? step.replace(/^Bước\s*\d+:\s*/i, "") : step}
+                                                        </p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                    {!ingredients?.length && !steps?.length && (
+                                        <p className="text-sm text-muted-foreground text-center py-4">
+                                            Chưa có chi tiết công thức cho món này.
+                                        </p>
+                                    )}
+                                </div>
+                            );
+                        })()}
+                    </DialogContent>
+                </Dialog>
 
                 {/* Add item dialog */}
                 <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
@@ -496,7 +676,7 @@ const MyMealPlans: React.FC = () => {
 
     // ── LIST VIEW ──
     return (
-        <div className="min-h-screen gradient-fresh pb-24">
+        <div className="min-h-screen gradient-fresh pb-nav-safe">
             <header className="sticky top-0 z-50 glass border-b border-border/50">
                 <div className="container px-4 py-4 flex items-center gap-3">
                     <Button variant="ghost" size="icon" onClick={() => navigate("/")} className="rounded-xl">
@@ -555,6 +735,23 @@ const MyMealPlans: React.FC = () => {
                                     <Button size="sm" variant="outline" onClick={() => handleActivatePlan(plan._id)}>
                                         Set Active
                                     </Button>
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="gap-1"
+                                        onClick={() => handleDuplicate(plan._id)}
+                                    >
+                                        <Copy className="w-3 h-3" /> Sao chép
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="gap-1"
+                                        disabled={shoppingLoading}
+                                        onClick={() => handleShoppingList(plan._id)}
+                                    >
+                                        <ShoppingBasket className="w-3 h-3" /> Mua sắm
+                                    </Button>
                                     {!plan.is_public && (
                                         <Button
                                             size="sm"
@@ -598,6 +795,40 @@ const MyMealPlans: React.FC = () => {
                     <DialogFooter className="gap-2">
                         <Button variant="outline" onClick={() => setSubmitId(null)}>Cancel</Button>
                         <Button onClick={handleSubmitForReview}>Submit</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Shopping list dialog */}
+            <Dialog open={shoppingList !== null} onOpenChange={() => setShoppingList(null)}>
+                <DialogContent className="max-w-sm max-h-[80vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <ShoppingBasket className="w-4 h-4" />
+                            Danh sách mua sắm
+                        </DialogTitle>
+                    </DialogHeader>
+                    {shoppingList?.length === 0 ? (
+                        <p className="text-sm text-muted-foreground py-4 text-center">Không có nguyên liệu nào được tìm thấy.</p>
+                    ) : (
+                        <ul className="space-y-2 py-2">
+                            {shoppingList?.map((item) => (
+                                <li key={item.name} className="flex items-start gap-3 text-sm">
+                                    <span className="w-4 h-4 rounded border border-border mt-0.5 shrink-0 flex-none" />
+                                    <div>
+                                        <span className="font-medium">{item.name}</span>
+                                        {item.sources.length > 0 && (
+                                            <span className="text-xs text-muted-foreground ml-1.5">
+                                                ({[...new Set(item.sources)].join(", ")})
+                                            </span>
+                                        )}
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setShoppingList(null)}>Đóng</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

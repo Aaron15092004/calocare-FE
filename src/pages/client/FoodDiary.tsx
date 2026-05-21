@@ -17,9 +17,12 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { useTranslation } from "react-i18next";
 import { useFoodDiary } from "@/hooks/useFoodDiary";
 import { useMealProgress } from "@/hooks/useMealProgress";
 import { MonthlyCalorieCalendar } from "@/components/MonthlyCalorieCalendar";
+import { AdBanner, UpgradeNudge } from "@/components/AdBanner";
+import { AdSenseUnit } from "@/components/AdSenseUnit";
 import { cn } from "@/lib/utils";
 import {
     BookOpen,
@@ -52,21 +55,24 @@ import {
     ReferenceLine,
 } from "recharts";
 import { useNavigate } from "react-router-dom";
+import { RagScannerModal } from "@/components/RagScannerModal";
 
 const FoodDiary: React.FC = () => {
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const { user, profile, loading: authLoading } = useAuthContext();
+    const [selectedDate, setSelectedDate] = useState<Date>(new Date());
     const {
         entries,
+        summaryEntries,
         loading: diaryLoading,
         deleteEntry,
         updateEntryNotes,
         getTodaysTotals,
         addManualEntry,
-    } = useFoodDiary(user?.id);
+    } = useFoodDiary(user?.id, selectedDate);
     const { progress, loading: progressLoading, getDayProgress } = useMealProgress(user?.id);
     const [activeTab, setActiveTab] = useState("scanned");
-    const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
     const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
     const [noteText, setNoteText] = useState("");
     // URL params from BottomNav
@@ -92,6 +98,9 @@ const FoodDiary: React.FC = () => {
     // Entry detail modal
     const [selectedEntry, setSelectedEntry] = useState<(typeof entries)[0] | null>(null);
 
+    // RAG Scanner
+    const [showRagScanner, setShowRagScanner] = useState(false);
+
     // Submit to admin
     const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
     const [submitting, setSubmitting] = useState(false);
@@ -105,8 +114,7 @@ const FoodDiary: React.FC = () => {
             setSearchParams({}, { replace: true });
         }
         if (action === "scan") {
-            const scanner = document.querySelector("[data-scanner]");
-            if (scanner) scanner.scrollIntoView({ behavior: "smooth" });
+            setShowRagScanner(true);
             setSearchParams({}, { replace: true });
         }
     }, [searchParams]);
@@ -119,7 +127,7 @@ const FoodDiary: React.FC = () => {
         return "dinner";
     };
 
-    // Search recipes + foods
+    // Search via RAG (includes local DB + USDA + FatSecret)
     const handleLogSearch = async (query: string) => {
         setLogSearch(query);
         if (query.length < 2) {
@@ -127,38 +135,27 @@ const FoodDiary: React.FC = () => {
             return;
         }
         setLogSearching(true);
-
-        const [recipesRes, foodsRes] = await Promise.all([
-            api.get("/recipes", { params: { q: query, is_approved: true, limit: 5 } }),
-            api.get("/foods", { params: { q: query, limit: 5 } }),
-        ]);
-
-        const results = [
-            ...((recipesRes.data?.data || []).map((r: any) => ({
-                id: r._id,
-                name: r.name_vi,
-                type: "recipe" as const,
-                calories: r.calories || 0,
-                protein: r.protein || 0,
-                carbs: r.carbs || 0,
-                fat: r.fat || 0,
-                fiber: 0,
-                servings: r.servings || 1,
-                isOwn: false,
-            }))),
-            ...((foodsRes.data?.data || []).map((f: any) => ({
-                id: f._id,
-                name: f.name_vi,
-                type: "food" as const,
-                calories: f.energy_kcal || 0,
-                protein: f.protein || 0,
-                carbs: f.glucid || 0,
-                fat: f.lipid || 0,
-                fiber: f.fiber || 0,
-            }))),
-        ];
-
-        setLogSearchResults(results);
+        try {
+            const { data } = await api.post("/rag/search-food", { query, top_k: 10 });
+            const results = (data.results || [])
+                .filter((r: any) => r.energy_kcal)
+                .map((r: any) => ({
+                    id: r.source_id,
+                    name: r.name,
+                    type: r.source_type === "recipe" ? "recipe" as const : "food" as const,
+                    source_type: r.source_type,
+                    calories: r.energy_kcal || 0,
+                    protein: r.protein || 0,
+                    carbs: r.glucid || 0,
+                    fat: r.lipid || 0,
+                    fiber: r.fiber || 0,
+                    servings: 1,
+                    isOwn: false,
+                }));
+            setLogSearchResults(results);
+        } catch {
+            setLogSearchResults([]);
+        }
         setLogSearching(false);
     };
 
@@ -433,8 +430,8 @@ const FoodDiary: React.FC = () => {
 
     const formatDate = (dateStr: string) => {
         const date = parseISO(dateStr);
-        if (isToday(date)) return "Today";
-        if (isYesterday(date)) return "Yesterday";
+        if (isToday(date)) return t("mealPlan.today");
+        if (isYesterday(date)) return t("mealPlan.yesterday");
         return format(date, "MMM d, yyyy");
     };
 
@@ -455,16 +452,10 @@ const FoodDiary: React.FC = () => {
 
     const getRecipeById = (_recipeId: string) => null;
 
-    // Filter entries by selected date
-    const filteredEntries = useMemo(() => {
-        if (!selectedDate) return entries;
-        return entries.filter((entry) => isSameDay(parseISO(entry.scanned_at), selectedDate));
-    }, [entries, selectedDate]);
-
     // Get dates that have entries for calendar highlighting
     const datesWithEntries = useMemo(() => {
-        return entries.map((entry) => parseISO(entry.scanned_at));
-    }, [entries]);
+        return summaryEntries.map((entry) => parseISO(entry.scanned_at));
+    }, [summaryEntries]);
 
     // Calculate weekly calorie data for the chart
     const weeklyCalorieData = useMemo(() => {
@@ -473,7 +464,7 @@ const FoodDiary: React.FC = () => {
 
         for (let i = 6; i >= 0; i--) {
             const date = subDays(today, i);
-            const dayEntries = entries.filter((entry) =>
+            const dayEntries = summaryEntries.filter((entry) =>
                 isSameDay(parseISO(entry.scanned_at), date),
             );
             const totalCalories = dayEntries.reduce(
@@ -490,7 +481,7 @@ const FoodDiary: React.FC = () => {
         }
 
         return data;
-    }, [entries, profile?.daily_nutrition_goals?.calories]);
+    }, [summaryEntries, profile?.daily_nutrition_goals?.calories]);
 
     // Calculate calorie goal streak
     const streakData = useMemo(() => {
@@ -499,7 +490,7 @@ const FoodDiary: React.FC = () => {
 
         // Build a map of daily calorie totals
         const dailyTotals = new Map<string, number>();
-        entries.forEach((entry) => {
+        summaryEntries.forEach((entry) => {
             const dateKey = format(parseISO(entry.scanned_at), "yyyy-MM-dd");
             const current = dailyTotals.get(dateKey) || 0;
             dailyTotals.set(dateKey, current + (entry.totals.calories || 0));
@@ -551,10 +542,10 @@ const FoodDiary: React.FC = () => {
             todayOnTrack,
             todayCalories,
         };
-    }, [entries, profile?.daily_nutrition_goals?.calories]);
+    }, [summaryEntries, profile?.daily_nutrition_goals?.calories]);
 
     // Group entries by date
-    const groupedEntries = filteredEntries.reduce(
+    const groupedEntries = entries.reduce(
         (groups, entry) => {
             const dateKey = formatDate(entry.scanned_at);
             if (!groups[dateKey]) {
@@ -563,7 +554,7 @@ const FoodDiary: React.FC = () => {
             groups[dateKey].push(entry);
             return groups;
         },
-        {} as Record<string, typeof filteredEntries>,
+        {} as Record<string, typeof entries>,
     );
 
     // Group completed meals by day
@@ -584,16 +575,16 @@ const FoodDiary: React.FC = () => {
 
     if (!user && !authLoading) {
         return (
-            <div className="min-h-screen gradient-fresh pb-24">
+            <div className="min-h-screen gradient-fresh pb-nav-safe">
                 <Header />
                 <main className="container px-4 py-6">
                     <Card className="p-8 text-center">
                         <BookOpen className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                        <h2 className="text-xl font-bold mb-2">Sign in to view your Food Diary</h2>
+                        <h2 className="text-xl font-bold mb-2">{t("auth.signIn")}</h2>
                         <p className="text-muted-foreground mb-4">
-                            Track your meals and nutrition by signing in
+                            {t("diary.subtitle")}
                         </p>
-                        <Button onClick={() => navigate("/auth")}>Sign In</Button>
+                        <Button onClick={() => navigate("/auth")}>{t("common.signIn")}</Button>
                     </Card>
                 </main>
                 <BottomNav />
@@ -602,7 +593,7 @@ const FoodDiary: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen gradient-fresh pb-24">
+        <div className="min-h-screen gradient-fresh pb-nav-safe">
             <Header />
 
             <main className="container px-4 py-6 space-y-6">
@@ -610,9 +601,9 @@ const FoodDiary: React.FC = () => {
                 <section className="animate-slide-up">
                     <div className="flex items-center gap-3 mb-1">
                         <BookOpen className="w-7 h-7 text-primary" />
-                        <h2 className="text-2xl font-bold text-foreground">Food Diary</h2>
+                        <h2 className="text-2xl font-bold text-foreground">{t("diary.title")}</h2>
                     </div>
-                    <p className="text-muted-foreground">Your complete nutrition history</p>
+                    <p className="text-muted-foreground">{t("diary.subtitle")}</p>
                 </section>
 
                 {/* Today's Nutrition Summary with Calorie Goal Progress */}
@@ -621,7 +612,7 @@ const FoodDiary: React.FC = () => {
                         <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-2">
                                 <Flame className="w-5 h-5 text-primary" />
-                                <h3 className="font-semibold text-foreground">Today's Nutrition</h3>
+                                <h3 className="font-semibold text-foreground">{t("diary.todayNutrition")}</h3>
                             </div>
                             {profile?.daily_nutrition_goals?.calories && (
                                 <span className="text-xs text-muted-foreground">
@@ -723,7 +714,7 @@ const FoodDiary: React.FC = () => {
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <BarChart3 className="w-5 h-5 text-primary" />
-                                <CardTitle className="text-base">Weekly Calorie Trend</CardTitle>
+                                <CardTitle className="text-base">{t("diary.weeklyTrend")}</CardTitle>
                             </div>
                             <span className="text-xs text-muted-foreground">Last 7 days</span>
                         </div>
@@ -839,6 +830,12 @@ const FoodDiary: React.FC = () => {
                     </CardContent>
                 </Card>
 
+                {/* House ad card — free users, dismissed per session */}
+                <AdBanner variant="card" storageKey="diary_ad_card" />
+
+                {/* AdSense unit between charts */}
+                <AdSenseUnit slot={import.meta.env.VITE_ADSENSE_SLOT_DIARY ?? ""} format="rectangle" className="min-h-[250px]" />
+
                 {/* Monthly Calendar View */}
                 <Card className="animate-slide-up-delay-3">
                     <CardHeader className="pb-2">
@@ -849,7 +846,7 @@ const FoodDiary: React.FC = () => {
                     </CardHeader>
                     <CardContent>
                         <MonthlyCalorieCalendar
-                            entries={entries}
+                            entries={summaryEntries}
                             calorieGoal={profile?.daily_nutrition_goals?.calories || 2000}
                             onDateSelect={(date) => {
                                 setSelectedDate(date);
@@ -943,6 +940,12 @@ const FoodDiary: React.FC = () => {
                     </Card>
                 )}
 
+                {/* Upgrade nudge strip — free users only */}
+                <UpgradeNudge
+                    message="Gói Free: 2 lần scan/ngày. Nâng cấp Premium để scan không giới hạn!"
+                    storageKey="diary_nudge"
+                />
+
                 {/* Tabs */}
                 <Tabs
                     value={activeTab}
@@ -969,15 +972,10 @@ const FoodDiary: React.FC = () => {
                                 <PopoverTrigger asChild>
                                     <Button
                                         variant="outline"
-                                        className={cn(
-                                            "justify-start text-left font-normal flex-1",
-                                            !selectedDate && "text-muted-foreground",
-                                        )}
+                                        className="justify-start text-left font-normal flex-1"
                                     >
                                         <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {selectedDate
-                                            ? format(selectedDate, "PPP")
-                                            : "Filter by date"}
+                                        {format(selectedDate, "PPP")}
                                     </Button>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-auto p-0" align="start">
@@ -1000,11 +998,11 @@ const FoodDiary: React.FC = () => {
                                     />
                                 </PopoverContent>
                             </Popover>
-                            {selectedDate && (
+                            {!isToday(selectedDate) && (
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    onClick={() => setSelectedDate(undefined)}
+                                    onClick={() => setSelectedDate(new Date())}
                                     className="shrink-0"
                                 >
                                     <X className="h-4 w-4" />
@@ -1030,31 +1028,31 @@ const FoodDiary: React.FC = () => {
                                     </Card>
                                 ))}
                             </div>
-                        ) : filteredEntries.length === 0 ? (
+                        ) : entries.length === 0 ? (
                             <Card className="p-8 text-center">
                                 <Camera className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
                                 <h3 className="font-semibold mb-1">
-                                    {selectedDate
-                                        ? `No meals on ${format(selectedDate, "PPP")}`
-                                        : "No scanned meals yet"}
+                                    {isToday(selectedDate)
+                                        ? t("diary.noMeals")
+                                        : t("diary.noMealsOnDate", { date: format(selectedDate, "PPP") })}
                                 </h3>
                                 <p className="text-sm text-muted-foreground mb-4">
-                                    {selectedDate
-                                        ? "Try selecting a different date or clear the filter"
-                                        : "Use the AI scanner to log your meals"}
+                                    {isToday(selectedDate)
+                                        ? t("diary.noMealsSub")
+                                        : t("diary.clearFilter")}
                                 </p>
-                                {selectedDate ? (
+                                {!isToday(selectedDate) ? (
                                     <Button
                                         variant="outline"
-                                        onClick={() => setSelectedDate(undefined)}
+                                        onClick={() => setSelectedDate(new Date())}
                                     >
                                         <X className="w-4 h-4 mr-2" />
-                                        Clear Filter
+                                        {t("diary.clearFilter")}
                                     </Button>
                                 ) : (
                                     <Button onClick={() => navigate("/")}>
                                         <Camera className="w-4 h-4 mr-2" />
-                                        Scan Your First Meal
+                                        {t("diary.scanFirstMeal")}
                                     </Button>
                                 )}
                             </Card>
@@ -1571,10 +1569,14 @@ const FoodDiary: React.FC = () => {
                                                         className={`px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${
                                                             r.type === "recipe"
                                                                 ? "bg-orange-100 text-orange-700"
+                                                                : r.source_type === "usda"
+                                                                ? "bg-green-100 text-green-700"
+                                                                : r.source_type === "fatsecret"
+                                                                ? "bg-purple-100 text-purple-700"
                                                                 : "bg-blue-100 text-blue-700"
                                                         }`}
                                                     >
-                                                        {r.type === "recipe" ? "R" : "F"}
+                                                        {r.type === "recipe" ? "Công thức" : r.source_type === "usda" ? "USDA" : r.source_type === "fatsecret" ? "FS" : "Thực phẩm"}
                                                     </span>
                                                     <span className="truncate">{r.name}</span>
                                                     {r.isOwn && (
@@ -1929,6 +1931,8 @@ const FoodDiary: React.FC = () => {
                     </div>
                 </DialogContent>
             </Dialog>
+
+            <RagScannerModal open={showRagScanner} onClose={() => setShowRagScanner(false)} />
 
             <BottomNav />
         </div>

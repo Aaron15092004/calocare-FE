@@ -141,7 +141,7 @@ const Favorites = () => {
     };
 
     return (
-        <div className="min-h-screen gradient-fresh pb-24">
+        <div className="min-h-screen gradient-fresh pb-nav-safe">
             <Header />
             <main className="container px-4 py-6">
                 {/* Page header */}

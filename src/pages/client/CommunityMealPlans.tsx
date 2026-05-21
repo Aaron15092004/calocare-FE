@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { invalidateMealPlanCache } from "@/pages/client/MealPlan";
 import { ArrowLeft, Search, Users, Flame, Tag, Loader2, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -63,6 +64,7 @@ const CommunityMealPlans: React.FC = () => {
                 description: `"${cloneTarget.title}" is now your active meal plan.`,
             });
             setCloneTarget(null);
+            invalidateMealPlanCache();
             navigate("/meal-plan");
         } catch {
             toast({ title: "Error", description: "Could not clone plan.", variant: "destructive" });
@@ -82,7 +84,7 @@ const CommunityMealPlans: React.FC = () => {
     });
 
     return (
-        <div className="min-h-screen gradient-fresh pb-24">
+        <div className="min-h-screen gradient-fresh pb-nav-safe">
             {/* Header */}
             <header className="sticky top-0 z-50 glass border-b border-border/50">
                 <div className="container px-4 py-4">
