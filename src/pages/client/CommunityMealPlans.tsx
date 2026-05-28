@@ -17,6 +17,7 @@ import { BottomNav } from "@/components/BottomNav";
 import { useToast } from "@/hooks/use-toast";
 import api from "@/lib/api";
 import { MealPlanAPI } from "@/types/mealPlan";
+import { AdSenseUnit } from "@/components/AdSenseUnit";
 
 const GOAL_LABELS: Record<string, string> = {
     weight_loss: "Weight Loss",
@@ -142,6 +143,12 @@ const CommunityMealPlans: React.FC = () => {
                 <p className="text-sm text-muted-foreground">
                     {filtered.length} plan{filtered.length !== 1 ? "s" : ""} available
                 </p>
+
+                <AdSenseUnit
+                    slot={import.meta.env.VITE_ADSENSE_SLOT_COMMUNITY ?? import.meta.env.VITE_ADSENSE_SLOT_INLINE ?? ""}
+                    format="auto"
+                    className="min-h-[100px]"
+                />
 
                 {/* Plans */}
                 {loading ? (

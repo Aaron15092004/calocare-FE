@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Heart, Apple, UtensilsCrossed, Trash2, Loader2, BookOpen } from "lucide-react";
+import { AdSenseUnit } from "@/components/AdSenseUnit";
 
 const FoodFavoriteCard = ({
     fav,
@@ -156,6 +157,12 @@ const Favorites = () => {
                         </p>
                     </div>
                 </div>
+
+                <AdSenseUnit
+                    slot={import.meta.env.VITE_ADSENSE_SLOT_FAVORITES ?? import.meta.env.VITE_ADSENSE_SLOT_INLINE ?? ""}
+                    format="auto"
+                    className="mb-4 min-h-[100px]"
+                />
 
                 {loading ? (
                     <div className="flex justify-center py-16">

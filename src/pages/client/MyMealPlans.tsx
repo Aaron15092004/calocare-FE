@@ -35,6 +35,7 @@ import { BottomNav } from "@/components/BottomNav";
 import { useToast } from "@/hooks/use-toast";
 import api from "@/lib/api";
 import { MealPlanAPI } from "@/types/mealPlan";
+import { AdSenseUnit } from "@/components/AdSenseUnit";
 
 interface RecipeData {
     description?: string;
@@ -690,6 +691,12 @@ const MyMealPlans: React.FC = () => {
             </header>
 
             <main className="container px-5 py-6 space-y-4">
+                <AdSenseUnit
+                    slot={import.meta.env.VITE_ADSENSE_SLOT_MEAL_PLANS ?? import.meta.env.VITE_ADSENSE_SLOT_INLINE ?? ""}
+                    format="auto"
+                    className="min-h-[100px]"
+                />
+
                 {loading ? (
                     <div className="flex justify-center py-12">
                         <Loader2 className="w-6 h-6 animate-spin text-primary" />

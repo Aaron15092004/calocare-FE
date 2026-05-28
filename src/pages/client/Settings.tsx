@@ -90,6 +90,7 @@ const Settings: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [myStores, setMyStores] = useState<any[]>([]);
   const [storesLoaded, setStoresLoaded] = useState(false);
+  const [usage, setUsage] = useState<DailyUsage | null>(null);
   const { theme, setTheme } = useTheme();
 
   useEffect(() => {
@@ -128,6 +129,11 @@ const Settings: React.FC = () => {
         .finally(() => setStoresLoaded(true));
     }
   }, [isAuthenticated, storesLoaded]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    api.get<DailyUsage>("/rewards/status").then((r) => setUsage(r.data)).catch(() => {});
+  }, [isAuthenticated]);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -654,11 +660,6 @@ const Settings: React.FC = () => {
   const tierLabel = tier === "pro" ? "Pro" : tier === "premium" ? "Premium" : "Free";
   const TierIcon  = tier === "pro" ? Crown : tier === "premium" ? Zap : Star;
   const tierColor = tier === "pro" ? "text-yellow-500" : tier === "premium" ? "text-primary" : "text-muted-foreground";
-
-  const [usage, setUsage] = useState<DailyUsage | null>(null);
-  useEffect(() => {
-    api.get<DailyUsage>("/rewards/status").then((r) => setUsage(r.data)).catch(() => {});
-  }, []);
 
   const menuItems = [
     {

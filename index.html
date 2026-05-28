@@ -9,11 +9,17 @@
     <meta property="og:title" content="CaloCare App" />
     <meta property="og:type" content="website" />
 
-    <!--
-      Google AdSense — thay YOUR_PUBLISHER_ID bằng ca-pub-XXXXXXXXXX thực của bạn.
-      Uncomment dòng script bên dưới SAU KHI tài khoản AdSense được duyệt.
-    -->
-    <!-- <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=YOUR_PUBLISHER_ID" crossorigin="anonymous"></script> -->
+    <script>
+      (() => {
+        const publisherId = "%VITE_ADSENSE_PUBLISHER_ID%";
+        if (!publisherId.startsWith("ca-pub-")) return;
+        const script = document.createElement("script");
+        script.async = true;
+        script.crossOrigin = "anonymous";
+        script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${publisherId}`;
+        document.head.appendChild(script);
+      })();
+    </script>
   </head>
 
   <body>

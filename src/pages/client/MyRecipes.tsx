@@ -39,6 +39,7 @@ import { BottomNav } from "@/components/BottomNav";
 import { MultiImageUpload } from "@/components/MultiImageUpload";
 import { useToast } from "@/hooks/use-toast";
 import api from "@/lib/api";
+import { AdSenseUnit } from "@/components/AdSenseUnit";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -913,6 +914,12 @@ const MyRecipes: React.FC = () => {
             </div>
 
             <div className="max-w-lg mx-auto px-5 py-4 space-y-3">
+                <AdSenseUnit
+                    slot={import.meta.env.VITE_ADSENSE_SLOT_RECIPES ?? import.meta.env.VITE_ADSENSE_SLOT_INLINE ?? ""}
+                    format="auto"
+                    className="min-h-[100px]"
+                />
+
                 {loading ? (
                     <div className="flex justify-center py-12">
                         <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />

@@ -852,7 +852,11 @@ const FoodDiary: React.FC = () => {
                 <AdBanner variant="card" storageKey="diary_ad_card" />
 
                 {/* AdSense unit between charts */}
-                <AdSenseUnit slot={import.meta.env.VITE_ADSENSE_SLOT_DIARY ?? ""} format="rectangle" className="min-h-[250px]" />
+                <AdSenseUnit
+                    slot={import.meta.env.VITE_ADSENSE_SLOT_DIARY ?? import.meta.env.VITE_ADSENSE_SLOT_INLINE ?? ""}
+                    format="rectangle"
+                    className="min-h-[250px]"
+                />
 
                 {/* Monthly Calendar View */}
                 <Card className="animate-slide-up-delay-3">

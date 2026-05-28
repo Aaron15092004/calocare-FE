@@ -344,7 +344,11 @@ const Index = () => {
                 <HomeBannerCarousel />
 
                 {/* AdSense unit — between actions and meal plan, free users only */}
-                <AdSenseUnit slot={import.meta.env.VITE_ADSENSE_SLOT_HOME ?? ""} format="auto" className="min-h-[100px]" />
+                <AdSenseUnit
+                    slot={import.meta.env.VITE_ADSENSE_SLOT_HOME ?? import.meta.env.VITE_ADSENSE_SLOT_INLINE ?? ""}
+                    format="auto"
+                    className="min-h-[100px]"
+                />
 
                 {/* Today's Meal Plan */}
                 <section>

@@ -13,6 +13,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { BottomNav } from "@/components/BottomNav";
 import { ReviewSection } from "@/components/ReviewSection";
 import api from "@/lib/api";
+import { AdSenseUnit } from "@/components/AdSenseUnit";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -445,6 +446,11 @@ const NearbyRestaurants: React.FC = () => {
                             <p className="text-xs text-muted-foreground px-1">
                                 {stores.length} quán{category ? ` · ${CATEGORIES.find((c) => c.value === category)?.label}` : ""}
                             </p>
+                            <AdSenseUnit
+                                slot={import.meta.env.VITE_ADSENSE_SLOT_NEARBY ?? import.meta.env.VITE_ADSENSE_SLOT_INLINE ?? ""}
+                                format="auto"
+                                className="min-h-[100px]"
+                            />
                             {stores.map((store) => <StoreCard key={store._id} store={store} />)}
                         </>
                     )}

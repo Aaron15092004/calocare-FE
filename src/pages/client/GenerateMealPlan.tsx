@@ -16,6 +16,7 @@ import { useAuthContext } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useSSEMealPlan, type DayPlan as SSEDayPlan, type MealItem as SSEMealItem, type MealsPerDay, type CookingStyle } from "@/hooks/useSSEMealPlan";
 import api from "@/lib/api";
+import { AdSenseUnit } from "@/components/AdSenseUnit";
 
 /* ── Types ──────────────────────────────────────────────────────── */
 type GeneratedMeal = SSEMealItem & { food_name: string };
@@ -736,6 +737,12 @@ const GenerateMealPlan: React.FC = () => {
                         ))}
                     </CardContent>
                 </Card>
+
+                <AdSenseUnit
+                    slot={import.meta.env.VITE_ADSENSE_SLOT_GENERATE ?? import.meta.env.VITE_ADSENSE_SLOT_INLINE ?? ""}
+                    format="auto"
+                    className="min-h-[100px]"
+                />
 
                 {/* Foods to avoid */}
                 <Card>

@@ -30,12 +30,11 @@ export const AdSenseUnit: React.FC<AdSenseUnitProps> = ({
     const { profile } = useAuthContext();
     const ref = useRef<HTMLModElement>(null);
     const pushed = useRef(false);
+    const publisherId = import.meta.env.VITE_ADSENSE_PUBLISHER_ID;
+    const shouldRenderAd = Boolean(publisherId && slot) && (!profile || profile.subscription_tier === "free");
 
-    // Only show to free-tier users
-    if (profile && profile.subscription_tier !== "free") return null;
-
-    // eslint-disable-next-line react-hooks/rules-of-hooks
     useEffect(() => {
+        if (!shouldRenderAd) return;
         if (pushed.current) return;
         try {
             (window.adsbygoogle = window.adsbygoogle || []).push({});
@@ -43,10 +42,10 @@ export const AdSenseUnit: React.FC<AdSenseUnitProps> = ({
         } catch {
             // AdSense script not loaded yet — silently ignore
         }
-    }, []);
+    }, [shouldRenderAd]);
 
-    const publisherId = import.meta.env.VITE_ADSENSE_PUBLISHER_ID;
-    if (!publisherId) return null; // Don't render until env var is set
+    // Only show to free-tier users, and don't render until env var is set.
+    if (!shouldRenderAd) return null;
 
     return (
         <div className={`adsense-wrapper overflow-hidden ${className}`}>
