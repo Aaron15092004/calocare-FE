@@ -20,6 +20,10 @@ import {
     Loader2,
     ChevronDown,
     ChevronUp,
+    Clock,
+    ShoppingBasket,
+    ChefHat,
+    BookOpen,
 } from "lucide-react";
 import {
     DropdownMenu,
@@ -46,19 +50,29 @@ interface MealPlanForm {
     is_approved: boolean;
 }
 
+interface RecipeData {
+    description?: string;
+    protein?: number;
+    carbs?: number;
+    fat?: number;
+    instructions?: Array<{ type: string; items: any[] }>;
+}
+
 interface MealItem {
     id?: string;
     day_number: number;
     meal_type: string;
     recipe_id: string | null;
     food_id: string | null;
-    serving_size: number;
+    serving_size: number; // grams for food, multiplier for recipe
     note: string;
     sort_order: number;
     // display
     recipe_name?: string;
     food_name?: string;
-    calories?: number;
+    calories?: number;           // kcal per serving (recipe) or per 100g (food)
+    calories_per_100g?: number;  // food items only
+    recipe_data?: RecipeData;    // recipe items only
 }
 
 const emptyForm: MealPlanForm = {
@@ -121,6 +135,9 @@ const MealPlans = () => {
     // Delete
     const [deleteId, setDeleteId] = useState<string | null>(null);
 
+    // Recipe detail
+    const [recipeDetailItem, setRecipeDetailItem] = useState<MealItem | null>(null);
+
     // Collapsed days
     const [collapsedDays, setCollapsedDays] = useState<Set<number>>(new Set());
 
@@ -148,7 +165,7 @@ const MealPlans = () => {
 
     const handleEdit = async (plan: any) => {
         setForm({
-            id: plan.id,
+            id: plan._id || plan.id,
             title: plan.title || "",
             description: plan.description || "",
             total_days: plan.total_days || 7,
@@ -160,19 +177,30 @@ const MealPlans = () => {
 
         const { data: planDetail } = await api.get(`/meal-plans/${plan._id || plan.id}`);
         setItems(
-            (planDetail.items || []).map((item: any) => ({
-                id: item._id,
-                day_number: item.day_number,
-                meal_type: item.meal_type,
-                recipe_id: item.recipe_id?._id || item.recipe_id,
-                food_id: item.food_id?._id || item.food_id,
-                serving_size: item.serving_size || 1,
-                note: item.note || "",
-                sort_order: item.sort_order || 0,
-                recipe_name: item.recipe_id?.name_vi,
-                food_name: item.food_id?.name_vi,
-                calories: item.recipe_id?.calories || item.food_id?.energy_kcal || 0,
-            })),
+            (planDetail.items || []).map((item: any) => {
+                const isFood = !!item.food_id;
+                return {
+                    id: item._id,
+                    day_number: item.day_number,
+                    meal_type: item.meal_type,
+                    recipe_id: item.recipe_id?._id || item.recipe_id,
+                    food_id: item.food_id?._id || item.food_id,
+                    serving_size: item.serving_size || (isFood ? 100 : 1),
+                    note: item.note || "",
+                    sort_order: item.sort_order || 0,
+                    recipe_name: item.recipe_id?.name_vi,
+                    food_name: item.food_id?.name_vi,
+                    calories: isFood ? (item.food_id?.energy_kcal || 0) : (item.recipe_id?.calories || 0),
+                    calories_per_100g: isFood ? (item.food_id?.energy_kcal || 0) : undefined,
+                    recipe_data: isFood ? undefined : {
+                        description: item.recipe_id?.description,
+                        protein: item.recipe_id?.protein,
+                        carbs: item.recipe_id?.carbs,
+                        fat: item.recipe_id?.fat,
+                        instructions: item.recipe_id?.instructions,
+                    },
+                };
+            }),
         );
         setCollapsedDays(new Set());
         setViewMode("form");
@@ -263,19 +291,28 @@ const MealPlans = () => {
 
     const addItem = (result: any) => {
         if (addingDay === null) return;
+        const isFood = itemSearchType === "food";
         const newItem: MealItem = {
             day_number: addingDay,
             meal_type: addingMeal,
-            recipe_id: itemSearchType === "recipe" ? result.id : null,
-            food_id: itemSearchType === "food" ? result.id : null,
-            serving_size: 1,
+            recipe_id: isFood ? null : result.id,
+            food_id: isFood ? result.id : null,
+            serving_size: isFood ? 100 : 1,
             note: "",
             sort_order: items.filter(
                 (i) => i.day_number === addingDay && i.meal_type === addingMeal,
             ).length,
-            recipe_name: itemSearchType === "recipe" ? result.name_vi : undefined,
-            food_name: itemSearchType === "food" ? result.name_vi : undefined,
-            calories: result.calories || result.energy_kcal || 0,
+            recipe_name: isFood ? undefined : result.name_vi,
+            food_name: isFood ? result.name_vi : undefined,
+            calories: isFood ? (result.energy_kcal || 0) : (result.calories || 0),
+            calories_per_100g: isFood ? (result.energy_kcal || 0) : undefined,
+            recipe_data: isFood ? undefined : {
+                description: result.description,
+                protein: result.protein,
+                carbs: result.carbs,
+                fat: result.fat,
+                instructions: result.instructions,
+            },
         };
         setItems([...items, newItem]);
         setItemSearch("");
@@ -327,12 +364,18 @@ const MealPlans = () => {
         setCollapsedDays(next);
     };
 
-    // ── Day calories ──
+    // ── Calories helpers ──
+    const getItemCalories = (item: MealItem): number => {
+        if (item.food_id) {
+            const per100g = item.calories_per_100g ?? item.calories ?? 0;
+            return (per100g * (item.serving_size || 100)) / 100;
+        }
+        return (item.calories || 0) * (item.serving_size || 1);
+    };
+
     const getDayCalories = (day: number, itemList: MealItem[]) => {
         return Math.round(
-            itemList
-                .filter((i) => i.day_number === day)
-                .reduce((sum, i) => sum + (i.calories || 0) * (i.serving_size || 1), 0),
+            itemList.filter((i) => i.day_number === day).reduce((sum, i) => sum + getItemCalories(i), 0),
         );
     };
 
@@ -669,8 +712,8 @@ const MealPlans = () => {
                                                         {meals.length > 0 ? (
                                                             <div className="space-y-1">
                                                                 {meals.map((m) => {
-                                                                    const globalIndex =
-                                                                        items.indexOf(m);
+                                                                    const globalIndex = items.indexOf(m);
+                                                                    const isFood = !!m.food_id;
                                                                     return (
                                                                         <div
                                                                             key={globalIndex}
@@ -678,57 +721,54 @@ const MealPlans = () => {
                                                                         >
                                                                             <div className="flex-1 min-w-0">
                                                                                 <span className="text-sm font-medium">
-                                                                                    {m.recipe_name ||
-                                                                                        m.food_name}
+                                                                                    {m.recipe_name || m.food_name}
                                                                                 </span>
                                                                                 <span className="text-xs text-muted-foreground ml-2">
-                                                                                    {Math.round(
-                                                                                        (m.calories ||
-                                                                                            0) *
-                                                                                            m.serving_size,
-                                                                                    )}{" "}
-                                                                                    kcal
+                                                                                    {Math.round(getItemCalories(m))} kcal
+                                                                                </span>
+                                                                            </div>
+                                                                            <div className="flex items-center gap-1">
+                                                                                <Input
+                                                                                    type="number"
+                                                                                    min={isFood ? 10 : 0.5}
+                                                                                    step={isFood ? 10 : 0.5}
+                                                                                    value={m.serving_size}
+                                                                                    onChange={(e) =>
+                                                                                        updateItemServing(
+                                                                                            globalIndex,
+                                                                                            parseFloat(e.target.value) || (isFood ? 100 : 1),
+                                                                                        )
+                                                                                    }
+                                                                                    className="w-16 h-7 text-xs"
+                                                                                />
+                                                                                <span className="text-xs text-muted-foreground w-4 shrink-0">
+                                                                                    {isFood ? "g" : "×"}
                                                                                 </span>
                                                                             </div>
                                                                             <Input
-                                                                                type="number"
-                                                                                min={0.5}
-                                                                                step={0.5}
-                                                                                value={
-                                                                                    m.serving_size
-                                                                                }
-                                                                                onChange={(e) =>
-                                                                                    updateItemServing(
-                                                                                        globalIndex,
-                                                                                        parseFloat(
-                                                                                            e.target
-                                                                                                .value,
-                                                                                        ) || 1,
-                                                                                    )
-                                                                                }
-                                                                                className="w-16 h-7 text-xs"
-                                                                            />
-                                                                            <Input
                                                                                 value={m.note}
                                                                                 onChange={(e) =>
-                                                                                    updateItemNote(
-                                                                                        globalIndex,
-                                                                                        e.target
-                                                                                            .value,
-                                                                                    )
+                                                                                    updateItemNote(globalIndex, e.target.value)
                                                                                 }
                                                                                 placeholder="Note"
                                                                                 className="w-24 h-7 text-xs"
                                                                             />
+                                                                            {!isFood && (
+                                                                                <Button
+                                                                                    variant="ghost"
+                                                                                    size="icon"
+                                                                                    className="h-7 w-7 text-blue-500"
+                                                                                    title="View recipe"
+                                                                                    onClick={() => setRecipeDetailItem(m)}
+                                                                                >
+                                                                                    <Eye className="w-3 h-3" />
+                                                                                </Button>
+                                                                            )}
                                                                             <Button
                                                                                 variant="ghost"
                                                                                 size="icon"
                                                                                 className="h-7 w-7 text-red-400"
-                                                                                onClick={() =>
-                                                                                    removeItem(
-                                                                                        globalIndex,
-                                                                                    )
-                                                                                }
+                                                                                onClick={() => removeItem(globalIndex)}
                                                                             >
                                                                                 <Trash2 className="w-3 h-3" />
                                                                             </Button>
@@ -771,6 +811,87 @@ const MealPlans = () => {
                         Cancel
                     </Button>
                 </div>
+
+                {/* Recipe detail dialog */}
+                <Dialog open={!!recipeDetailItem} onOpenChange={(o) => !o && setRecipeDetailItem(null)}>
+                    <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+                        <DialogHeader>
+                            <DialogTitle className="flex items-center gap-2">
+                                <BookOpen className="w-4 h-4 text-primary" />
+                                {recipeDetailItem?.recipe_name}
+                            </DialogTitle>
+                        </DialogHeader>
+                        {recipeDetailItem && (() => {
+                            const d = recipeDetailItem.recipe_data;
+                            const ingredients = d?.instructions?.find((s) => s.type === "ingredients")?.items as Array<{ name: string; amount: string; kcal: number }> | undefined;
+                            const steps = d?.instructions?.find((s) => s.type === "steps")?.items as string[] | undefined;
+                            return (
+                                <div className="space-y-4">
+                                    {/* Macros */}
+                                    <div className="grid grid-cols-4 gap-2">
+                                        {[
+                                            { label: "Calo", value: recipeDetailItem.calories, unit: "kcal", color: "text-orange-500" },
+                                            { label: "Protein", value: d?.protein, unit: "g", color: "text-blue-500" },
+                                            { label: "Carbs", value: d?.carbs, unit: "g", color: "text-yellow-500" },
+                                            { label: "Fat", value: d?.fat, unit: "g", color: "text-red-400" },
+                                        ].map((n) => (
+                                            <div key={n.label} className="bg-muted/50 rounded-xl p-2 text-center">
+                                                <p className={`text-sm font-bold ${n.color}`}>{n.value ?? "—"}</p>
+                                                <p className="text-[10px] text-muted-foreground">{n.unit}</p>
+                                                <p className="text-[10px] text-muted-foreground">{n.label}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    {d?.description && (
+                                        <p className="text-sm text-muted-foreground">{d.description}</p>
+                                    )}
+                                    {/* Ingredients */}
+                                    {ingredients && ingredients.length > 0 && (
+                                        <div>
+                                            <h4 className="text-sm font-semibold mb-2 flex items-center gap-1.5">
+                                                <ShoppingBasket className="w-4 h-4 text-primary" /> Ingredients
+                                            </h4>
+                                            <div className="space-y-1">
+                                                {ingredients.map((ing, i) => (
+                                                    <div key={i} className="flex justify-between text-sm py-1 border-b border-border/40 last:border-0">
+                                                        <span>{ing.name}</span>
+                                                        <div className="text-right">
+                                                            <span className="text-muted-foreground">{ing.amount}</span>
+                                                            {ing.kcal > 0 && <span className="text-orange-400 ml-2">{ing.kcal} kcal</span>}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                    {/* Steps */}
+                                    {steps && steps.length > 0 && (
+                                        <div>
+                                            <h4 className="text-sm font-semibold mb-2 flex items-center gap-1.5">
+                                                <ChefHat className="w-4 h-4 text-primary" /> Steps
+                                            </h4>
+                                            <div className="space-y-2">
+                                                {steps.map((step, i) => (
+                                                    <div key={i} className="flex gap-2 text-sm">
+                                                        <div className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 text-xs font-bold mt-0.5">
+                                                            {i + 1}
+                                                        </div>
+                                                        <p className="leading-relaxed flex-1">
+                                                            {typeof step === "string" ? step.replace(/^Bước\s*\d+:\s*/i, "") : step}
+                                                        </p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                    {!ingredients?.length && !steps?.length && (
+                                        <p className="text-sm text-muted-foreground text-center py-4">No recipe details available.</p>
+                                    )}
+                                </div>
+                            );
+                        })()}
+                    </DialogContent>
+                </Dialog>
 
                 {/* Add item dialog */}
                 <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
@@ -858,7 +979,7 @@ const MealPlans = () => {
                 <Card className="border-yellow-200 bg-yellow-50/50">
                     <CardContent className="p-4">
                         <h2 className="font-semibold text-yellow-800 mb-3 flex items-center gap-2">
-                            ⏳ Pending Review ({pendingPlans.length})
+                            <Clock className="w-4 h-4" /> Pending Review ({pendingPlans.length})
                         </h2>
                         <div className="space-y-2">
                             {pendingPlans.map((p) => (

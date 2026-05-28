@@ -153,6 +153,10 @@
     background: var(--gradient-card);
   }
 
+  .gradient-hero {
+    background: linear-gradient(180deg, #ffffff 0%, hsl(145, 30%, 97%) 100%);
+  }
+
   .shadow-card {
     box-shadow: var(--shadow-md);
   }
@@ -180,7 +184,7 @@
 
   /* iOS typography scale */
   .page-title {
-    font-size: 30px;
+    font-size: 20px;
     font-weight: 700;
     line-height: 1.2;
   }
@@ -193,14 +197,25 @@
 
   /* iOS shadow scale */
   .shadow-ios-sm {
-    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.06);
+    box-shadow:
+      0 1px 3px 0 rgb(0 0 0 / 0.06),
+      0 1px 2px -1px rgb(0 0 0 / 0.06);
   }
   .shadow-ios {
-    box-shadow: 0 4px 12px 0 rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.06);
+    box-shadow:
+      0 4px 12px 0 rgb(0 0 0 / 0.08),
+      0 2px 4px -2px rgb(0 0 0 / 0.06);
   }
   .shadow-ios-lg {
-    box-shadow: 0 12px 32px 0 rgb(0 0 0 / 0.10), 0 4px 8px -4px rgb(0 0 0 / 0.08);
+    box-shadow:
+      0 12px 32px 0 rgb(0 0 0 / 0.1),
+      0 4px 8px -4px rgb(0 0 0 / 0.08);
   }
+}
+
+/* iOS overscroll bounce fix */
+html {
+  background-color: white;
 }
 
 /* Custom animations */
@@ -390,7 +405,9 @@
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
   }
   50% {
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), 0 0 0 6px rgba(255, 255, 255, 0.18);
+    box-shadow:
+      0 8px 32px rgba(0, 0, 0, 0.35),
+      0 0 0 6px rgba(255, 255, 255, 0.18);
   }
 }
 

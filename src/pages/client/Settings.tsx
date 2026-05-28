@@ -8,6 +8,7 @@ import {
   Clock, XCircle, Pencil, MapPin, Plus, TrendingUp,
   Scale, TrendingDown, Dumbbell, Salad, LogOut,
   Sun, Moon, Monitor, Camera, MessageSquare, CalendarDays, Lock,
+  Heart, ChefHat, Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -662,51 +663,45 @@ const Settings: React.FC = () => {
   const menuItems = [
     {
       id:    "profile"  as Screen,
-      icon:  <User      className="w-5 h-5" />,
+      icon:  <User      className="w-6 h-6 text-muted-foreground" />,
       title: t("settings.menu.profile"),
       desc:  profile?.display_name || user?.email || t("settings.profile.displayNamePlaceholder"),
       show:  true,
-      color: "bg-blue-500/10 text-blue-600",
     },
     {
       id:    "physical" as Screen,
-      icon:  <Activity  className="w-5 h-5" />,
+      icon:  <Activity  className="w-6 h-6 text-muted-foreground" />,
       title: t("settings.menu.physical"),
       desc:  bmi ? `BMI ${bmi} · ${getBMIStatus(bmi).label}` : t("settings.menu.physicalDesc"),
       show:  true,
-      color: "bg-orange-500/10 text-orange-600",
     },
     {
       id:    "nutrition" as Screen,
-      icon:  <Target    className="w-5 h-5" />,
+      icon:  <Target    className="w-6 h-6 text-primary" />,
       title: t("settings.menu.nutrition"),
       desc:  `${nutritionGoals.calories.toLocaleString()} kcal`,
       show:  true,
-      color: "bg-green-500/10 text-green-600",
     },
     {
       id:    "dietary"  as Screen,
-      icon:  <Salad     className="w-5 h-5" />,
+      icon:  <Salad     className="w-6 h-6 text-primary" />,
       title: t("settings.menu.dietary"),
       desc:  t("settings.menu.dietaryDesc"),
       show:  true,
-      color: "bg-lime-500/10 text-lime-600",
     },
     {
       id:    "language" as Screen,
-      icon:  <Languages className="w-5 h-5" />,
+      icon:  <Languages className="w-6 h-6 text-muted-foreground" />,
       title: t("settings.menu.language"),
       desc:  i18n.language === "vi" ? "Tiếng Việt" : "English",
       show:  true,
-      color: "bg-violet-500/10 text-violet-600",
     },
     {
       id:    "store"    as Screen,
-      icon:  <StoreIcon className="w-5 h-5" />,
+      icon:  <StoreIcon className="w-6 h-6 text-muted-foreground" />,
       title: t("settings.menu.store"),
       desc:  `${myStores.length} ${t("settings.menu.storeDesc")}`,
       show:  storesLoaded && myStores.length > 0,
-      color: "bg-pink-500/10 text-pink-600",
     },
   ];
 
@@ -758,7 +753,7 @@ const Settings: React.FC = () => {
       <main className="container isolate px-5 py-6 space-y-4 max-w-lg mx-auto">
 
         {/* User card */}
-        <div className="flex items-center gap-4 px-4 py-4 bg-card border border-border rounded-2xl">
+        <div className="flex items-center gap-4 px-4 py-4 bg-card shadow-ios-sm rounded-2xl">
           <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
             <User className="w-6 h-6 text-primary" />
           </div>
@@ -775,20 +770,14 @@ const Settings: React.FC = () => {
         </div>
 
         {/* Subscription + feature usage card */}
-        <div className="rounded-2xl overflow-hidden border border-border bg-card">
+        <div className="rounded-2xl overflow-hidden shadow-ios-sm bg-card">
           {/* Plan row */}
           <button
             type="button"
             onClick={() => navigate("/subscription")}
             className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-muted/40 transition-colors text-left"
           >
-            <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${
-              tier === "pro"     ? "bg-yellow-500/10 text-yellow-600" :
-              tier === "premium" ? "bg-primary/10 text-primary" :
-                                   "bg-muted text-muted-foreground"
-            }`}>
-              <TierIcon className="w-5 h-5" />
-            </div>
+            <TierIcon className="w-6 h-6 text-muted-foreground flex-shrink-0" />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold">
                 {tier === "free" ? "Gói Free" : tier === "premium" ? "Gói Premium" : "Gói Pro"}
@@ -856,17 +845,31 @@ const Settings: React.FC = () => {
           </div>
         </div>
 
+        {/* Reports — prominent always-visible card */}
+        <button
+          type="button"
+          onClick={() => navigate("/reports")}
+          className="w-full rounded-2xl shadow-ios-sm bg-primary/10 border border-primary/20 flex items-center gap-4 px-5 py-4 hover:bg-primary/15 transition-all text-left"
+        >
+          <div className="w-11 h-11 rounded-xl bg-primary/20 flex items-center justify-center flex-shrink-0">
+            <TrendingUp className="w-5 h-5 text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-sm text-foreground">Báo cáo dinh dưỡng</p>
+            <p className="text-xs text-muted-foreground">Xu hướng calo, macro, tuân thủ mục tiêu</p>
+          </div>
+          <ChevronRight className="w-4 h-4 text-primary flex-shrink-0" />
+        </button>
+
         {/* Settings menu */}
-        <div className="rounded-2xl overflow-hidden border border-border divide-y divide-border bg-card">
+        <div className="rounded-2xl overflow-hidden shadow-ios-sm divide-y divide-border bg-card">
           {menuItems.filter((item) => item.show).map((item) => (
             <button
               key={item.id} type="button"
               onClick={() => setScreen(item.id)}
               className="w-full flex items-center gap-4 px-4 py-3.5 hover:bg-muted/40 transition-colors text-left"
             >
-              <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${item.color}`}>
-                {item.icon}
-              </div>
+              {item.icon}
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium">{item.title}</p>
                 <p className="text-xs text-muted-foreground truncate">{item.desc}</p>
@@ -874,30 +877,38 @@ const Settings: React.FC = () => {
               <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
             </button>
           ))}
-          {tier !== "free" && (
+        </div>
+
+        {/* Explore — links to all discoverable features */}
+        <div className="rounded-2xl overflow-hidden shadow-ios-sm divide-y divide-border bg-card">
+          <div className="px-4 pt-3.5 pb-1.5">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Khám phá</p>
+          </div>
+          {[
+            { icon: <Heart     className="w-5 h-5 text-fat"      />, title: "Yêu thích",          desc: "Món ăn đã lưu",                  path: "/favorites"       },
+            { icon: <ChefHat   className="w-5 h-5 text-calories" />, title: "Công thức của tôi",  desc: "Quản lý công thức cá nhân",       path: "/my-recipes"      },
+            { icon: <Users     className="w-5 h-5 text-protein"  />, title: "Cộng đồng",          desc: "Kế hoạch bữa ăn từ cộng đồng",   path: "/community-plans" },
+            { icon: <MapPin    className="w-5 h-5 text-vitamins" />, title: "Nhà hàng gần đây",   desc: "Tìm quán ăn lành mạnh",           path: "/nearby"          },
+          ].map(({ icon, title, desc, path }) => (
             <button
-              type="button"
-              onClick={() => navigate("/reports")}
+              key={path} type="button"
+              onClick={() => navigate(path)}
               className="w-full flex items-center gap-4 px-4 py-3.5 hover:bg-muted/40 transition-colors text-left"
             >
-              <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center flex-shrink-0">
-                <TrendingUp className="w-5 h-5" />
-              </div>
+              {icon}
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium">Báo cáo dinh dưỡng</p>
-                <p className="text-xs text-muted-foreground">Xu hướng calo, macro, streak ăn uống</p>
+                <p className="text-sm font-medium">{title}</p>
+                <p className="text-xs text-muted-foreground truncate">{desc}</p>
               </div>
               <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
             </button>
-          )}
+          ))}
         </div>
 
         {/* Appearance */}
-        <div className="rounded-2xl overflow-hidden border border-border bg-card px-4 py-3.5 space-y-3">
+        <div className="rounded-2xl overflow-hidden shadow-ios-sm bg-card px-4 py-3.5 space-y-3">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-              <Monitor className="w-5 h-5 text-primary" />
-            </div>
+            <Monitor className="w-6 h-6 text-muted-foreground flex-shrink-0" />
             <p className="text-sm font-medium flex-1">Giao diện</p>
           </div>
           <div className="grid grid-cols-3 gap-2">
@@ -928,9 +939,7 @@ const Settings: React.FC = () => {
           onClick={signOut}
           className="w-full flex items-center gap-4 px-4 py-3.5 bg-card border border-destructive/30 rounded-2xl hover:bg-destructive/5 transition-colors text-left"
         >
-          <div className="w-9 h-9 rounded-xl bg-destructive/10 flex items-center justify-center flex-shrink-0">
-            <LogOut className="w-5 h-5 text-destructive" />
-          </div>
+          <LogOut className="w-6 h-6 text-destructive flex-shrink-0" />
           <span className="text-sm font-medium text-destructive">Đăng xuất</span>
         </button>
 

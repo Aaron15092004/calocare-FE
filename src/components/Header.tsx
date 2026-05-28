@@ -1,6 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { Bell, Settings, User, LogOut } from "lucide-react";
+import { Bell, Settings, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -10,10 +10,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { useTranslation } from "react-i18next";
 
 export const Header: React.FC = () => {
   const navigate = useNavigate();
   const { user, profile, isAuthenticated, signOut } = useAuthContext();
+  const { t } = useTranslation();
 
   const handleSignOut = async () => {
     await signOut();
@@ -31,7 +33,7 @@ export const Header: React.FC = () => {
           <div>
             <h1 className="text-lg font-bold text-foreground">CaloCare</h1>
             <p className="text-xs text-muted-foreground">
-              Smart calorie tracking
+              {t("header.tagline")}
             </p>
           </div>
         </div>
@@ -70,10 +72,10 @@ export const Header: React.FC = () => {
                 </div>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => navigate("/meal-plan")}>
-                  <span>My Meal Plan</span>
+                  <span>{t("header.myMealPlan")}</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate("/settings")}>
-                  <span>Settings</span>
+                  <span>{t("header.settings")}</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
@@ -81,7 +83,7 @@ export const Header: React.FC = () => {
                   className="text-destructive"
                 >
                   <LogOut className="w-4 h-4 mr-2" />
-                  <span>Sign Out</span>
+                  <span>{t("header.signOut")}</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

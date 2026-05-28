@@ -36,6 +36,8 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { MultiImageUpload } from "@/components/MultiImageUpload";
+import { GooglePlacesInput, PlaceResult } from "@/components/GooglePlacesInput";
 import api from "@/lib/api";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -70,6 +72,7 @@ interface StoreAPI {
     subscription_expires_at?: string;
     is_verified: boolean;
     is_active: boolean;
+    reject_reason?: string;
     views_count: number;
 }
 
@@ -82,6 +85,11 @@ interface StoreForm {
     phone: string;
     website: string;
     category: string;
+    images: string[];
+    lat?: number;
+    lng?: number;
+    google_place_id?: string;
+    google_maps_url?: string;
 }
 
 const emptyStoreForm: StoreForm = {
@@ -92,6 +100,7 @@ const emptyStoreForm: StoreForm = {
     phone: "",
     website: "",
     category: "restaurant",
+    images: [],
 };
 
 interface MenuForm {
@@ -202,6 +211,7 @@ const StoreRegistration: React.FC = () => {
             phone: store.phone || "",
             website: store.website || "",
             category: store.category || "restaurant",
+            images: store.images || [],
         });
         setViewMode("store_form");
     };
@@ -221,6 +231,10 @@ const StoreRegistration: React.FC = () => {
                 phone: storeForm.phone.trim() || undefined,
                 website: storeForm.website.trim() || undefined,
                 category: storeForm.category,
+                images: storeForm.images,
+                ...(storeForm.lat && storeForm.lng ? { location: { lat: storeForm.lat, lng: storeForm.lng } } : {}),
+                ...(storeForm.google_place_id ? { google_place_id: storeForm.google_place_id } : {}),
+                ...(storeForm.google_maps_url ? { google_maps_url: storeForm.google_maps_url } : {}),
             };
 
             if (storeForm.id) {
@@ -228,7 +242,10 @@ const StoreRegistration: React.FC = () => {
                 toast({ title: "Đã lưu", description: "Thông tin cửa hàng đã được cập nhật." });
             } else {
                 await api.post("/stores", payload);
-                toast({ title: "Đã đăng ký", description: "Cửa hàng của bạn đã được tạo thành công!" });
+                toast({
+                    title: "Đã gửi đăng ký",
+                    description: "Cửa hàng của bạn đang chờ admin duyệt. Chúng tôi sẽ xem xét trong thời gian sớm nhất.",
+                });
             }
             await fetchStores();
             setViewMode("list");
@@ -573,8 +590,28 @@ const StoreRegistration: React.FC = () => {
                                 </Select>
                             </div>
                             <div>
-                                <Label className="text-xs">Địa chỉ *</Label>
-                                <Input className="mt-1" value={storeForm.address} onChange={(e) => setStoreForm({ ...storeForm, address: e.target.value })} placeholder="123 Nguyễn Huệ, Q.1..." />
+                                <Label className="text-xs">Địa chỉ * (Google Maps)</Label>
+                                <GooglePlacesInput
+                                    value={storeForm.address}
+                                    onChange={(v) => setStoreForm({ ...storeForm, address: v })}
+                                    onPlaceSelect={(place: PlaceResult) => setStoreForm((prev) => ({
+                                        ...prev,
+                                        address: place.address,
+                                        city: place.city || prev.city,
+                                        lat: place.lat,
+                                        lng: place.lng,
+                                        google_place_id: place.place_id,
+                                        google_maps_url: place.maps_url,
+                                    }))}
+                                    placeholder="Tìm địa chỉ trên Google Maps..."
+                                    className="mt-1"
+                                />
+                                {storeForm.google_maps_url && (
+                                    <a href={storeForm.google_maps_url} target="_blank" rel="noreferrer"
+                                        className="text-[11px] text-primary flex items-center gap-1 mt-1">
+                                        <MapPin className="w-3 h-3" /> Xem trên Google Maps
+                                    </a>
+                                )}
                             </div>
                             <div>
                                 <Label className="text-xs">Thành phố</Label>
@@ -588,6 +625,18 @@ const StoreRegistration: React.FC = () => {
                                 <div>
                                     <Label className="text-xs">Website</Label>
                                     <Input className="mt-1" value={storeForm.website} onChange={(e) => setStoreForm({ ...storeForm, website: e.target.value })} placeholder="https://..." />
+                                </div>
+                            </div>
+                            {/* Images */}
+                            <div>
+                                <Label className="text-xs">Hình ảnh cửa hàng (tối đa 8)</Label>
+                                <div className="mt-1">
+                                    <MultiImageUpload
+                                        value={storeForm.images}
+                                        onChange={(urls) => setStoreForm({ ...storeForm, images: urls })}
+                                        folder="calocare/stores"
+                                        maxImages={8}
+                                    />
                                 </div>
                             </div>
                         </CardContent>
@@ -605,6 +654,7 @@ const StoreRegistration: React.FC = () => {
                                     <li className="flex items-center gap-1"><Check className="w-3 h-3 text-primary" /> Analytics cơ bản</li>
                                 </ul>
                                 <p className="text-xs text-primary mt-2">Nâng cấp Store Pro 49k/tháng để mở khóa tất cả tính năng.</p>
+                                <p className="text-xs text-muted-foreground mt-1">Sau khi đăng ký, quán cần được admin duyệt trước khi hiển thị công khai.</p>
                             </CardContent>
                         </Card>
                     )}
@@ -662,6 +712,12 @@ const StoreRegistration: React.FC = () => {
                                             <Badge className={`text-xs ${store.subscription_tier === "pro" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
                                                 {store.subscription_tier === "pro" ? "Store Pro" : "Basic"}
                                             </Badge>
+                                            {!store.is_active && !store.reject_reason && (
+                                                <Badge className="text-xs bg-yellow-100 text-yellow-700 border-yellow-200">Chờ duyệt</Badge>
+                                            )}
+                                            {!store.is_active && store.reject_reason && (
+                                                <Badge className="text-xs bg-red-100 text-red-600 border-red-200">Bị từ chối</Badge>
+                                            )}
                                         </div>
                                         <div className="flex items-center gap-1 mt-0.5 text-xs text-muted-foreground">
                                             <MapPin className="w-3 h-3" />
@@ -670,6 +726,12 @@ const StoreRegistration: React.FC = () => {
                                         <p className="text-xs text-muted-foreground mt-0.5">
                                             {store.menu_items?.length || 0} món · {store.views_count} lượt xem
                                         </p>
+                                        {!store.is_active && store.reject_reason && (
+                                            <p className="text-xs text-red-500 mt-1">Lý do: {store.reject_reason}</p>
+                                        )}
+                                        {!store.is_active && !store.reject_reason && (
+                                            <p className="text-xs text-yellow-600 mt-1">Đang chờ admin xem xét và duyệt.</p>
+                                        )}
                                     </div>
                                 </div>
 

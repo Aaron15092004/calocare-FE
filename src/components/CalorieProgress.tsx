@@ -1,5 +1,11 @@
 import React from "react";
 
+function zoneColor(pct: number): string {
+  if (pct >= 100) return "#ef4444";
+  if (pct >= 80)  return "#f59e0b";
+  return "hsl(145,65%,42%)";
+}
+
 interface CalorieProgressProps {
   consumed: number;
   goal: number;
@@ -11,10 +17,12 @@ export const CalorieProgress: React.FC<CalorieProgressProps> = ({
   goal,
   burned,
 }) => {
+  const safeGoal = Math.max(goal, 1);
   const net = consumed - burned;
   const isOver = net > goal;
   const diff = Math.abs(goal - net);
-  const percentage = Math.min((net / goal) * 100, 100);
+  const percentage = Math.min((net / safeGoal) * 100, 100);
+  const rawPercent = (net / safeGoal) * 100;
   const circumference = 2 * Math.PI * 85;
 
   return (
@@ -32,7 +40,7 @@ export const CalorieProgress: React.FC<CalorieProgressProps> = ({
             r="85"
             fill="none"
             stroke="currentColor"
-            strokeWidth="16"
+            strokeWidth="20"
             className="text-accent"
           />
           {/* Progress circle */}
@@ -41,10 +49,8 @@ export const CalorieProgress: React.FC<CalorieProgressProps> = ({
             cy="100"
             r="85"
             fill="none"
-            stroke={
-              isOver ? "url(#calorieGradientRed)" : "url(#calorieGradientGreen)"
-            }
-            strokeWidth="16"
+            stroke={zoneColor(rawPercent)}
+            strokeWidth="20"
             strokeDasharray={circumference}
             strokeDashoffset={
               circumference - (percentage / 100) * circumference
@@ -52,30 +58,7 @@ export const CalorieProgress: React.FC<CalorieProgressProps> = ({
             strokeLinecap="round"
             className="transition-all duration-1000 ease-out"
           />
-          {/* Gradient definition */}
-          <defs>
-            <linearGradient
-              id="calorieGradientGreen"
-              x1="0%"
-              y1="0%"
-              x2="100%"
-              y2="0%"
-            >
-              <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="1" />
-              <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0.8" />
-            </linearGradient>
 
-            <linearGradient
-              id="calorieGradientRed"
-              x1="0%"
-              y1="0%"
-              x2="100%"
-              y2="0%"
-            >
-              <stop offset="0%" stopColor="hsl(var(--destructive))" stopOpacity="1" />
-              <stop offset="100%" stopColor="hsl(var(--destructive))" stopOpacity="0.85" />
-            </linearGradient>
-          </defs>
         </svg>
 
         {/* Center content */}

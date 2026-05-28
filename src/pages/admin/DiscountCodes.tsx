@@ -1,7 +1,8 @@
 // src/pages/admin/DiscountCodes.tsx
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import api from "@/lib/api";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +16,8 @@ import {
     ToggleLeft,
     ToggleRight,
     X,
+    Zap,
+    ZapOff,
 } from "lucide-react";
 import {
     Dialog,
@@ -41,6 +44,13 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+interface SystemDiscount {
+    discount_pct: number;
+    expires_at: string | null;
+    is_active: boolean;
+    applicable_plans: string[];
+}
+
 const EMPTY_FORM = {
     code: "",
     discount_type: "percentage" as "percentage" | "fixed",
@@ -54,6 +64,7 @@ const EMPTY_FORM = {
 };
 
 const DiscountCodes = () => {
+    const { t } = useTranslation();
     const { toast } = useToast();
     const [codes, setCodes] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -69,9 +80,60 @@ const DiscountCodes = () => {
     });
     const [submitting, setSubmitting] = useState(false);
 
+    // System-wide discount state
+    const [sysDiscount, setSysDiscount] = useState<SystemDiscount | null>(null);
+    const [sysDialog, setSysDialog] = useState(false);
+    const [sysForm, setSysForm] = useState({ discount_pct: "", expires_at: "", applicable_plans: [] as string[] });
+    const [sysSubmitting, setSysSubmitting] = useState(false);
+    const [removeSysDialog, setRemoveSysDialog] = useState(false);
+
     useEffect(() => {
         fetchCodes();
+        fetchSysDiscount();
     }, []);
+
+    const fetchSysDiscount = async () => {
+        try {
+            const { data } = await api.get("/admin/system-discount");
+            setSysDiscount(data);
+        } catch {
+            // non-critical
+        }
+    };
+
+    const handleSetSysDiscount = async () => {
+        const pct = Number(sysForm.discount_pct);
+        if (!pct || pct <= 0 || pct > 100) {
+            toast({ title: t("adminDiscount.systemDiscount.discountPct"), description: "1–100", variant: "destructive" });
+            return;
+        }
+        setSysSubmitting(true);
+        try {
+            const { data } = await api.put("/admin/system-discount", {
+                discount_pct: pct,
+                expires_at: sysForm.expires_at || null,
+                applicable_plans: sysForm.applicable_plans,
+            });
+            setSysDiscount(data);
+            setSysDialog(false);
+            toast({ title: t("adminDiscount.systemDiscount.setSuccess", { n: pct }) });
+        } catch (err: any) {
+            toast({ title: t("common.error"), description: err?.response?.data?.error, variant: "destructive" });
+        } finally {
+            setSysSubmitting(false);
+        }
+    };
+
+    const handleRemoveSysDiscount = async () => {
+        try {
+            await api.delete("/admin/system-discount");
+            setSysDiscount({ discount_pct: 0, expires_at: null, is_active: false });
+            setRemoveSysDialog(false);
+            toast({ title: t("adminDiscount.systemDiscount.removeSuccess") });
+        } catch (err: any) {
+            toast({ title: t("common.error"), description: err?.response?.data?.error, variant: "destructive" });
+        }
+    };
 
     const fetchCodes = async () => {
         setLoading(true);
@@ -180,20 +242,71 @@ const DiscountCodes = () => {
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold">Mã giảm giá</h1>
-                    <p className="text-muted-foreground">Tạo và quản lý mã khuyến mãi</p>
+                    <h1 className="text-2xl font-bold">{t("adminDiscount.title")}</h1>
+                    <p className="text-muted-foreground">{t("adminDiscount.subtitle")}</p>
                 </div>
                 <div className="flex gap-2">
                     <Button variant="outline" onClick={fetchCodes} disabled={loading}>
                         <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-                        Làm mới
+                        {t("adminDiscount.refresh")}
                     </Button>
                     <Button onClick={openCreate}>
                         <Plus className="w-4 h-4 mr-2" />
-                        Tạo mã mới
+                        {t("adminDiscount.createNew")}
                     </Button>
                 </div>
             </div>
+
+            {/* ── System-wide discount card ─────────────────────────────────── */}
+            <Card className={sysDiscount?.is_active ? "border-amber-400 bg-amber-50/40" : ""}>
+                <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                        <CardTitle className="flex items-center gap-2 text-base">
+                            {sysDiscount?.is_active
+                                ? <Zap className="w-4 h-4 text-amber-500" />
+                                : <ZapOff className="w-4 h-4 text-muted-foreground" />}
+                            {t("adminDiscount.systemDiscount.sectionTitle")}
+                        </CardTitle>
+                        <div className="flex gap-2">
+                            {sysDiscount?.is_active && (
+                                <Button variant="outline" size="sm" className="text-destructive border-destructive/30 hover:bg-destructive/5" onClick={() => setRemoveSysDialog(true)}>
+                                    <ZapOff className="w-3.5 h-3.5 mr-1.5" />
+                                    {t("adminDiscount.systemDiscount.removeDiscount")}
+                                </Button>
+                            )}
+                            <Button size="sm" onClick={() => { setSysForm({ discount_pct: String(sysDiscount?.discount_pct || ""), expires_at: sysDiscount?.expires_at ? new Date(sysDiscount.expires_at).toISOString().slice(0, 16) : "", applicable_plans: sysDiscount?.applicable_plans || [] }); setSysDialog(true); }}>
+                                <Zap className="w-3.5 h-3.5 mr-1.5" />
+                                {t("adminDiscount.systemDiscount.setDiscount")}
+                            </Button>
+                        </div>
+                    </div>
+                </CardHeader>
+                <CardContent className="pt-0">
+                    <p className="text-xs text-muted-foreground mb-3">{t("adminDiscount.systemDiscount.sectionSub")}</p>
+                    {sysDiscount?.is_active ? (
+                        <div className="flex items-center gap-3">
+                            <span className="text-2xl font-bold text-amber-600">{sysDiscount.discount_pct}%</span>
+                            <div>
+                                <p className="text-sm font-semibold text-amber-800">
+                                    {t("adminDiscount.systemDiscount.discountValue", { n: sysDiscount.discount_pct })}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                    {sysDiscount.expires_at
+                                        ? t("adminDiscount.systemDiscount.expiresAt", { date: new Date(sysDiscount.expires_at).toLocaleDateString("vi-VN") })
+                                        : t("adminDiscount.systemDiscount.neverExpires")}
+                                </p>
+                                <p className="text-xs text-amber-700 mt-0.5">
+                                    {sysDiscount.applicable_plans?.length > 0
+                                        ? `Áp dụng: ${sysDiscount.applicable_plans.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(", ")}`
+                                        : "Áp dụng: Tất cả gói trả phí"}
+                                </p>
+                            </div>
+                        </div>
+                    ) : (
+                        <p className="text-sm text-muted-foreground italic">{t("adminDiscount.systemDiscount.noDiscount")}</p>
+                    )}
+                </CardContent>
+            </Card>
 
             <Card>
                 <CardContent className="pt-6">
@@ -204,9 +317,9 @@ const DiscountCodes = () => {
                     ) : codes.length === 0 ? (
                         <div className="text-center py-12">
                             <Tag className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-40" />
-                            <p className="text-muted-foreground">Chưa có mã giảm giá nào</p>
+                            <p className="text-muted-foreground">{t("adminDiscount.noCodesYet")}</p>
                             <Button onClick={openCreate} className="mt-4">
-                                <Plus className="w-4 h-4 mr-2" /> Tạo mã đầu tiên
+                                <Plus className="w-4 h-4 mr-2" /> {t("adminDiscount.createFirst")}
                             </Button>
                         </div>
                     ) : (
@@ -214,13 +327,13 @@ const DiscountCodes = () => {
                             <table className="w-full text-sm">
                                 <thead>
                                     <tr className="border-b text-left">
-                                        <th className="pb-3 font-medium">Mã</th>
-                                        <th className="pb-3 font-medium">Loại</th>
-                                        <th className="pb-3 font-medium">Giá trị</th>
-                                        <th className="pb-3 font-medium">Đã dùng</th>
-                                        <th className="pb-3 font-medium">Hiệu lực</th>
-                                        <th className="pb-3 font-medium">Trạng thái</th>
-                                        <th className="pb-3 font-medium">Thao tác</th>
+                                        <th className="pb-3 font-medium">{t("adminDiscount.columns.code")}</th>
+                                        <th className="pb-3 font-medium">{t("adminDiscount.columns.type")}</th>
+                                        <th className="pb-3 font-medium">{t("adminDiscount.columns.value")}</th>
+                                        <th className="pb-3 font-medium">{t("adminDiscount.columns.used")}</th>
+                                        <th className="pb-3 font-medium">{t("adminDiscount.columns.validity")}</th>
+                                        <th className="pb-3 font-medium">{t("adminDiscount.columns.status")}</th>
+                                        <th className="pb-3 font-medium">{t("adminDiscount.columns.actions")}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -237,7 +350,7 @@ const DiscountCodes = () => {
                                                 )}
                                             </td>
                                             <td className="py-3 text-muted-foreground">
-                                                {code.discount_type === "percentage" ? "Phần trăm" : "Cố định"}
+                                                {code.discount_type === "percentage" ? t("adminDiscount.typePercentage") : t("adminDiscount.typeFixed")}
                                             </td>
                                             <td className="py-3 font-medium">
                                                 {code.discount_type === "percentage"
@@ -272,7 +385,7 @@ const DiscountCodes = () => {
                                                         <ToggleLeft className="w-5 h-5 text-muted-foreground" />
                                                     )}
                                                     <span className={`text-xs ${code.is_active ? "text-primary" : "text-muted-foreground"}`}>
-                                                        {code.is_active ? "Hoạt động" : "Tắt"}
+                                                        {code.is_active ? t("adminDiscount.statusActive") : t("adminDiscount.statusOff")}
                                                     </span>
                                                 </button>
                                             </td>
@@ -313,7 +426,7 @@ const DiscountCodes = () => {
                 <DialogContent className="max-w-md">
                     <DialogHeader>
                         <DialogTitle>
-                            {dialog.mode === "create" ? "Tạo mã giảm giá mới" : "Chỉnh sửa mã giảm giá"}
+                            {dialog.mode === "create" ? t("adminDiscount.createDialog") : t("adminDiscount.editDialog")}
                         </DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4 py-2">
@@ -437,7 +550,7 @@ const DiscountCodes = () => {
                             onClick={() => setDialog({ ...dialog, open: false })}
                             disabled={submitting}
                         >
-                            <X className="w-4 h-4 mr-2" /> Hủy
+                            <X className="w-4 h-4 mr-2" /> {t("common.cancel")}
                         </Button>
                         <Button onClick={handleSubmit} disabled={submitting}>
                             {submitting ? (
@@ -445,7 +558,7 @@ const DiscountCodes = () => {
                             ) : (
                                 <Plus className="w-4 h-4 mr-2" />
                             )}
-                            {dialog.mode === "create" ? "Tạo mã" : "Lưu thay đổi"}
+                            {dialog.mode === "create" ? t("adminDiscount.createBtn") : t("adminDiscount.saveBtn")}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -458,18 +571,102 @@ const DiscountCodes = () => {
             >
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Xóa mã giảm giá?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Hành động này không thể hoàn tác. Mã giảm giá sẽ bị xóa vĩnh viễn.
-                        </AlertDialogDescription>
+                        <AlertDialogTitle>{t("adminDiscount.deleteTitle")}</AlertDialogTitle>
+                        <AlertDialogDescription>{t("adminDiscount.deleteDesc")}</AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel>Hủy</AlertDialogCancel>
+                        <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
                         <AlertDialogAction
                             onClick={handleDelete}
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                         >
-                            Xóa
+                            {t("common.delete")}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* System Discount — Set/Edit Dialog */}
+            <Dialog open={sysDialog} onOpenChange={setSysDialog}>
+                <DialogContent className="max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Zap className="w-4 h-4 text-amber-500" />
+                            {t("adminDiscount.systemDiscount.dialogTitle")}
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-2">
+                        <div className="space-y-1.5">
+                            <Label>
+                                {t("adminDiscount.systemDiscount.discountPct")}{" "}
+                                <span className="text-destructive">*</span>
+                            </Label>
+                            <Input
+                                type="number"
+                                min={1}
+                                max={100}
+                                placeholder={t("adminDiscount.systemDiscount.discountPctPlaceholder")}
+                                value={sysForm.discount_pct}
+                                onChange={(e) => setSysForm({ ...sysForm, discount_pct: e.target.value })}
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label>{t("adminDiscount.systemDiscount.expiryDate")}</Label>
+                            <Input
+                                type="datetime-local"
+                                value={sysForm.expires_at}
+                                onChange={(e) => setSysForm({ ...sysForm, expires_at: e.target.value })}
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label>{t("adminDiscount.systemDiscount.applicablePlansLabel")}</Label>
+                            <div className="flex gap-4">
+                                {["premium", "pro"].map((plan) => (
+                                    <label key={plan} className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            className="w-4 h-4 accent-amber-500"
+                                            checked={sysForm.applicable_plans.includes(plan)}
+                                            onChange={(e) => {
+                                                const updated = e.target.checked
+                                                    ? [...sysForm.applicable_plans, plan]
+                                                    : sysForm.applicable_plans.filter((p) => p !== plan);
+                                                setSysForm({ ...sysForm, applicable_plans: updated });
+                                            }}
+                                        />
+                                        <span className="text-sm capitalize font-medium">{plan}</span>
+                                    </label>
+                                ))}
+                            </div>
+                            <p className="text-xs text-muted-foreground">{t("adminDiscount.systemDiscount.applicablePlansHint")}</p>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setSysDialog(false)} disabled={sysSubmitting}>
+                            <X className="w-4 h-4 mr-2" /> {t("common.cancel")}
+                        </Button>
+                        <Button onClick={handleSetSysDiscount} disabled={sysSubmitting} className="bg-amber-500 hover:bg-amber-600">
+                            {sysSubmitting ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Zap className="w-4 h-4 mr-2" />}
+                            {t("adminDiscount.systemDiscount.saveBtn")}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* System Discount — Remove Confirm */}
+            <AlertDialog open={removeSysDialog} onOpenChange={setRemoveSysDialog}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>{t("adminDiscount.systemDiscount.removeConfirmTitle")}</AlertDialogTitle>
+                        <AlertDialogDescription>{t("adminDiscount.systemDiscount.removeConfirmDesc")}</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleRemoveSysDiscount}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            {t("adminDiscount.systemDiscount.removeDiscount")}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

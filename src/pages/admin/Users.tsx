@@ -4,7 +4,7 @@ import api from "@/lib/api";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Ban, Shield, ShieldCheck, MoreHorizontal } from "lucide-react";
+import { Search, Ban, Shield, ShieldCheck, MoreHorizontal, Store } from "lucide-react";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -96,8 +96,9 @@ const Users = () => {
                                             <td className="py-3 text-muted-foreground">{u.email}</td>
                                             <td className="py-3">
                                                 <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                                                    u.role === "admin" ? "bg-red-100 text-red-700"
-                                                    : u.role === "moderator" ? "bg-yellow-100 text-yellow-700"
+                                                    u.role === "admin"       ? "bg-red-100 text-red-700"
+                                                    : u.role === "moderator"   ? "bg-yellow-100 text-yellow-700"
+                                                    : u.role === "store_owner" ? "bg-green-100 text-green-700"
                                                     : "bg-gray-100 text-gray-700"
                                                 }`}>
                                                     {u.role}
@@ -130,6 +131,9 @@ const Users = () => {
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
+                                                        <DropdownMenuItem onClick={() => updateRole(u._id, "store_owner")}>
+                                                            <Store className="w-4 h-4 mr-2" /> Set Store Owner
+                                                        </DropdownMenuItem>
                                                         <DropdownMenuItem onClick={() => updateRole(u._id, "moderator")}>
                                                             <Shield className="w-4 h-4 mr-2" /> Make Moderator
                                                         </DropdownMenuItem>

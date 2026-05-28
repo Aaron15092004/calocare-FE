@@ -246,7 +246,7 @@ const Onboarding: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen gradient-fresh flex items-center justify-center px-5 py-4">
+    <div className="min-h-screen gradient-hero flex items-center justify-center px-5 py-4">
       <Card className="w-full max-w-lg">
         <CardHeader>
           <div className="flex items-center justify-between mb-2">

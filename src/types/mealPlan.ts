@@ -1,10 +1,27 @@
 // Types for real meal plan data from the API
 
+export interface RecipeIngredient {
+    name: string;
+    amount: string;
+    kcal: number;
+}
+
+export interface RecipeInstruction {
+    type: "ingredients" | "steps";
+    items: RecipeIngredient[] | string[];
+}
+
 export interface RecipeInfo {
     _id: string;
     name_vi: string;
     name_en: string;
     calories: number;
+    protein?: number;
+    carbs?: number;
+    fat?: number;
+    fiber?: number;
+    description?: string;
+    instructions?: RecipeInstruction[];
     image_url?: string;
 }
 
@@ -13,15 +30,33 @@ export interface FoodInfo {
     name_vi: string;
     name_en: string;
     energy_kcal: number;
+    image_url?: string;
+}
+
+// Canonical meal-type ordering used across the app
+export const MEAL_ORDER = [
+    "breakfast", "morning_snack", "lunch", "afternoon_snack", "dinner", "snack",
+] as const;
+
+export interface CustomFood {
+    name: string;
+    description?: string;
+    calories_kcal: number;
+    protein_g: number;
+    carbs_g: number;
+    fat_g: number;
+    fiber_g?: number;
+    serving_description?: string;
 }
 
 export interface MealPlanItemAPI {
     _id: string;
     meal_plan_id: string;
     day_number: number;
-    meal_type: "breakfast" | "lunch" | "dinner" | "snack";
+    meal_type: "breakfast" | "lunch" | "dinner" | "snack" | "morning_snack" | "afternoon_snack";
     recipe_id?: RecipeInfo;
     food_id?: FoodInfo;
+    custom_food?: CustomFood;
     serving_size?: number;
     sort_order: number;
 }
@@ -56,15 +91,49 @@ export interface DayPlanFromAPI {
 }
 
 export function getItemDisplayName(item: MealPlanItemAPI): string {
-    return item.recipe_id?.name_vi || item.food_id?.name_vi || "Unknown";
+    return item.recipe_id?.name_vi || item.custom_food?.name || item.food_id?.name_vi || "Unknown";
 }
 
 export function getItemCalories(item: MealPlanItemAPI): number {
-    return item.recipe_id?.calories || item.food_id?.energy_kcal || 0;
+    return item.recipe_id?.calories || item.custom_food?.calories_kcal || item.food_id?.energy_kcal || 0;
+}
+
+export function getItemMacros(item: MealPlanItemAPI): { protein: number; carbs: number; fat: number; fiber: number } {
+    if (item.recipe_id) {
+        return {
+            protein: item.recipe_id.protein ?? 0,
+            carbs:   item.recipe_id.carbs ?? 0,
+            fat:     item.recipe_id.fat ?? 0,
+            fiber:   item.recipe_id.fiber ?? 0,
+        };
+    }
+    if (item.custom_food) {
+        return {
+            protein: item.custom_food.protein_g,
+            carbs:   item.custom_food.carbs_g,
+            fat:     item.custom_food.fat_g,
+            fiber:   item.custom_food.fiber_g ?? 0,
+        };
+    }
+    return { protein: 0, carbs: 0, fat: 0, fiber: 0 };
 }
 
 export function getItemId(item: MealPlanItemAPI): string {
     return item.recipe_id?._id || item.food_id?._id || item._id;
+}
+
+export function getRecipeIngredients(item: MealPlanItemAPI): RecipeIngredient[] {
+    const instr = item.recipe_id?.instructions;
+    if (!instr) return [];
+    const block = instr.find((b) => b.type === "ingredients");
+    return (block?.items ?? []) as RecipeIngredient[];
+}
+
+export function getRecipeSteps(item: MealPlanItemAPI): string[] {
+    const instr = item.recipe_id?.instructions;
+    if (!instr) return [];
+    const block = instr.find((b) => b.type === "steps");
+    return (block?.items ?? []) as string[];
 }
 
 export function groupItemsByDay(items: MealPlanItemAPI[], totalDays: number): DayPlanFromAPI[] {

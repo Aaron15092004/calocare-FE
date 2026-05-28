@@ -11,6 +11,8 @@ import {
     Calendar,
     Activity,
     ClipboardList,
+    Store,
+    Clock,
 } from "lucide-react";
 import {
     AreaChart,
@@ -37,6 +39,8 @@ interface Stats {
     new_users_this_month: number;
     diary_entries_last_7days: number;
     pending_recipes: number;
+    total_stores: number;
+    pending_stores: number;
 }
 
 interface Charts {
@@ -44,6 +48,8 @@ interface Charts {
     revenue: { name: string; revenue: number; transactions: number }[];
     diary_activity: { name: string; entries: number }[];
     food_group_distribution: { name: string; value: number }[];
+    subscription_tier_distribution: { name: string; value: number }[];
+    store_status: { name: string; value: number }[];
 }
 
 const StatCard = ({ icon: Icon, label, value, trend, color }: any) => (
@@ -76,6 +82,8 @@ const Dashboard = () => {
         revenue: [],
         diary_activity: [],
         food_group_distribution: [],
+        subscription_tier_distribution: [],
+        store_status: [],
     });
     const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -88,7 +96,7 @@ const Dashboard = () => {
         try {
             const { data } = await api.get("/admin/dashboard");
             setStats(data.stats);
-            setCharts(data.charts || { user_growth: [], revenue: [], diary_activity: [], food_group_distribution: [] });
+            setCharts(data.charts || { user_growth: [], revenue: [], diary_activity: [], food_group_distribution: [], subscription_tier_distribution: [], store_status: [] });
             setRecentTransactions(data.recent_transactions || []);
         } catch (err) {
             console.error(err);
@@ -141,6 +149,13 @@ const Dashboard = () => {
                     label="Pending Recipes"
                     value={stats?.pending_recipes ?? 0}
                     color="bg-yellow-100 text-yellow-600"
+                />
+                <StatCard icon={Store} label="Total Stores" value={stats?.total_stores ?? 0} color="bg-teal-100 text-teal-600" />
+                <StatCard
+                    icon={Clock}
+                    label="Pending Stores"
+                    value={stats?.pending_stores ?? 0}
+                    color="bg-amber-100 text-amber-600"
                 />
             </div>
 
@@ -277,6 +292,84 @@ const Dashboard = () => {
                                         wrapperStyle={{ fontSize: 11, maxWidth: 120 }}
                                     />
                                 </PieChart>
+                            </ResponsiveContainer>
+                        )}
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* Charts row 3: Subscription tier distribution + Store status */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-base">Subscription Tier Distribution</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        {charts.subscription_tier_distribution.length === 0 ? (
+                            <div className="flex items-center justify-center h-[220px] text-muted-foreground text-sm">No data</div>
+                        ) : (
+                            <ResponsiveContainer width="100%" height={220}>
+                                <PieChart>
+                                    <Pie
+                                        data={charts.subscription_tier_distribution}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={55}
+                                        outerRadius={85}
+                                        paddingAngle={3}
+                                        dataKey="value"
+                                        nameKey="name"
+                                        label={({ name, percent }) =>
+                                            percent > 0.03 ? `${(percent * 100).toFixed(0)}%` : ""
+                                        }
+                                        labelLine={false}
+                                    >
+                                        {charts.subscription_tier_distribution.map((_, index) => (
+                                            <Cell
+                                                key={index}
+                                                fill={["#6b7280", "#8b5cf6", "#3b82f6"][index % 3]}
+                                            />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip formatter={(value, name) => [value, name]} />
+                                    <Legend
+                                        layout="vertical"
+                                        align="right"
+                                        verticalAlign="middle"
+                                        wrapperStyle={{ fontSize: 12 }}
+                                    />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        )}
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-base">Store Status</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        {charts.store_status.every((d) => d.value === 0) ? (
+                            <div className="flex items-center justify-center h-[220px] text-muted-foreground text-sm">No stores yet</div>
+                        ) : (
+                            <ResponsiveContainer width="100%" height={220}>
+                                <BarChart
+                                    data={charts.store_status}
+                                    margin={{ top: 4, right: 8, left: -16, bottom: 0 }}
+                                >
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                                    <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                                    <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                                    <Tooltip />
+                                    <Bar dataKey="value" radius={[4, 4, 0, 0]} name="Stores">
+                                        {charts.store_status.map((entry, index) => (
+                                            <Cell
+                                                key={index}
+                                                fill={entry.name === "Active" ? "#10b981" : "#f59e0b"}
+                                            />
+                                        ))}
+                                    </Bar>
+                                </BarChart>
                             </ResponsiveContainer>
                         )}
                     </CardContent>

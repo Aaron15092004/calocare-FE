@@ -18,20 +18,30 @@ import {
     Store,
     Tag,
     BookMarked,
+    Image,
+    Cpu,
+    ListTodo,
+    Bot,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AdminBadge } from "./AdminBadge";
+import { useAdminBadges } from "@/hooks/useAdminBadges";
 
 const navItems = [
     { to: "/admin", icon: LayoutDashboard, label: "Dashboard", end: true },
     { to: "/admin/users", icon: Users, label: "Users" },
     { to: "/admin/payments", icon: CreditCard, label: "Payments" },
     { to: "/admin/stores", icon: Store, label: "Stores" },
+    { to: "/admin/banners", icon: Image, label: "Banners" },
     { to: "/admin/discount-codes", icon: Tag, label: "Discount Codes" },
     { to: "/admin/recipes", icon: UtensilsCrossed, label: "Recipes" },
     { to: "/admin/recipe-categories", icon: BookMarked, label: "Recipe Categories" },
     { to: "/admin/foods", icon: Apple, label: "Foods" },
     { to: "/admin/food-groups", icon: Layers, label: "Food Groups" },
     { to: "/admin/meal-plans", icon: Calendar, label: "Meal Plans" },
+    { to: "/admin/rag-foods", icon: Cpu, label: "RAG Foods", badge: "pending_foods" as const },
+    { to: "/admin/enrichment-queue", icon: ListTodo, label: "Enrichment Queue", badge: "pending_enrichment" as const },
+    { to: "/admin/ai-cost", icon: Bot, label: "AI Cost Monitor" },
     { to: "/admin/profile", icon: UserCircle, label: "Profile" },
 ];
 
@@ -39,6 +49,7 @@ const AdminLayout = () => {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const { profile, signOut } = useAuthContext();
     const navigate = useNavigate();
+    const { data: badges } = useAdminBadges();
 
     const handleSignOut = async () => {
         await signOut();
@@ -101,7 +112,10 @@ const AdminLayout = () => {
                             }
                         >
                             <item.icon className="w-5 h-5 flex-shrink-0" />
-                            {item.label}
+                            <span className="flex-1">{item.label}</span>
+                            {item.badge && badges && (badges[item.badge] ?? 0) > 0 && (
+                                <AdminBadge count={badges[item.badge] ?? 0} />
+                            )}
                         </NavLink>
                     ))}
                 </nav>

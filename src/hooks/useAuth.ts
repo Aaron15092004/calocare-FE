@@ -8,7 +8,7 @@ export interface Profile {
     email: string;
     display_name: string | null;
     avatar_url: string | null;
-    role: "user" | "admin" | "moderator";
+    role: "user" | "admin" | "moderator" | "store_owner";
     subscription_tier: "free" | "premium" | "pro";
     subscription_expires_at: string | null;
     is_banned: boolean;
@@ -53,11 +53,12 @@ export const useAuth = () => {
     const [loading, setLoading] = useState(true);
     const { toast } = useToast();
 
-    const isAdmin = profile?.role === "admin";
-    const isModerator = profile?.role === "moderator";
-    const isStaff = isAdmin || isModerator;
-    const isBanned = profile?.is_banned === true;
-    const isPremium =
+    const isAdmin      = profile?.role === "admin";
+    const isModerator  = profile?.role === "moderator";
+    const isStoreOwner = profile?.role === "store_owner";
+    const isStaff      = isAdmin || isModerator;
+    const isBanned     = profile?.is_banned === true;
+    const isPremium    =
         profile?.subscription_tier === "premium" || profile?.subscription_tier === "pro";
 
     const fetchProfile = useCallback(async (force = false) => {
@@ -190,6 +191,7 @@ export const useAuth = () => {
         isAuthenticated: !!profile,
         isAdmin,
         isModerator,
+        isStoreOwner,
         isStaff,
         isBanned,
         isPremium,

@@ -40,7 +40,9 @@ import {
 
 interface Ingredient {
     id?: string;
-    food_id: string;
+    food_id?: string;
+    ingredient_recipe_id?: string;
+    ingredient_type?: "food" | "recipe";
     food_name?: string;
     amount: number;
     unit: string;
@@ -66,7 +68,13 @@ interface RecipeForm {
     tags: string[];
     is_public: boolean;
     is_approved: boolean;
-    category_id: number | null;
+    category_id: string | null;
+    nutrition_source: "ingredients" | "manual";
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+    fiber: number;
 }
 
 const emptyForm: RecipeForm = {
@@ -80,6 +88,12 @@ const emptyForm: RecipeForm = {
     is_public: false,
     is_approved: false,
     category_id: null,
+    nutrition_source: "ingredients",
+    calories: 0,
+    protein: 0,
+    carbs: 0,
+    fat: 0,
+    fiber: 0,
 };
 
 type ViewMode = "list" | "form" | "detail";
@@ -95,9 +109,12 @@ const STATUS_COLORS: Record<string, string> = {
 const Recipes = () => {
     const { profile } = useAuthContext();
     const [recipes, setRecipes] = useState<any[]>([]);
+    const [total, setTotal] = useState(0);
+    const [page, setPage] = useState(1);
     const [search, setSearch] = useState("");
     const [filterStatus, setFilterStatus] = useState<StatusFilter>("all");
     const [loading, setLoading] = useState(true);
+    const PAGE_SIZE = 20;
     const [saving, setSaving] = useState(false);
 
     const [viewMode, setViewMode] = useState<ViewMode>("list");
@@ -113,6 +130,9 @@ const Recipes = () => {
     const [detailIngredients, setDetailIngredients] = useState<Ingredient[]>([]);
 
     const [deleteId, setDeleteId] = useState<string | null>(null);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
+    const [rejectError, setRejectError] = useState<string | null>(null);
+    const [formError, setFormError] = useState<string | null>(null);
 
     const [categories, setCategories] = useState<any[]>([]);
     const [filterCategory, setFilterCategory] = useState<string>("all");
@@ -126,26 +146,60 @@ const Recipes = () => {
     const [rejectId, setRejectId] = useState<string | null>(null);
     const [rejectReason, setRejectReason] = useState("");
 
-    // Pending count for badge
-    const pendingCount = recipes.filter((r) => r.status === "pending").length;
+    const [pendingCount, setPendingCount] = useState(0);
+
+    const fetchRecipes = async (opts: { page: number; q: string; status: StatusFilter; category: string }) => {
+        setLoading(true);
+        try {
+            const params: Record<string, string | number> = {
+                limit: PAGE_SIZE,
+                offset: (opts.page - 1) * PAGE_SIZE,
+            };
+            if (opts.q.trim()) params.q = opts.q.trim();
+            if (opts.category !== "all") params.category_id = opts.category;
+            if (opts.status === "approved") {
+                params.is_approved = "true";
+            } else if (opts.status === "pending") {
+                params.is_public = "true";
+                params.is_approved = "false";
+            } else if (opts.status === "draft" || opts.status === "rejected") {
+                params.is_public = "false";
+                params.is_approved = "false";
+            }
+            const { data } = await api.get("/recipes", { params });
+            setRecipes(data.data || []);
+            setTotal(data.total || 0);
+        } catch (err) { console.error(err); }
+        finally { setLoading(false); }
+    };
+
+    const fetchPendingCount = async () => {
+        try {
+            const { data } = await api.get("/recipes", { params: { is_public: "true", is_approved: "false", limit: 1 } });
+            setPendingCount(data.total || 0);
+        } catch { /* ignore */ }
+    };
 
     useEffect(() => {
-        fetchRecipes();
         fetchCategories();
+        fetchPendingCount();
     }, []);
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setPage(1);
+            fetchRecipes({ page: 1, q: search, status: filterStatus, category: filterCategory });
+        }, search ? 300 : 0);
+        return () => clearTimeout(timer);
+    }, [search, filterStatus, filterCategory]);
+
+    useEffect(() => {
+        fetchRecipes({ page, q: search, status: filterStatus, category: filterCategory });
+    }, [page]);
 
     const fetchCategories = async () => {
         const { data } = await api.get("/recipe-categories");
         setCategories(data || []);
-    };
-
-    const fetchRecipes = async () => {
-        setLoading(true);
-        try {
-            const { data } = await api.get("/recipes", { params: { limit: 200 } });
-            setRecipes(data.data || []);
-        } catch (err) { console.error(err); }
-        finally { setLoading(false); }
     };
 
     // ── CRUD ──
@@ -160,38 +214,85 @@ const Recipes = () => {
 
     const handleEdit = async (recipe: any) => {
         setForm({
-            id: recipe.id,
+            id: recipe._id || recipe.id,
             name_vi: recipe.name_vi || "",
             name_en: recipe.name_en || "",
             code: recipe.code || "",
             description: recipe.description || "",
             servings: recipe.servings || 1,
-            instructions: recipe.instructions?.length ? recipe.instructions : [""],
+            instructions: (() => {
+                const raw: any[] = recipe.instructions || [];
+                const strings = raw.flatMap((s: any) => {
+                    if (typeof s === "string") return [s];
+                    if (s?.type === "steps" && Array.isArray(s.items)) return s.items.map(String);
+                    return [];
+                });
+                return strings.length ? strings : [""];
+            })(),
             tags: recipe.tags || [],
             is_public: recipe.is_public || false,
             is_approved: recipe.is_approved || false,
-            category_id: recipe.category_id || null,
+            category_id: (typeof recipe.category_id === "object" ? recipe.category_id?._id : recipe.category_id) || null,
+            nutrition_source: recipe.nutrition_source || "ingredients",
+            calories: recipe.calories || 0,
+            protein: recipe.protein || 0,
+            carbs: recipe.carbs || 0,
+            fat: recipe.fat || 0,
+            fiber: recipe.fiber || 0,
         });
         setImages(recipe.images?.length ? recipe.images : recipe.image_url ? [recipe.image_url] : []);
         setNewImageFiles([]);
 
         const { data: recipeDetail } = await api.get(`/recipes/${recipe._id || recipe.id}`);
         setIngredients(
-            (recipeDetail.ingredients || []).map((ing: any) => ({
-                id: ing._id,
-                food_id: ing.food_id?._id || ing.food_id,
-                food_name: ing.food_id?.name_vi,
-                amount: ing.amount,
-                unit: ing.unit,
-                sort_order: ing.sort_order,
-                food: ing.food_id,
-            })),
+            (recipeDetail.ingredients || []).map((ing: any) => {
+                const rec = typeof ing.ingredient_recipe_id === "object" ? ing.ingredient_recipe_id : null;
+                if (rec || typeof ing.ingredient_recipe_id === "string") {
+                    const totalW = rec?.total_weight || 100;
+                    const per100 = totalW > 0 ? 100 / totalW : 1;
+                    return {
+                        id: ing._id,
+                        ingredient_recipe_id: rec?._id || ing.ingredient_recipe_id,
+                        ingredient_type: "recipe" as const,
+                        food_name: rec?.name_vi || "Recipe",
+                        amount: ing.amount,
+                        unit: ing.unit || "g",
+                        sort_order: ing.sort_order,
+                        food: rec ? {
+                            name_vi: rec.name_vi,
+                            energy_kcal: (rec.calories || 0) * per100,
+                            protein: (rec.protein || 0) * per100,
+                            lipid: (rec.fat || 0) * per100,
+                            glucid: (rec.carbs || 0) * per100,
+                            fiber: (rec.fiber || 0) * per100,
+                        } : undefined,
+                    };
+                }
+                return {
+                    id: ing._id,
+                    food_id: ing.food_id?._id || ing.food_id,
+                    ingredient_type: "food" as const,
+                    food_name: ing.food_id?.name_vi,
+                    amount: ing.amount,
+                    unit: ing.unit,
+                    sort_order: ing.sort_order,
+                    food: ing.food_id,
+                };
+            }),
         );
         setViewMode("form");
     };
 
     const handleSave = async () => {
-        if (!form.name_vi.trim()) return;
+        setFormError(null);
+        if (!form.name_vi.trim()) { setFormError("Tên món ăn không được để trống."); return; }
+        if (form.servings < 1) { setFormError("Số khẩu phần phải ≥ 1."); return; }
+        if (form.code.trim() && !/^[A-Z0-9-]+$/i.test(form.code.trim())) {
+            setFormError("Mã code chỉ được chứa chữ cái, chữ số và dấu gạch ngang (-).");
+            return;
+        }
+        const invalidIng = ingredients.find((ing) => ing.amount <= 0);
+        if (invalidIng) { setFormError(`Lượng nguyên liệu "${invalidIng.food_name}" phải lớn hơn 0.`); return; }
         setSaving(true);
 
         let allImages = [...images];
@@ -208,20 +309,22 @@ const Recipes = () => {
             setUploading(false);
         }
 
-        const totals = ingredients.reduce(
-            (sum, ing) => {
-                if (!ing.food) return sum;
-                const ratio = ing.amount / 100;
-                return {
-                    calories: sum.calories + (ing.food.energy_kcal || 0) * ratio,
-                    protein: sum.protein + (ing.food.protein || 0) * ratio,
-                    carbs: sum.carbs + (ing.food.glucid || 0) * ratio,
-                    fat: sum.fat + (ing.food.lipid || 0) * ratio,
-                    fiber: sum.fiber + (ing.food.fiber || 0) * ratio,
-                };
-            },
-            { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 },
-        );
+        const macros = form.nutrition_source === "manual"
+            ? { calories: form.calories, protein: form.protein, carbs: form.carbs, fat: form.fat, fiber: form.fiber }
+            : ingredients.reduce(
+                (sum, ing) => {
+                    if (!ing.food) return sum;
+                    const ratio = ing.amount / 100;
+                    return {
+                        calories: sum.calories + (ing.food.energy_kcal || 0) * ratio,
+                        protein: sum.protein + (ing.food.protein || 0) * ratio,
+                        carbs: sum.carbs + (ing.food.glucid || 0) * ratio,
+                        fat: sum.fat + (ing.food.lipid || 0) * ratio,
+                        fiber: sum.fiber + (ing.food.fiber || 0) * ratio,
+                    };
+                },
+                { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 },
+            );
 
         const recipeData = {
             name_vi: form.name_vi.trim(),
@@ -233,11 +336,12 @@ const Recipes = () => {
             tags: form.tags,
             is_public: form.is_public,
             is_approved: form.is_approved,
-            calories: Math.round(totals.calories * 10) / 10,
-            protein: Math.round(totals.protein * 10) / 10,
-            carbs: Math.round(totals.carbs * 10) / 10,
-            fat: Math.round(totals.fat * 10) / 10,
-            fiber: Math.round(totals.fiber * 10) / 10,
+            nutrition_source: form.nutrition_source,
+            calories: Math.round(macros.calories * 10) / 10,
+            protein: Math.round(macros.protein * 10) / 10,
+            carbs: Math.round(macros.carbs * 10) / 10,
+            fat: Math.round(macros.fat * 10) / 10,
+            fiber: Math.round(macros.fiber * 10) / 10,
             creator_id: profile?.id,
             category_id: form.category_id || null,
             images: allImages,
@@ -247,31 +351,43 @@ const Recipes = () => {
             total_weight: ingredients.reduce((sum, ing) => sum + ing.amount, 0),
         };
 
-        let recipeId = form.id;
         const ingPayload = ingredients.map((ing, i) => ({
-            food_id: ing.food_id,
+            food_id: ing.ingredient_type !== "recipe" ? ing.food_id : undefined,
+            ingredient_recipe_id: ing.ingredient_type === "recipe" ? ing.ingredient_recipe_id : undefined,
             amount: ing.amount,
             unit: ing.unit,
             sort_order: i,
         }));
 
-        if (form.id) {
-            await api.put(`/recipes/${form.id}`, { ...recipeData, ingredients: ingPayload });
-        } else {
-            const { data: created } = await api.post("/recipes", { ...recipeData, ingredients: ingPayload });
-            recipeId = created._id;
+        try {
+            if (form.id) {
+                await api.put(`/recipes/${form.id}`, { ...recipeData, ingredients: ingPayload });
+            } else {
+                const { data: created } = await api.post("/recipes", { ...recipeData, ingredients: ingPayload });
+                recipeId = created._id;
+            }
+            setSaving(false);
+            setViewMode("list");
+            fetchRecipes({ page, q: search, status: filterStatus, category: filterCategory });
+        } catch (err: any) {
+            setSaving(false);
+            const msg = err?.response?.data?.error || "Lưu thất bại. Vui lòng thử lại.";
+            setFormError(msg);
         }
-
-        setSaving(false);
-        setViewMode("list");
-        fetchRecipes();
     };
 
     const handleDelete = async () => {
         if (!deleteId) return;
-        await api.delete(`/recipes/${deleteId}`);
-        setDeleteId(null);
-        fetchRecipes();
+        setDeleteError(null);
+        try {
+            await api.delete(`/recipes/${deleteId}`);
+            setDeleteId(null);
+            fetchRecipes({ page, q: search, status: filterStatus, category: filterCategory });
+            fetchPendingCount();
+        } catch (err) {
+            const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+            setDeleteError(msg || "Xoá thất bại. Vui lòng thử lại.");
+        }
     };
 
     const handleViewDetail = async (recipe: any) => {
@@ -282,16 +398,29 @@ const Recipes = () => {
     };
 
     const approve = async (id: string) => {
-        await api.put(`/recipes/${id}`, { is_approved: true, is_public: true });
-        fetchRecipes();
+        try {
+            await api.post(`/recipes/${id}/approve`);
+            fetchRecipes({ page, q: search, status: filterStatus, category: filterCategory });
+            fetchPendingCount();
+        } catch (err) {
+            const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+            console.error("[approve]", msg || err);
+        }
     };
 
     const handleReject = async () => {
         if (!rejectId) return;
-        await api.put(`/recipes/${rejectId}`, { is_approved: false, is_public: false });
-        setRejectId(null);
-        setRejectReason("");
-        fetchRecipes();
+        setRejectError(null);
+        try {
+            await api.post(`/recipes/${rejectId}/reject`);
+            setRejectId(null);
+            setRejectReason("");
+            fetchRecipes({ page, q: search, status: filterStatus, category: filterCategory });
+            fetchPendingCount();
+        } catch (err) {
+            const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+            setRejectError(msg || "Từ chối thất bại. Vui lòng thử lại.");
+        }
     };
 
     // ── Ingredient helpers ──
@@ -304,24 +433,62 @@ const Recipes = () => {
         }
         setFoodSearching(true);
         try {
-            const { data } = await api.get("/foods", { params: { q: query, limit: 10 } });
-            setFoodResults((data.data || []).map((f: any) => ({ ...f, id: f._id })));
+            const [foodsRes, recipesRes] = await Promise.all([
+                api.get("/foods", { params: { q: query, limit: 8 } }),
+                api.get("/recipes", { params: { q: query, is_approved: true, limit: 4 } }),
+            ]);
+            const foods = (foodsRes.data.data || []).map((f: any) => ({
+                ...f,
+                id: f._id,
+                _ingredientType: "food",
+            }));
+            const recipes = (recipesRes.data.data || []).map((r: any) => ({
+                ...r,
+                id: r._id,
+                _ingredientType: "recipe",
+            }));
+            setFoodResults([...foods, ...recipes]);
         } catch { setFoodResults([]); }
         setFoodSearching(false);
     };
 
-    const addIngredient = (food: any) => {
-        setIngredients([
-            ...ingredients,
-            {
-                food_id: food.id,
-                food_name: food.name_vi,
-                amount: 100,
-                unit: "g",
-                sort_order: ingredients.length,
-                food: food,
-            },
-        ]);
+    const addIngredient = (item: any) => {
+        if (item._ingredientType === "recipe") {
+            const totalW = item.total_weight || 100;
+            const per100 = totalW > 0 ? 100 / totalW : 1;
+            setIngredients([
+                ...ingredients,
+                {
+                    ingredient_recipe_id: item._id || item.id,
+                    ingredient_type: "recipe",
+                    food_name: item.name_vi,
+                    amount: 100,
+                    unit: "g",
+                    sort_order: ingredients.length,
+                    food: {
+                        name_vi: item.name_vi,
+                        energy_kcal: (item.calories || 0) * per100,
+                        protein: (item.protein || 0) * per100,
+                        lipid: (item.fat || 0) * per100,
+                        glucid: (item.carbs || 0) * per100,
+                        fiber: (item.fiber || 0) * per100,
+                    },
+                },
+            ]);
+        } else {
+            setIngredients([
+                ...ingredients,
+                {
+                    food_id: item._id || item.id,
+                    ingredient_type: "food",
+                    food_name: item.name_vi,
+                    amount: 100,
+                    food: item,
+                    unit: "g",
+                    sort_order: ingredients.length,
+                },
+            ]);
+        }
         setFoodSearch("");
         setFoodResults([]);
     };
@@ -359,14 +526,7 @@ const Recipes = () => {
     const getStatus = (r: any) =>
         r.status || (r.is_approved ? "approved" : r.is_public ? "pending" : "draft");
 
-    const filtered = recipes.filter((r) => {
-        const matchSearch = (r.name_vi || "").toLowerCase().includes(search.toLowerCase());
-        const status = getStatus(r);
-        const matchStatus = filterStatus === "all" ? true : status === filterStatus;
-        const matchCategory =
-            filterCategory === "all" ? true : String(r.category_id) === filterCategory;
-        return matchSearch && matchStatus && matchCategory;
-    });
+    const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
     // ══════════ DETAIL VIEW ══════════
     if (viewMode === "detail" && detailRecipe) {
@@ -385,7 +545,7 @@ const Recipes = () => {
                             <div>
                                 <p className="font-medium text-yellow-800">Pending Review</p>
                                 <p className="text-sm text-yellow-600">
-                                    Submitted by {detailRecipe.creator?.display_name || "User"} —
+                                    Submitted by {detailRecipe.creator_id?.display_name || "User"} —
                                     waiting for approval
                                 </p>
                             </div>
@@ -394,7 +554,7 @@ const Recipes = () => {
                             <Button
                                 className="bg-green-600 hover:bg-green-700"
                                 size="sm"
-                                onClick={() => approve(detailRecipe.id)}
+                                onClick={() => approve(detailRecipe._id || detailRecipe.id)}
                             >
                                 <Check className="w-4 h-4 mr-1" /> Approve
                             </Button>
@@ -402,7 +562,7 @@ const Recipes = () => {
                                 variant="destructive"
                                 size="sm"
                                 onClick={() => {
-                                    setRejectId(detailRecipe.id);
+                                    setRejectId(detailRecipe._id || detailRecipe.id);
                                     setRejectReason("");
                                 }}
                             >
@@ -430,7 +590,7 @@ const Recipes = () => {
                             <Button
                                 className="bg-green-600 hover:bg-green-700"
                                 size="sm"
-                                onClick={() => approve(detailRecipe.id)}
+                                onClick={() => approve(detailRecipe._id || detailRecipe.id)}
                             >
                                 <Check className="w-4 h-4 mr-1" /> Approve Instead
                             </Button>
@@ -478,9 +638,9 @@ const Recipes = () => {
                             {/* Creator info */}
                             <div className="flex items-center gap-3 pb-3 border-b">
                                 <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                                    {detailRecipe.creator?.avatar_url ? (
+                                    {detailRecipe.creator_id?.avatar_url ? (
                                         <img
-                                            src={detailRecipe.creator.avatar_url}
+                                            src={detailRecipe.creator_id.avatar_url}
                                             alt=""
                                             className="w-8 h-8 rounded-full object-cover"
                                         />
@@ -490,7 +650,7 @@ const Recipes = () => {
                                 </div>
                                 <div>
                                     <p className="text-sm font-medium">
-                                        {detailRecipe.creator?.display_name || "System"}
+                                        {detailRecipe.creator_id?.display_name || "System"}
                                     </p>
                                     <p className="text-xs text-muted-foreground">
                                         Created{" "}
@@ -507,7 +667,7 @@ const Recipes = () => {
                             </div>
                             <div className="flex justify-between text-sm">
                                 <span className="text-muted-foreground">Category</span>
-                                <span>{detailRecipe.category?.name_vi || "—"}</span>
+                                <span>{detailRecipe.category_id?.name_vi || "—"}</span>
                             </div>
                             <div className="flex justify-between text-sm">
                                 <span className="text-muted-foreground">Servings</span>
@@ -604,23 +764,21 @@ const Recipes = () => {
                             </p>
                             {detailIngredients.length > 0 ? (
                                 <div className="space-y-2">
-                                    {detailIngredients.map((ing: any) => (
-                                        <div
-                                            key={ing.id}
-                                            className="flex justify-between items-center text-sm py-1.5 border-b last:border-0"
-                                        >
-                                            <span>{ing.food?.name_vi || "Unknown"}</span>
-                                            <span className="text-muted-foreground">
-                                                {ing.amount}
-                                                {ing.unit} —{" "}
-                                                {Math.round(
-                                                    ((ing.food?.energy_kcal || 0) * ing.amount) /
-                                                        100,
-                                                )}{" "}
-                                                kcal
-                                            </span>
-                                        </div>
-                                    ))}
+                                    {detailIngredients.map((ing: any) => {
+                                        const food = ing.food_id ?? ing.food;
+                                        return (
+                                            <div
+                                                key={ing._id || ing.id}
+                                                className="flex justify-between items-center text-sm py-1.5 border-b last:border-0"
+                                            >
+                                                <span>{food?.name_vi || "Unknown"}</span>
+                                                <span className="text-muted-foreground">
+                                                    {ing.amount}{ing.unit} —{" "}
+                                                    {Math.round(((food?.energy_kcal || 0) * ing.amount) / 100)} kcal
+                                                </span>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             ) : (
                                 <p className="text-sm text-muted-foreground">No ingredients</p>
@@ -629,23 +787,33 @@ const Recipes = () => {
                     </Card>
                 </div>
 
-                {(detailRecipe.instructions || []).length > 0 && (
-                    <Card>
-                        <CardContent className="p-5">
-                            <p className="font-medium mb-3">Instructions</p>
-                            <ol className="space-y-2">
-                                {detailRecipe.instructions.map((step: string, i: number) => (
-                                    <li key={i} className="flex gap-3 text-sm">
-                                        <span className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0">
-                                            {i + 1}
-                                        </span>
-                                        <span>{step}</span>
-                                    </li>
-                                ))}
-                            </ol>
-                        </CardContent>
-                    </Card>
-                )}
+                {(detailRecipe.instructions || []).length > 0 && (() => {
+                    // AI recipes store instructions as [{type:"steps",items:[...]}, ...]
+                    // Manual recipes store them as plain strings. Normalise to string[].
+                    const steps: string[] = (detailRecipe.instructions as any[]).flatMap((s) => {
+                        if (typeof s === "string") return [s];
+                        if (s?.type === "steps" && Array.isArray(s.items)) return s.items.map(String);
+                        return [];
+                    });
+                    if (steps.length === 0) return null;
+                    return (
+                        <Card>
+                            <CardContent className="p-5">
+                                <p className="font-medium mb-3">Instructions</p>
+                                <ol className="space-y-2">
+                                    {steps.map((step, i) => (
+                                        <li key={i} className="flex gap-3 text-sm">
+                                            <span className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0">
+                                                {i + 1}
+                                            </span>
+                                            <span>{step.replace(/^Bước\s*\d+:\s*/i, "")}</span>
+                                        </li>
+                                    ))}
+                                </ol>
+                            </CardContent>
+                        </Card>
+                    );
+                })()}
             </div>
         );
     }
@@ -719,15 +887,13 @@ const Recipes = () => {
                                         onChange={(e) =>
                                             setForm({
                                                 ...form,
-                                                category_id: e.target.value
-                                                    ? parseInt(e.target.value)
-                                                    : null,
+                                                category_id: e.target.value || null,
                                             })
                                         }
                                     >
                                         <option value="">-- Select category --</option>
                                         {categories.map((c) => (
-                                            <option key={c.id} value={c.id}>
+                                            <option key={c._id} value={c._id}>
                                                 {c.name_vi}
                                             </option>
                                         ))}
@@ -742,6 +908,27 @@ const Recipes = () => {
                                         }
                                         rows={2}
                                     />
+                                </div>
+
+                                {/* Nutrition source toggle */}
+                                <div>
+                                    <Label>Nguồn dinh dưỡng</Label>
+                                    <div className="flex gap-2 mt-1.5">
+                                        <button
+                                            type="button"
+                                            onClick={() => setForm({ ...form, nutrition_source: "ingredients" })}
+                                            className={`flex-1 py-2 text-sm rounded-lg border transition-colors ${form.nutrition_source === "ingredients" ? "bg-primary text-white border-primary" : "bg-white text-muted-foreground border-gray-200 hover:border-primary/50"}`}
+                                        >
+                                            Tính từ nguyên liệu
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setForm({ ...form, nutrition_source: "manual" })}
+                                            className={`flex-1 py-2 text-sm rounded-lg border transition-colors ${form.nutrition_source === "manual" ? "bg-primary text-white border-primary" : "bg-white text-muted-foreground border-gray-200 hover:border-primary/50"}`}
+                                        >
+                                            Nhập thủ công
+                                        </button>
+                                    </div>
                                 </div>
 
                                 {/* Images — multiple for AI training */}
@@ -925,30 +1112,74 @@ const Recipes = () => {
                         </Card>
                     </div>
 
-                    {/* Ingredients */}
+                    {/* Ingredients / Manual nutrition */}
                     <div className="space-y-4">
+                        {/* Manual nutrition inputs */}
+                        {form.nutrition_source === "manual" && (
+                            <Card>
+                                <CardContent className="p-5 space-y-3">
+                                    <Label>Dinh dưỡng thủ công (mỗi khẩu phần)</Label>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {[
+                                            { field: "calories" as const, label: "Calories (kcal)" },
+                                            { field: "protein" as const, label: "Protein (g)" },
+                                            { field: "carbs" as const, label: "Carbs (g)" },
+                                            { field: "fat" as const, label: "Fat (g)" },
+                                            { field: "fiber" as const, label: "Fiber (g)" },
+                                        ].map(({ field, label }) => (
+                                            <div key={field}>
+                                                <Label className="text-xs text-muted-foreground">{label}</Label>
+                                                <Input
+                                                    type="number"
+                                                    min={0}
+                                                    step="0.1"
+                                                    value={form[field]}
+                                                    onChange={(e) =>
+                                                        setForm({ ...form, [field]: parseFloat(e.target.value) || 0 })
+                                                    }
+                                                    className="mt-1"
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        )}
+
                         <Card>
                             <CardContent className="p-5 space-y-4">
-                                <Label>Ingredients</Label>
+                                <Label>Ingredients {form.nutrition_source === "manual" ? "(tham khảo — không tính dinh dưỡng)" : ""}</Label>
                                 <div className="relative">
                                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                                     <Input
                                         value={foodSearch}
                                         onChange={(e) => searchFoods(e.target.value)}
-                                        placeholder="Search foods to add..."
+                                        placeholder="Search foods or recipes to add..."
                                         className="pl-9"
                                     />
                                     {foodResults.length > 0 && (
                                         <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                                            {foodResults.map((food) => (
+                                            {foodResults.map((item) => (
                                                 <button
-                                                    key={food.id}
-                                                    className="w-full text-left px-3 py-2 hover:bg-gray-50 text-sm flex justify-between"
-                                                    onClick={() => addIngredient(food)}
+                                                    key={item.id}
+                                                    type="button"
+                                                    className="w-full text-left px-3 py-2 hover:bg-gray-50 text-sm flex items-center justify-between gap-2"
+                                                    onClick={() => addIngredient(item)}
                                                 >
-                                                    <span>{food.name_vi}</span>
-                                                    <span className="text-muted-foreground">
-                                                        {food.energy_kcal} kcal/100g
+                                                    <div className="flex items-center gap-2 min-w-0">
+                                                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 ${
+                                                            item._ingredientType === "recipe"
+                                                                ? "bg-orange-100 text-orange-700"
+                                                                : "bg-blue-100 text-blue-700"
+                                                        }`}>
+                                                            {item._ingredientType === "recipe" ? "R" : "F"}
+                                                        </span>
+                                                        <span className="truncate">{item.name_vi}</span>
+                                                    </div>
+                                                    <span className="text-muted-foreground shrink-0">
+                                                        {item._ingredientType === "recipe"
+                                                            ? `${item.calories || 0} kcal/recipe`
+                                                            : `${item.energy_kcal || 0} kcal/100g`}
                                                     </span>
                                                 </button>
                                             ))}
@@ -967,7 +1198,14 @@ const Recipes = () => {
                                                 className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg"
                                             >
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-sm font-medium truncate">
+                                                    <p className="text-sm font-medium truncate flex items-center gap-1.5">
+                                                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 ${
+                                                            ing.ingredient_type === "recipe"
+                                                                ? "bg-orange-100 text-orange-700"
+                                                                : "bg-blue-100 text-blue-700"
+                                                        }`}>
+                                                            {ing.ingredient_type === "recipe" ? "R" : "F"}
+                                                        </span>
                                                         {ing.food_name || ing.food?.name_vi}
                                                     </p>
                                                     <p className="text-xs text-muted-foreground">
@@ -987,7 +1225,7 @@ const Recipes = () => {
                                                         updateIngredient(
                                                             i,
                                                             "amount",
-                                                            parseFloat(e.target.value) || 0,
+                                                            Math.max(1, parseFloat(e.target.value) || 1),
                                                         )
                                                     }
                                                     className="w-20 text-sm"
@@ -1017,7 +1255,7 @@ const Recipes = () => {
                                             </div>
                                         ))}
 
-                                        <div className="pt-3 border-t">
+                                        {form.nutrition_source === "ingredients" && <div className="pt-3 border-t">
                                             <p className="text-xs text-muted-foreground mb-2">
                                                 Nutrition preview
                                             </p>
@@ -1071,7 +1309,7 @@ const Recipes = () => {
                                                     </div>
                                                 ))}
                                             </div>
-                                        </div>
+                                        </div>}
                                     </div>
                                 ) : (
                                     <p className="text-sm text-muted-foreground text-center py-4">
@@ -1081,6 +1319,11 @@ const Recipes = () => {
                             </CardContent>
                         </Card>
 
+                        {formError && (
+                            <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                                {formError}
+                            </div>
+                        )}
                         <div className="flex gap-2">
                             <Button
                                 className="flex-1"
@@ -1095,7 +1338,7 @@ const Recipes = () => {
                                     "Save Recipe"
                                 )}
                             </Button>
-                            <Button variant="outline" onClick={() => setViewMode("list")}>
+                            <Button variant="outline" onClick={() => { setFormError(null); setViewMode("list"); }}>
                                 Cancel
                             </Button>
                         </div>
@@ -1111,7 +1354,7 @@ const Recipes = () => {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold">Recipes</h1>
-                    <p className="text-muted-foreground">{recipes.length} total recipes</p>
+                    <p className="text-muted-foreground">{total} total recipes</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                     <div className="relative w-full sm:w-52">
@@ -1126,7 +1369,7 @@ const Recipes = () => {
                     <select
                         className="border rounded-md px-3 py-2 text-sm bg-white"
                         value={filterStatus}
-                        onChange={(e) => setFilterStatus(e.target.value as StatusFilter)}
+                        onChange={(e) => { setFilterStatus(e.target.value as StatusFilter); setPage(1); }}
                     >
                         <option value="all">All Status</option>
                         <option value="pending">
@@ -1139,11 +1382,11 @@ const Recipes = () => {
                     <select
                         className="border rounded-md px-3 py-2 text-sm bg-white"
                         value={filterCategory}
-                        onChange={(e) => setFilterCategory(e.target.value)}
+                        onChange={(e) => { setFilterCategory(e.target.value); setPage(1); }}
                     >
                         <option value="all">All Categories</option>
                         {categories.map((c) => (
-                            <option key={c.id} value={String(c.id)}>
+                            <option key={c._id} value={c._id}>
                                 {c.name_vi}
                             </option>
                         ))}
@@ -1189,17 +1432,16 @@ const Recipes = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {filtered.length === 0 ? (
+                                {loading ? (
                                     <tr>
-                                        <td
-                                            colSpan={7}
-                                            className="px-4 py-8 text-center text-muted-foreground"
-                                        >
-                                            {loading ? "Loading..." : "No recipes found"}
-                                        </td>
+                                        <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">Loading...</td>
+                                    </tr>
+                                ) : recipes.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">No recipes found</td>
                                     </tr>
                                 ) : (
-                                    filtered.map((r) => {
+                                    recipes.map((r) => {
                                         const status = getStatus(r);
                                         return (
                                             <tr
@@ -1235,9 +1477,9 @@ const Recipes = () => {
                                                     </div>
                                                 </td>
                                                 <td className="px-4 py-3">
-                                                    {r.category ? (
+                                                    {r.category_id ? (
                                                         <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
-                                                            {r.category.name_vi}
+                                                            {r.category_id.name_vi}
                                                         </span>
                                                     ) : (
                                                         <span className="text-muted-foreground text-xs">
@@ -1246,7 +1488,7 @@ const Recipes = () => {
                                                     )}
                                                 </td>
                                                 <td className="px-4 py-3 text-muted-foreground text-xs">
-                                                    {r.creator?.display_name || "System"}
+                                                    {r.creator_id?.display_name || "System"}
                                                 </td>
                                                 <td className="px-4 py-3">
                                                     {r.calories ? `${r.calories} kcal` : "—"}
@@ -1271,7 +1513,7 @@ const Recipes = () => {
                                                                     variant="ghost"
                                                                     size="icon"
                                                                     className="text-green-600 h-8 w-8"
-                                                                    onClick={() => approve(r.id)}
+                                                                    onClick={() => approve(r._id || r.id)}
                                                                 >
                                                                     <Check className="w-4 h-4" />
                                                                 </Button>
@@ -1280,7 +1522,7 @@ const Recipes = () => {
                                                                     size="icon"
                                                                     className="text-red-600 h-8 w-8"
                                                                     onClick={() => {
-                                                                        setRejectId(r.id);
+                                                                        setRejectId(r._id || r.id);
                                                                         setRejectReason("");
                                                                     }}
                                                                 >
@@ -1316,7 +1558,7 @@ const Recipes = () => {
                                                                 {status !== "approved" && (
                                                                     <DropdownMenuItem
                                                                         onClick={() =>
-                                                                            approve(r.id)
+                                                                            approve(r._id || r.id)
                                                                         }
                                                                     >
                                                                         <Check className="w-4 h-4 mr-2" />{" "}
@@ -1326,7 +1568,7 @@ const Recipes = () => {
                                                                 {status !== "rejected" && (
                                                                     <DropdownMenuItem
                                                                         onClick={() => {
-                                                                            setRejectId(r.id);
+                                                                            setRejectId(r._id || r.id);
                                                                             setRejectReason("");
                                                                         }}
                                                                     >
@@ -1337,7 +1579,7 @@ const Recipes = () => {
                                                                 <DropdownMenuItem
                                                                     className="text-red-600"
                                                                     onClick={() =>
-                                                                        setDeleteId(r.id)
+                                                                        setDeleteId(r._id || r.id)
                                                                     }
                                                                 >
                                                                     <Trash2 className="w-4 h-4 mr-2" />{" "}
@@ -1354,11 +1596,37 @@ const Recipes = () => {
                             </tbody>
                         </table>
                     </div>
+                    {/* Pagination */}
+                    <div className="flex items-center justify-between px-4 py-3 border-t">
+                        <span className="text-sm text-muted-foreground">
+                            {total === 0
+                                ? "No recipes"
+                                : `Page ${page} of ${totalPages} (${total} items)`}
+                        </span>
+                        <div className="flex gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setPage((p) => p - 1)}
+                                disabled={page <= 1 || loading}
+                            >
+                                Previous
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setPage((p) => p + 1)}
+                                disabled={page >= totalPages || loading}
+                            >
+                                Next
+                            </Button>
+                        </div>
+                    </div>
                 </CardContent>
             </Card>
 
             {/* Delete confirm */}
-            <Dialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+            <Dialog open={!!deleteId} onOpenChange={() => { setDeleteId(null); setDeleteError(null); }}>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Delete Recipe?</DialogTitle>
@@ -1366,8 +1634,13 @@ const Recipes = () => {
                     <p className="text-sm text-muted-foreground">
                         This will permanently delete this recipe and all its ingredients.
                     </p>
+                    {deleteError && (
+                        <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                            {deleteError}
+                        </p>
+                    )}
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setDeleteId(null)}>
+                        <Button variant="outline" onClick={() => { setDeleteId(null); setDeleteError(null); }}>
                             Cancel
                         </Button>
                         <Button variant="destructive" onClick={handleDelete}>
@@ -1383,6 +1656,7 @@ const Recipes = () => {
                 onOpenChange={() => {
                     setRejectId(null);
                     setRejectReason("");
+                    setRejectError(null);
                 }}
             >
                 <DialogContent>
@@ -1404,6 +1678,11 @@ const Recipes = () => {
                                 className="mt-1"
                             />
                         </div>
+                        {rejectError && (
+                            <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                                {rejectError}
+                            </p>
+                        )}
                     </div>
                     <DialogFooter>
                         <Button
@@ -1411,6 +1690,7 @@ const Recipes = () => {
                             onClick={() => {
                                 setRejectId(null);
                                 setRejectReason("");
+                                setRejectError(null);
                             }}
                         >
                             Cancel

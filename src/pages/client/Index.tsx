@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { BottomNav } from "@/components/BottomNav";
 import { CalorieProgress } from "@/components/CalorieProgress";
@@ -43,56 +43,56 @@ const QuickActions = ({ onBarcode }: { onBarcode: () => void }) => {
             icon: ScanLine,
             label: "Mã vạch",
             sublabel: "Tra cứu sản phẩm",
-            color: "bg-blue-500/10 text-blue-600",
+            iconClass: "w-6 h-6 text-primary",
             onClick: onBarcode,
         },
         {
             icon: PenLine,
             label: "Ghi bữa ăn",
             sublabel: "Thêm bữa ăn",
-            color: "bg-green-500/10 text-green-600",
+            iconClass: "w-6 h-6 text-primary",
             onClick: () => navigate("/diary?action=log"),
         },
         {
             icon: BookOpen,
             label: "Nhật ký",
             sublabel: "Xem lịch sử",
-            color: "bg-orange-500/10 text-orange-600",
+            iconClass: "w-6 h-6 text-primary",
             onClick: () => navigate("/diary"),
         },
         {
             icon: Heart,
             label: "Yêu thích",
             sublabel: "Đã lưu",
-            color: "bg-red-500/10 text-red-500",
+            iconClass: "w-6 h-6 text-muted-foreground",
             onClick: () => navigate("/favorites"),
         },
         {
             icon: Calendar,
             label: "Thực đơn",
             sublabel: "Kế hoạch ăn",
-            color: "bg-purple-500/10 text-purple-600",
+            iconClass: "w-6 h-6 text-primary",
             onClick: () => navigate("/meal-plan"),
         },
         {
             icon: UtensilsCrossed,
             label: "Công thức",
             sublabel: "Của tôi",
-            color: "bg-emerald-500/10 text-emerald-600",
+            iconClass: "w-6 h-6 text-primary",
             onClick: () => navigate("/my-recipes"),
         },
         {
             icon: MapPin,
             label: "Quán ăn",
             sublabel: "Gần đây",
-            color: "bg-amber-500/10 text-amber-600",
+            iconClass: "w-6 h-6 text-muted-foreground",
             onClick: () => navigate("/nearby"),
         },
         {
             icon: TrendingUp,
             label: "Cộng đồng",
             sublabel: "Thực đơn cộng đồng",
-            color: "bg-cyan-500/10 text-cyan-600",
+            iconClass: "w-6 h-6 text-muted-foreground",
             onClick: () => navigate("/community-plans"),
         },
     ];
@@ -106,13 +106,9 @@ const QuickActions = ({ onBarcode }: { onBarcode: () => void }) => {
                         key={action.label}
                         type="button"
                         onClick={action.onClick}
-                        className="flex flex-col items-center gap-1.5 p-3 rounded-2xl bg-card border border-border/50 hover:border-primary/30 hover:bg-primary/5 active:scale-95 transition-all duration-150 shadow-sm"
+                        className="flex flex-col items-center gap-1.5 p-3 rounded-2xl bg-card hover:bg-primary/5 active:scale-95 transition-all duration-150 shadow-ios-sm"
                     >
-                        <div
-                            className={`w-10 h-10 rounded-xl flex items-center justify-center ${action.color}`}
-                        >
-                            <action.icon className="w-5 h-5" />
-                        </div>
+                        <action.icon className={action.iconClass} />
                         <span className="text-[11px] font-semibold text-foreground leading-tight text-center">
                             {action.label}
                         </span>
@@ -132,7 +128,7 @@ const Index = () => {
     const { profile, user } = useAuthContext();
     const greeting = getGreeting(profile?.display_name);
     const GreetingIcon = greeting.icon;
-    const { getTodaysTotals, refetch: refetchDiary } = useFoodDiary(user?.id);
+    const { getTodaysTotals, refetchSummary } = useFoodDiary(user?.id);
     const todaysTotals = getTodaysTotals();
 
     const [planItems, setPlanItems] = useState<any[]>([]);
@@ -150,6 +146,14 @@ const Index = () => {
             fetchActivePlan();
         }
     }, [profile?.id]);
+
+    const location = useLocation();
+    useEffect(() => {
+        if ((location.state as any)?.openBarcode) {
+            setShowBarcode(true);
+            navigate("/", { replace: true, state: {} });
+        }
+    }, []);
 
     const fetchActivePlan = async () => {
         const mealTime: Record<string, string> = {
@@ -215,7 +219,7 @@ const Index = () => {
     const isProUser = tier === "pro";
 
     return (
-        <div className="min-h-screen gradient-fresh pb-nav-safe">
+        <div className="min-h-screen bg-background pb-nav-safe">
             <Header />
 
             {/* Onboarding tour for first-time users */}
@@ -224,9 +228,10 @@ const Index = () => {
             {/* Barcode scanner overlay */}
             {showBarcode && <BarcodeScanner onClose={() => setShowBarcode(false)} />}
 
-            <main className="container px-5 py-5 space-y-5">
+            {/* Hero gradient section — greeting + CalorieProgress */}
+            <div className="gradient-hero px-5 pt-5 pb-6">
                 {/* Greeting — compact */}
-                <section className="animate-slide-up flex items-center justify-between">
+                <section className="animate-slide-up flex items-center justify-between mb-5">
                     <div>
                         <div className="flex items-center gap-2">
                             <GreetingIcon className={`w-5 h-5 ${greeting.iconColor}`} />
@@ -235,7 +240,7 @@ const Index = () => {
                         <p className="text-xs text-muted-foreground ml-7">{greeting.subtitle}</p>
                     </div>
                     {/* Calorie pill summary */}
-                    <div className="flex items-center gap-1.5 bg-card border border-border/50 rounded-full px-3 py-1.5 shadow-sm">
+                    <div className="flex items-center gap-1.5 bg-card rounded-full px-3 py-1.5 shadow-ios-sm">
                         <svg className="w-4 h-4" viewBox="0 0 16 16">
                             <circle cx="8" cy="8" r="6" fill="none" strokeWidth="2.5" className="stroke-primary/20" />
                             <circle
@@ -279,38 +284,19 @@ const Index = () => {
                         />
                     </CardContent>
                 </Card>
+            </div>
 
-                {/* Macros — compact row */}
+            <main className="container px-5 pt-4 space-y-5">
+                {/* Macros — P, C, F individual rings */}
                 <section className="animate-slide-up-delay-2">
-                    <div className="grid grid-cols-4 gap-2">
+                    <div className="grid grid-cols-3 gap-3">
                         {[
-                            {
-                                value: todaysTotals.protein,
-                                max: goals?.protein || 120,
-                                color: "hsl(200, 80%, 50%)",
-                                label: t("home.protein"),
-                            },
-                            {
-                                value: todaysTotals.carbs,
-                                max: goals?.carbs || 250,
-                                color: "hsl(45, 95%, 55%)",
-                                label: t("home.carbs"),
-                            },
-                            {
-                                value: todaysTotals.fat,
-                                max: goals?.fat || 65,
-                                color: "hsl(340, 75%, 55%)",
-                                label: t("home.fat"),
-                            },
-                            {
-                                value: todaysTotals.fiber,
-                                max: goals?.fiber || 25,
-                                color: "hsl(280, 70%, 55%)",
-                                label: t("home.fiber"),
-                            },
+                            { label: "Protein", value: Math.round(todaysTotals.protein), max: goals?.protein ?? 120, color: "hsl(200,80%,50%)" },
+                            { label: "Carbs",   value: Math.round(todaysTotals.carbs),   max: goals?.carbs   ?? 250, color: "hsl(45,95%,55%)"  },
+                            { label: "Fat",     value: Math.round(todaysTotals.fat),     max: goals?.fat     ?? 65,  color: "hsl(340,75%,55%)" },
                         ].map((ring) => (
-                            <Card key={ring.label} variant="nutrition" className="p-3">
-                                <NutritionRing {...ring} size={72} strokeWidth={7} unit="g" />
+                            <Card key={ring.label} className="p-3">
+                                <NutritionRing value={ring.value} max={ring.max} color={ring.color} size={72} strokeWidth={7} label={ring.label} unit="g" />
                             </Card>
                         ))}
                     </div>
@@ -319,7 +305,7 @@ const Index = () => {
                 {/* AI Food Scanner — prominent feature */}
                 <section className="animate-slide-up-delay-3">
                     <h3 className="text-base font-bold text-foreground mb-3">AI Food Scanner</h3>
-                    <FoodScanner onScanComplete={handleScanComplete} onSaved={refetchDiary} />
+                    <FoodScanner onScanComplete={handleScanComplete} onSaved={refetchSummary} />
                 </section>
 
                 {/* Quick Actions */}
@@ -420,7 +406,7 @@ const Index = () => {
                             <button
                                 type="button"
                                 onClick={() => navigate("/community-plans")}
-                                className="w-full flex items-center gap-3 p-3 rounded-xl border border-border bg-card hover:bg-accent/50 transition-colors active:scale-[0.98]"
+                                className="w-full flex items-center gap-3 p-3 rounded-xl bg-card shadow-ios-sm hover:bg-accent/50 transition-colors active:scale-[0.98]"
                             >
                                 <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
                                     <TrendingUp className="w-4 h-4 text-muted-foreground" />
@@ -499,9 +485,7 @@ const Index = () => {
                                 navigate("/subscription");
                             }}
                         >
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shrink-0 shadow-md shadow-violet-200">
-                                <Zap className="w-5 h-5 text-white" />
-                            </div>
+                            <Zap className="w-6 h-6 text-primary shrink-0" />
                             <div className="flex-1">
                                 <p className="text-sm font-bold text-violet-900">Premium · 79.000₫/tháng</p>
                                 <p className="text-xs text-violet-600 mt-0.5">10 scan/ngày · Phân tích vitamin · Không quảng cáo</p>
@@ -518,9 +502,7 @@ const Index = () => {
                                 navigate("/subscription");
                             }}
                         >
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shrink-0 shadow-md shadow-amber-200">
-                                <Crown className="w-5 h-5 text-white" />
-                            </div>
+                            <Crown className="w-6 h-6 text-muted-foreground shrink-0" />
                             <div className="flex-1">
                                 <p className="text-sm font-bold text-amber-900">Pro · 179.000₫/tháng</p>
                                 <p className="text-xs text-amber-700 mt-0.5">20 scan/ngày · Tất cả tính năng · Nhiều cửa hàng</p>

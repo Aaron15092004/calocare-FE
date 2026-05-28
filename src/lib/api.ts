@@ -5,7 +5,7 @@ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:1509";
 const api = axios.create({
   baseURL: `${API_URL}/api`,
   headers: { "Content-Type": "application/json" },
-  timeout: 30000,
+  timeout: 60000,
 });
 
 // Attach access token to every request

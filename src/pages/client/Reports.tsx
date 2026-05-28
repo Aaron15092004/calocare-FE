@@ -6,7 +6,7 @@ import {
     AlertTriangle, CheckCircle2, Lightbulb, Sparkles, RefreshCw, ChevronDown, ChevronUp,
 } from "lucide-react";
 import {
-    AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+    AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
     PieChart, Pie, Cell,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,6 +17,7 @@ import { useAuthContext } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import api from "@/lib/api";
 import { format, parseISO } from "date-fns";
+import { AdherenceGauge } from "@/components/AdherenceGauge";
 
 interface ReportData {
     period_days: number;
@@ -245,6 +246,13 @@ export default function Reports() {
                                 />
                             </div>
 
+                            {/* Adherence gauge */}
+                            <Card>
+                                <CardContent className="py-4">
+                                    <AdherenceGauge pct={data?.adherence_pct ?? 0} />
+                                </CardContent>
+                            </Card>
+
                             {/* Calorie trend chart */}
                             <Card>
                                 <CardHeader className="pb-2">
@@ -255,19 +263,26 @@ export default function Reports() {
                                         <AreaChart data={trendData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
                                             <defs>
                                                 <linearGradient id="calGrad" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} />
+                                                    <stop offset="5%" stopColor="#22c55e" stopOpacity={0.15} />
                                                     <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
                                                 </linearGradient>
                                             </defs>
-                                            <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
                                             <XAxis
                                                 dataKey="label"
                                                 tick={{ fontSize: 10, fill: "#9ca3af" }}
                                                 interval={Math.floor(trendData.length / 6)}
+                                                axisLine={false}
+                                                tickLine={false}
                                             />
-                                            <YAxis tick={{ fontSize: 10, fill: "#9ca3af" }} />
+                                            <YAxis tick={{ fontSize: 10, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
                                             <Tooltip
-                                                contentStyle={{ fontSize: 12, borderRadius: 8 }}
+                                                contentStyle={{
+                                                    fontSize: 12,
+                                                    borderRadius: 12,
+                                                    border: "none",
+                                                    boxShadow: "0 4px 12px 0 rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.06)",
+                                                    background: "rgba(255,255,255,0.95)",
+                                                }}
                                                 formatter={(v: number) => [`${v} kcal`, "Calo"]}
                                             />
                                             <Area

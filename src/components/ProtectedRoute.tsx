@@ -46,6 +46,11 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to="/admin" replace />;
   }
 
+  // Store owner vào client route → redirect sang owner dashboard
+  if (profile.role === "store_owner") {
+    return <Navigate to="/owner" replace />;
+  }
+
   if (!skipOnboardingCheck) {
     const isOnboardingComplete =
       profile.daily_nutrition_goals?.calories &&

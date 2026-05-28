@@ -779,7 +779,15 @@ const FoodDiary: React.FC = () => {
                                             if (active && payload && payload.length) {
                                                 const data = payload[0].payload;
                                                 return (
-                                                    <div className="bg-popover border border-border rounded-lg p-2 shadow-lg">
+                                                    <div
+                                                          style={{
+                                                            background: "rgba(255,255,255,0.95)",
+                                                            borderRadius: 12,
+                                                            border: "none",
+                                                            boxShadow: "0 4px 12px 0 rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.06)",
+                                                            padding: "8px 10px",
+                                                          }}
+                                                        >
                                                         <p className="text-xs text-muted-foreground">
                                                             {data.date}
                                                         </p>
@@ -870,9 +878,7 @@ const FoodDiary: React.FC = () => {
                 <div className="grid grid-cols-3 gap-3 animate-slide-up-delay-4">
                     <Card className="p-4">
                         <div className="flex items-center gap-2">
-                            <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
-                                <Camera className="w-4 h-4 text-primary" />
-                            </div>
+                            <Camera className="w-5 h-5 text-muted-foreground" />
                             <div>
                                 <p className="text-xl font-bold">{entries.length}</p>
                                 <p className="text-[10px] text-muted-foreground">Meals</p>
@@ -887,21 +893,14 @@ const FoodDiary: React.FC = () => {
                         )}
                     >
                         <div className="flex items-center gap-2">
-                            <div
+                            <Zap
                                 className={cn(
-                                    "w-9 h-9 rounded-xl flex items-center justify-center",
-                                    streakData.currentStreak > 0 ? "bg-primary/20" : "bg-muted",
+                                    "w-5 h-5",
+                                    streakData.currentStreak > 0
+                                        ? "text-primary"
+                                        : "text-muted-foreground",
                                 )}
-                            >
-                                <Zap
-                                    className={cn(
-                                        "w-4 h-4",
-                                        streakData.currentStreak > 0
-                                            ? "text-primary"
-                                            : "text-muted-foreground",
-                                    )}
-                                />
-                            </div>
+                            />
                             <div>
                                 <p className="text-xl font-bold">{streakData.currentStreak}</p>
                                 <p className="text-[10px] text-muted-foreground">Day Streak</p>
@@ -910,9 +909,7 @@ const FoodDiary: React.FC = () => {
                     </Card>
                     <Card className="p-4">
                         <div className="flex items-center gap-2">
-                            <div className="w-9 h-9 rounded-xl bg-accent/50 flex items-center justify-center">
-                                <CheckCircle2 className="w-4 h-4 text-primary" />
-                            </div>
+                            <CheckCircle2 className="w-5 h-5 text-primary" />
                             <div>
                                 <p className="text-xl font-bold">{progress.length}</p>
                                 <p className="text-[10px] text-muted-foreground">Plan Done</p>

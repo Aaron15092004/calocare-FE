@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { format, subDays, isSameDay, parseISO } from "date-fns";
 import api from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { NutritionAnalysis, FoodItem, VitaminInfo } from "@/hooks/useFoodAnalysis";
@@ -31,11 +32,18 @@ export interface FoodDiaryEntry {
     notes: string | null;
 }
 
-export const useFoodDiary = (userId: string | undefined) => {
+// selectedDate: the day currently viewed in the diary (defaults to today)
+export const useFoodDiary = (userId: string | undefined, selectedDate?: Date) => {
     const [entries, setEntries] = useState<FoodDiaryEntry[]>([]);
+    // Last 30 days — used for weekly chart, streak, calendar dots, getTodaysTotals
+    const [summaryEntries, setSummaryEntries] = useState<FoodDiaryEntry[]>([]);
     const [loading, setLoading] = useState(true);
+    const [summaryLoading, setSummaryLoading] = useState(true);
     const { toast } = useToast();
 
+    const targetDateStr = format(selectedDate ?? new Date(), "yyyy-MM-dd");
+
+    // Re-fetch entries whenever the viewed date changes
     useEffect(() => {
         if (userId) {
             fetchEntries();
@@ -43,19 +51,45 @@ export const useFoodDiary = (userId: string | undefined) => {
             setEntries([]);
             setLoading(false);
         }
+    }, [userId, targetDateStr]);
+
+    // Summary fetched once on mount (last 30 days)
+    useEffect(() => {
+        if (userId) {
+            fetchSummary();
+        } else {
+            setSummaryEntries([]);
+            setSummaryLoading(false);
+        }
     }, [userId]);
 
     const fetchEntries = async () => {
-        if (!userId) return;
+        setLoading(true);
         try {
             const { data } = await api.get<{ data: FoodDiaryEntry[] }>("/food-diary", {
-                params: { limit: 200 },
+                params: { date: targetDateStr, limit: 50 },
             });
             setEntries(data.data || []);
         } catch (error) {
             console.error("Error fetching food diary:", error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchSummary = async () => {
+        setSummaryLoading(true);
+        try {
+            const endDate = format(new Date(), "yyyy-MM-dd");
+            const startDate = format(subDays(new Date(), 30), "yyyy-MM-dd");
+            const { data } = await api.get<{ data: FoodDiaryEntry[] }>("/food-diary", {
+                params: { start_date: startDate, end_date: endDate, limit: 500 },
+            });
+            setSummaryEntries(data.data || []);
+        } catch (error) {
+            console.error("Error fetching diary summary:", error);
+        } finally {
+            setSummaryLoading(false);
         }
     };
 
@@ -70,10 +104,11 @@ export const useFoodDiary = (userId: string | undefined) => {
         }
         try {
             const { data } = await api.post<FoodDiaryEntry>("/food-diary", {
-                foods: analysis.foods.map((item) => ({
+                foods: analysis.foods.map((item: FoodItem) => ({
                     dish_name: item.name,
                     matched_name: item.name,
-                    source: "food",
+                    source: item.source || "food",
+                    fs_food_id: item.fs_food_id || undefined,
                     nutrition: {
                         calories: item.calories,
                         protein: item.protein,
@@ -90,7 +125,8 @@ export const useFoodDiary = (userId: string | undefined) => {
                 image_url: imageUrl || null,
             });
 
-            setEntries([data, ...entries]);
+            setEntries((prev) => [data, ...prev]);
+            setSummaryEntries((prev) => [data, ...prev]);
             toast({ title: "Saved to diary! 📝", description: "Your meal has been logged." });
             return { data, error: null };
         } catch (err) {
@@ -107,7 +143,8 @@ export const useFoodDiary = (userId: string | undefined) => {
     const deleteEntry = async (entryId: string) => {
         try {
             await api.delete(`/food-diary/${entryId}`);
-            setEntries(entries.filter((e) => e.id !== entryId));
+            setEntries((prev) => prev.filter((e) => e.id !== entryId));
+            setSummaryEntries((prev) => prev.filter((e) => e.id !== entryId));
             toast({ title: "Entry deleted", description: "Removed from your food diary." });
             return { error: null };
         } catch (err) {
@@ -123,7 +160,10 @@ export const useFoodDiary = (userId: string | undefined) => {
     const updateEntryNotes = async (entryId: string, notes: string | null) => {
         try {
             await api.put(`/food-diary/${entryId}`, { notes });
-            setEntries(entries.map((e) => (e.id === entryId ? { ...e, notes } : e)));
+            const update = (arr: FoodDiaryEntry[]) =>
+                arr.map((e) => (e.id === entryId ? { ...e, notes } : e));
+            setEntries(update);
+            setSummaryEntries(update);
             toast({ title: "Notes saved", description: "Your note has been updated." });
             return { error: null };
         } catch (err) {
@@ -181,7 +221,8 @@ export const useFoodDiary = (userId: string | undefined) => {
                 notes: data.notes || null,
             });
 
-            setEntries([entry, ...entries]);
+            setEntries((prev) => [entry, ...prev]);
+            setSummaryEntries((prev) => [entry, ...prev]);
             toast({ title: "Meal logged! 📝", description: "Your meal has been added to the diary." });
             return { data: entry, error: null };
         } catch (err) {
@@ -196,12 +237,16 @@ export const useFoodDiary = (userId: string | undefined) => {
 
     const getEntriesByDate = (date: Date) => {
         const dateStr = date.toISOString().split("T")[0];
-        return entries.filter((entry) => entry.scanned_at.split("T")[0] === dateStr);
+        return summaryEntries.filter((entry) => entry.scanned_at.split("T")[0] === dateStr);
     };
 
+    // Always computed from summaryEntries so Index.tsx gets correct value
     const getTodaysTotals = () => {
-        const todaysEntries = getEntriesByDate(new Date());
-        return todaysEntries.reduce(
+        const today = new Date();
+        const todayEntries = summaryEntries.filter((e) =>
+            isSameDay(parseISO(e.scanned_at), today),
+        );
+        return todayEntries.reduce(
             (acc, entry) => ({
                 calories: acc.calories + (entry.totals.calories || 0),
                 protein: acc.protein + (entry.totals.protein || 0),
@@ -214,8 +259,10 @@ export const useFoodDiary = (userId: string | undefined) => {
     };
 
     return {
-        entries,
+        entries,           // current viewed date's entries only
+        summaryEntries,    // last 30 days — for charts, streak, calendar
         loading,
+        summaryLoading,
         addEntry,
         addManualEntry,
         deleteEntry,
@@ -223,5 +270,6 @@ export const useFoodDiary = (userId: string | undefined) => {
         getEntriesByDate,
         getTodaysTotals,
         refetch: fetchEntries,
+        refetchSummary: fetchSummary,
     };
 };

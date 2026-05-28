@@ -13,6 +13,8 @@ export interface FoodItem {
     carbs: number;
     fat: number;
     fiber: number;
+    source?: string;
+    fs_food_id?: string;
 }
 
 export interface VitaminInfo {
@@ -24,7 +26,7 @@ export interface VitaminInfo {
 
 export interface DishResult {
     dish_name: string;
-    source: "recipe" | "food" | "ai_estimate";
+    source: "recipe" | "food" | "ai_estimate" | "fatsecret" | "usda";
     matched_name: string | null;
     nutrition: {
         calories: number;
@@ -36,6 +38,7 @@ export interface DishResult {
     weight_grams?: number;
     servings?: number;
     category?: string;
+    fs_food_id?: string;
 }
 
 export interface AnalysisResult {

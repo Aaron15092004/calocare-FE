@@ -197,7 +197,7 @@ const DayPreview: React.FC<{ day: SSEDayPlan; defaultOpen?: boolean; onMealClick
     const [open, setOpen] = useState(defaultOpen);
 
     return (
-        <div className="border border-border rounded-xl overflow-hidden">
+        <div className="rounded-xl overflow-hidden shadow-ios-sm">
             <button
                 type="button"
                 onClick={() => setOpen(!open)}
@@ -325,9 +325,9 @@ const GenerateMealPlan: React.FC = () => {
     /* ── Free gate ── */
     if (!isPremium) {
         return (
-            <div className="min-h-screen gradient-fresh pb-24">
-                <header className="sticky top-0 z-50 glass border-b border-border/50">
-                    <div className="container px-5 py-4 flex items-center gap-3">
+            <div className="min-h-screen bg-background pb-24">
+                <header className="sticky top-0 z-50 border-b border-border/30">
+                    <div className="gradient-hero container px-5 py-4 flex items-center gap-3">
                         <Button variant="ghost" size="icon" onClick={() => navigate("/meal-plan")} className="rounded-xl">
                             <ArrowLeft className="w-5 h-5" />
                         </Button>
@@ -404,7 +404,7 @@ const GenerateMealPlan: React.FC = () => {
                 {days.length > 0 && (
                     <div className="w-full max-w-sm space-y-2 max-h-60 overflow-y-auto">
                         {days.map((d) => (
-                            <div key={d.day_number} className="flex items-center gap-3 bg-card rounded-xl px-3 py-2 border border-border">
+                            <div key={d.day_number} className="flex items-center gap-3 bg-card rounded-xl px-3 py-2 shadow-ios-sm">
                                 <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                                     <CheckCircle2 className="w-4 h-4 text-primary" />
                                 </div>
@@ -438,9 +438,9 @@ const GenerateMealPlan: React.FC = () => {
         const totalMeals = displayDays.reduce((s, d) => s + d.meals.length, 0);
 
         return (
-            <div className="min-h-screen gradient-fresh pb-36">
-                <header className="sticky top-0 z-50 glass border-b border-border/50">
-                    <div className="container px-5 py-4 flex items-center gap-3">
+            <div className="min-h-screen bg-background pb-36">
+                <header className="sticky top-0 z-50 border-b border-border/30">
+                    <div className="gradient-hero container px-5 py-4 flex items-center gap-3">
                         <Button variant="ghost" size="icon" onClick={reset} className="rounded-xl">
                             <ArrowLeft className="w-5 h-5" />
                         </Button>
@@ -521,9 +521,9 @@ const GenerateMealPlan: React.FC = () => {
 
     /* ── Form ── */
     return (
-        <div className="min-h-screen gradient-fresh pb-32">
-            <header className="sticky top-0 z-50 glass border-b border-border/50">
-                <div className="container px-5 py-4 flex items-center gap-3">
+        <div className="min-h-screen bg-background pb-32">
+            <header className="sticky top-0 z-50 border-b border-border/30">
+                <div className="gradient-hero container px-5 py-4 flex items-center gap-3">
                     <Button variant="ghost" size="icon" onClick={() => navigate("/meal-plan")} className="rounded-xl">
                         <ArrowLeft className="w-5 h-5" />
                     </Button>

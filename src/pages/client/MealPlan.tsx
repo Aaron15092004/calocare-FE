@@ -345,7 +345,7 @@ const MealPlan: React.FC = () => {
                             { Icon: BookOpen, title: "Công thức chi tiết",   desc: "Hướng dẫn nấu ăn từng bước, danh sách nguyên liệu với calo",       color: "text-blue-500" },
                             { Icon: BarChart2, title: "Cân bằng dinh dưỡng", desc: "Protein, carbs, fat tính chính xác cho mục tiêu của bạn",          color: "text-orange-500" },
                         ].map((f) => (
-                            <div key={f.title} className="flex gap-3 p-3 rounded-xl bg-card border border-border/50">
+                            <div key={f.title} className="flex gap-3 p-3 rounded-xl bg-card shadow-ios-sm">
                                 <div className="w-9 h-9 rounded-lg bg-accent flex items-center justify-center shrink-0 mt-0.5">
                                     <f.Icon className={`w-4 h-4 ${f.color}`} />
                                 </div>
