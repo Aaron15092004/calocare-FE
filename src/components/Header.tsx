@@ -28,7 +28,7 @@ export const Header: React.FC = () => {
         {/* Logo */}
         <div className="flex items-center gap-2">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-md bg-[#ECEDEC]">
-            <img src="/logo.svg" alt="logo" className="w-8 h-8" />
+            <img src="/logo.png" alt="logo" className="w-8 h-8" />
           </div>
           <div>
             <h1 className="text-lg font-bold text-foreground">CaloCare</h1>

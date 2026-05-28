@@ -85,7 +85,7 @@ const AdminLayout = () => {
                 {/* Logo */}
                 <div className="p-4 border-b flex items-center justify-between flex-shrink-0">
                     <div className="flex items-center gap-2">
-                        <img src="/logo.svg" className="w-8 h-8 rounded-lg" alt="Logo" />
+                        <img src="/logo.png" className="w-8 h-8 rounded-lg" alt="Logo" />
                         <span className="font-bold">CaloCare</span>
                     </div>
                     <Button

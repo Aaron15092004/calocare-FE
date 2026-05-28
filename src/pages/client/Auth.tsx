@@ -127,7 +127,7 @@ const Auth: React.FC = () => {
           <div className="flex items-center justify-between px-6 pt-14">
             <div className="flex items-center gap-2.5">
               <div className="w-9 h-9 rounded-xl flex items-center justify-center auth-logo-badge">
-                <img src="/logo.svg" className="w-5 h-5" alt="CaloCare" />
+                <img src="/logo.png" className="w-5 h-5" alt="CaloCare" />
               </div>
               <span className="text-white text-lg font-semibold tracking-wide auth-text-readable">
                 CaloCare
@@ -206,7 +206,7 @@ const Auth: React.FC = () => {
         {/* Logo */}
         <div className="mb-8 text-center">
           <div className="w-16 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-2xl">
-            <img src="/logo.svg" alt="logo" className="w-16 rounded-2xl" />
+            <img src="/logo.png" alt="logo" className="w-16 rounded-2xl" />
           </div>
           <h1 className="text-2xl font-bold text-foreground">CaloCare</h1>
           <p className="text-sm text-muted-foreground">
