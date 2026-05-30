@@ -2,14 +2,10 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  ArrowRight,
   Mail,
   Lock,
   Eye,
   EyeOff,
-  Camera,
-  CalendarDays,
-  Target,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,7 +33,6 @@ const Auth: React.FC = () => {
   } = useAuthContext();
 
   const { t } = useTranslation();
-  const [showWelcome, setShowWelcome] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -63,7 +58,7 @@ const Auth: React.FC = () => {
       } else {
         const prefs = profile.preferences;
         if (!prefs?.age || !prefs?.height_cm || !prefs?.weight_kg) {
-          navigate("/settings", { replace: true });
+          navigate("/onboarding", { replace: true });
         } else {
           navigate("/", { replace: true });
         }
@@ -114,92 +109,6 @@ const Auth: React.FC = () => {
     );
   }
 
-  // Welcome Screen
-  if (showWelcome) {
-    return (
-      <div className="min-h-screen relative overflow-hidden">
-        <div className="absolute inset-0 auth-bg-pattern scale-105" />
-        <div className="absolute inset-0 auth-dark-veil" />
-        <div className="absolute top-0 left-0 right-0 h-32 auth-top-soft-fade" />
-
-        <div className="relative z-10 min-h-screen flex flex-col">
-          {/* Logo row */}
-          <div className="flex items-center justify-between px-6 pt-14">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center auth-logo-badge">
-                <img src="/logo.png" className="w-5 h-5" alt="CaloCare" />
-              </div>
-              <span className="text-white text-lg font-semibold tracking-wide auth-text-readable">
-                CaloCare
-              </span>
-            </div>
-            <div className="px-3 py-1 rounded-full text-[10px] font-semibold tracking-[0.18em] uppercase text-emerald-300 auth-ai-badge">
-              Hỗ Trợ AI
-            </div>
-          </div>
-
-          <div className="flex-1" />
-
-          {/* Bottom content panel */}
-          <div className="px-6 pb-10 space-y-6">
-            {/* Headline */}
-            <h1 className="text-[3.75rem] font-bold text-white leading-[1.04] tracking-tight auth-text-readable">
-              Thấu Hiểu
-              <br />
-              Ẩm Thực Việt cùng
-              <br />
-              <span className="auth-gradient-text">Calocare.</span>
-            </h1>
-
-            {/* Feature chips */}
-            <div className="flex flex-wrap gap-2">
-              {[
-                { icon: Camera, label: "Nhận Dạng Món Ăn" },
-                { icon: CalendarDays, label: "Kế Hoạch 21 Ngày" },
-                { icon: Target, label: "Mục Tiêu Thông Minh" },
-              ].map(({ icon: Icon, label }) => (
-                <div
-                  key={label}
-                  className="flex items-center gap-1.5 text-white text-xs px-3 py-1.5 rounded-full auth-feature-chip auth-text-readable"
-                >
-                  <Icon className="w-3 h-3" />
-                  {label}
-                </div>
-              ))}
-            </div>
-
-            {/* CTA Button */}
-            <button
-              type="button"
-              onClick={() => setShowWelcome(false)}
-              className="group relative z-10 flex w-full items-center justify-center gap-3 overflow-hidden rounded-2xl border-2 border-white bg-white px-6 h-[3.5rem] text-[18px] font-semibold text-[#0b1f12] shadow-xl isolation-auto
-                before:absolute before:-left-full before:-z-10 before:aspect-square before:w-full before:rounded-full before:bg-emerald-500 before:transition-all before:duration-700
-                hover:text-white hover:before:left-0 hover:before:scale-150 hover:before:duration-700"
-            >
-              Bắt Đầu Ngay
-              <svg
-                className="h-8 w-8 rotate-45 rounded-full border border-[#0b1f12]/40 p-2 ease-linear duration-300 group-hover:rotate-90 group-hover:border-none group-hover:bg-white"
-                viewBox="0 0 16 19"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  d="M7 18C7 18.5523 7.44772 19 8 19C8.55228 19 9 18.5523 9 18H7ZM8.70711 0.292893C8.31658 -0.0976311 7.68342 -0.0976311 7.29289 0.292893L0.928932 6.65685C0.538408 7.04738 0.538408 7.68054 0.928932 8.07107C1.31946 8.46159 1.95262 8.46159 2.34315 8.07107L8 2.41421L13.6569 8.07107C14.0474 8.46159 14.6805 8.46159 15.0711 8.07107C15.4616 7.68054 15.4616 7.04738 15.0711 6.65685L8.70711 0.292893ZM9 18L9 1H7L7 18H9Z"
-                  className="fill-[#0b1f12] group-hover:fill-[#0b1f12]"
-                />
-              </svg>
-            </button>
-
-            <p className="text-white/30 text-[11px] text-center">
-              Tiếp tục đồng nghĩa bạn đồng ý với Điều khoản &amp; Chính sách bảo
-              mật
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ← Existing Auth Form
   return (
     <div className="min-h-screen flex flex-col animate-slide-up-enter px-5">
       <main className="flex-1 flex flex-col items-center justify-center px-4 pb-8">

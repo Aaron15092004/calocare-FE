@@ -414,3 +414,13 @@ html {
 .auth-cta-btn {
   animation: auth-cta-pulse 2.8s ease-in-out infinite;
 }
+
+/* ── Onboarding app-style controls ─────────────────────────────────── */
+.hide-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}

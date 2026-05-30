@@ -1,231 +1,263 @@
 // src/pages/client/Onboarding.tsx
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useTranslation } from "react-i18next";
 import { useAuthContext } from "@/contexts/AuthContext";
-import { calculateNutritionGoals } from "@/utils/nutritionCalculator";
+import {
+  calculateBMI,
+  calculateIdealWeightRange,
+  calculateNutritionGoals,
+} from "@/utils/nutritionCalculator";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import {
-  User,
-  Scale,
-  Target,
-  ArrowRight,
+  Activity,
+  Apple,
   ArrowLeft,
+  BadgeCheck,
+  BarChart3,
+  Beef,
+  BookOpenCheck,
+  Brain,
+  Calendar,
+  Camera,
+  Check,
+  ChevronRight,
+  CircleAlert,
+  Dumbbell,
+  Flame,
+  HeartPulse,
   Loader2,
-  CheckCircle2,
-  Languages,
-  Leaf,
-  Clock,
+  Salad,
+  Scale,
+  Sparkles,
+  Target,
+  Trophy,
+  Utensils,
+  Zap,
 } from "lucide-react";
 
-const DIET_TYPES = [
-  { value: "omnivore",    label: "Ăn tạp", desc: "Ăn mọi thứ" },
-  { value: "vegetarian",  label: "Ăn chay (có trứng/sữa)", desc: "Không thịt, có trứng & sữa" },
-  { value: "vegan",       label: "Thuần chay", desc: "Không sản phẩm động vật" },
-  { value: "pescatarian", label: "Pescatarian", desc: "Không thịt, ăn cá" },
-  { value: "halal",       label: "Halal", desc: "Theo tiêu chuẩn Halal" },
+type Gender = "male" | "female" | "other";
+type Goal = "lose" | "maintain" | "gain";
+type ActivityLevel = "sedentary" | "light" | "moderate" | "active" | "very_active";
+
+type FormData = {
+  birthYear: number;
+  gender: Gender | "";
+  height_cm: number;
+  weight_kg: number;
+  activity_level: ActivityLevel;
+  goal: Goal;
+  dietary_preference: string;
+  motivation: string;
+  obstacle: string;
+  tracking_habit: string;
+  nutrition_awareness: string;
+};
+
+type Choice = {
+  value: string;
+  title: string;
+  desc?: string;
+  icon: React.ElementType;
+  tone?: string;
+};
+
+const CURRENT_YEAR = new Date().getFullYear();
+const TOTAL_STEPS = 17;
+
+const GOAL_CHOICES: Choice[] = [
+  { value: "lose", title: "Giảm cân", desc: "Tạo thâm hụt calo vừa phải", icon: Scale },
+  { value: "maintain", title: "Giữ cân", desc: "Ổn định năng lượng mỗi ngày", icon: Target },
+  { value: "gain", title: "Tăng cơ", desc: "Ưu tiên protein và luyện tập", icon: Dumbbell },
 ];
 
-const ALLERGY_OPTIONS = [
-  "Sữa",
-  "Gluten",
-  "Trứng",
-  "Hải sản",
-  "Đậu phộng",
-  "Đậu nành",
-  "Hạt cây",
-  "Mè",
+const GENDER_CHOICES: Choice[] = [
+  { value: "male", title: "Nam", icon: Activity },
+  { value: "female", title: "Nữ", icon: HeartPulse },
+  { value: "other", title: "Khác", icon: Sparkles },
 ];
 
-function calcMealSchedule(wakeTime: string, sleepTime: string): Record<string, string> {
-  const toMins = (t: string) => {
-    const [h, m] = t.split(":").map(Number);
-    return h * 60 + (m || 0);
-  };
-  const toStr = (mins: number) => {
-    const h = Math.floor(((mins % 1440) + 1440) % 1440 / 60);
-    const m = ((mins % 1440) + 1440) % 1440 % 60;
-    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
-  };
-  const wake  = toMins(wakeTime  || "06:30");
-  const sleep = toMins(sleepTime || "23:00");
+const MOTIVATION_CHOICES: Choice[] = [
+  { value: "look", title: "Tôi muốn tự tin hơn", icon: Sparkles },
+  { value: "feel", title: "Tôi muốn thấy khỏe hơn", icon: HeartPulse },
+  { value: "health", title: "Tôi muốn cải thiện sức khỏe", icon: BarChart3 },
+];
+
+const OBSTACLE_CHOICES: Choice[] = [
+  { value: "habits", title: "Thói quen thất thường", icon: Calendar },
+  { value: "stress", title: "Ăn theo cảm xúc", icon: Brain },
+  { value: "support", title: "Thiếu người hỗ trợ", icon: HeartPulse },
+  { value: "busy", title: "Lịch quá bận", icon: Zap },
+  { value: "knowledge", title: "Thiếu kiến thức dinh dưỡng", icon: BookOpenCheck },
+  { value: "other", title: "Khác", icon: CircleAlert },
+];
+
+const ACTIVITY_CHOICES: Choice[] = [
+  { value: "sedentary", title: "Ít vận động", desc: "Phần lớn thời gian ngồi", icon: Activity },
+  { value: "light", title: "Hoạt động nhẹ", desc: "Đi lại nhẹ trong ngày", icon: Activity },
+  { value: "moderate", title: "Vận động vừa", desc: "Có tập luyện hoặc di chuyển đều", icon: Activity },
+  { value: "active", title: "Năng động", desc: "Tập luyện nhiều ngày trong tuần", icon: Activity },
+  { value: "very_active", title: "Rất năng động", desc: "Cường độ cao hoặc lao động nặng", icon: Activity },
+];
+
+const DIET_CHOICES: Choice[] = [
+  { value: "omnivore", title: "Cân bằng", icon: Utensils },
+  { value: "high_protein", title: "Giàu protein", icon: Beef },
+  { value: "mediterranean", title: "Mediterranean", icon: Salad },
+  { value: "high_fiber", title: "Nhiều chất xơ", icon: Apple },
+  { value: "low_carb", title: "Ít carb", icon: Flame },
+];
+
+const TRACKING_CHOICES: Choice[] = [
+  { value: "every_meal", title: "Tôi ghi lại mỗi bữa", icon: Utensils },
+  { value: "sometimes", title: "Khi nào nhớ thì ghi", icon: Sparkles },
+  { value: "rarely", title: "Gần như không ghi", icon: CircleAlert },
+];
+
+const NUTRITION_CHOICES: Choice[] = [
+  { value: "know", title: "Tôi biết khá rõ", icon: BadgeCheck },
+  { value: "check", title: "Tôi thỉnh thoảng xem nhãn", icon: BookOpenCheck },
+  { value: "not_really", title: "Không rõ lắm", icon: CircleAlert },
+];
+
+function calcMealSchedule(): Record<string, string> {
   return {
-    breakfast: toStr(wake + 60),
-    lunch:     toStr(Math.max(12 * 60, wake + 270)),
-    snack:     toStr(Math.round((Math.max(12 * 60, wake + 270) + Math.max(17 * 60, sleep - 210)) / 2)),
-    dinner:    toStr(Math.max(17 * 60, sleep - 210)),
+    breakfast: "07:30",
+    lunch: "12:00",
+    snack: "15:30",
+    dinner: "19:00",
   };
 }
 
-const MEAL_LABEL_VI: Record<string, string> = {
-  breakfast: "Bữa sáng",
-  lunch:     "Bữa trưa",
-  snack:     "Bữa phụ",
-  dinner:    "Bữa tối",
-};
+function goalToPreference(goal: Goal) {
+  const map: Record<Goal, string> = {
+    lose: "weight_loss",
+    gain: "muscle_gain",
+    maintain: "maintenance",
+  };
+  return map[goal];
+}
 
-const MEAL_TIP: Record<string, string> = {
-  breakfast: "60 phút sau khi thức dậy — khởi động trao đổi chất",
-  lunch:     "Cách bữa sáng 4–5 tiếng — duy trì năng lượng",
-  snack:     "Giữa trưa và tối — tránh ăn quá nhiều vào bữa tối",
-  dinner:    "Trước khi ngủ ít nhất 3 tiếng — hỗ trợ tiêu hóa",
-};
+function getBmiStatus(bmi: number) {
+  if (bmi < 18.5) return { label: "Hơi gầy", className: "text-blue-500 bg-blue-50" };
+  if (bmi < 25) return { label: "Cân đối", className: "text-emerald-600 bg-emerald-50" };
+  if (bmi < 30) return { label: "Hơi cao", className: "text-amber-600 bg-amber-50" };
+  return { label: "Cần chú ý", className: "text-rose-600 bg-rose-50" };
+}
 
 const Onboarding: React.FC = () => {
   const navigate = useNavigate();
-  const { t, i18n } = useTranslation();
-  const { updateProfile } = useAuthContext();
+  const { profile, updateProfile } = useAuthContext();
   const { toast } = useToast();
-
-  const [currentStep, setCurrentStep] = useState(0); // ← Bắt đầu từ 0
+  const [step, setStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [setupProgress, setSetupProgress] = useState(18);
 
-  const [formData, setFormData] = useState({
-    display_name: "",
-    age: "",
+  const [formData, setFormData] = useState<FormData>({
+    birthYear: 1998,
     gender: "",
-    height_cm: "",
-    weight_kg: "",
+    height_cm: 166,
+    weight_kg: 68,
     activity_level: "moderate",
     goal: "maintain",
     dietary_preference: "omnivore",
-    allergies: [] as string[],
-    wake_time: "06:30",
-    sleep_time: "23:00",
+    motivation: "",
+    obstacle: "",
+    tracking_habit: "",
+    nutrition_awareness: "",
   });
 
-  const totalSteps = 6;
-  const progress = (currentStep / totalSteps) * 100;
+  const age = Math.max(18, CURRENT_YEAR - formData.birthYear);
+  const bmi = useMemo(
+    () => calculateBMI(formData.weight_kg, formData.height_cm),
+    [formData.height_cm, formData.weight_kg],
+  );
+  const bmiStatus = getBmiStatus(bmi);
+  const idealWeight = useMemo(
+    () => calculateIdealWeightRange(formData.height_cm),
+    [formData.height_cm],
+  );
+  const goals = useMemo(
+    () =>
+      calculateNutritionGoals({
+        age,
+        gender: formData.gender || "other",
+        weight_kg: formData.weight_kg,
+        height_cm: formData.height_cm,
+        activity_level: formData.activity_level,
+        goal: formData.goal,
+      }),
+    [age, formData],
+  );
 
-  const handleNext = () => {
-    // Step 0: Language - no validation needed
-    if (currentStep === 0) {
-      setCurrentStep(1);
-      return;
-    }
+  const targetWeight = useMemo(() => {
+    if (formData.goal === "gain") return Math.max(formData.weight_kg + 4, idealWeight.minWeight);
+    if (formData.goal === "maintain") return formData.weight_kg;
+    return Math.min(formData.weight_kg - 5, idealWeight.maxWeight);
+  }, [formData.goal, formData.weight_kg, idealWeight.maxWeight, idealWeight.minWeight]);
 
-    // Step 1: Basic Info
-    if (currentStep === 1) {
-      if (!formData.display_name || !formData.age || !formData.gender) {
-        toast({
-          title: t("onboarding.validation.missingInfo"),
-          description: t("onboarding.validation.fillAllFields"),
-          variant: "destructive",
-        });
-        return;
-      }
-      if (Number(formData.age) < 18 || Number(formData.age) > 100) {
-        toast({
-          title: t("onboarding.validation.invalidAge"),
-          description: t("onboarding.validation.ageBetween"),
-          variant: "destructive",
-        });
-        return;
-      }
-    }
+  const progress = Math.min(100, Math.round((step / TOTAL_STEPS) * 100));
 
-    // Step 2: Physical Stats
-    if (currentStep === 2) {
-      if (!formData.height_cm || !formData.weight_kg) {
-        toast({
-          title: t("onboarding.validation.missingInfo"),
-          description: t("onboarding.validation.fillAllFields"),
-          variant: "destructive",
-        });
-        return;
-      }
-      if (
-        Number(formData.height_cm) < 100 ||
-        Number(formData.height_cm) > 250
-      ) {
-        toast({
-          title: t("onboarding.validation.invalidHeight"),
-          description: t("onboarding.validation.heightBetween"),
-          variant: "destructive",
-        });
-        return;
-      }
-      if (Number(formData.weight_kg) < 30 || Number(formData.weight_kg) > 300) {
-        toast({
-          title: t("onboarding.validation.invalidWeight"),
-          description: t("onboarding.validation.weightBetween"),
-          variant: "destructive",
-        });
-        return;
-      }
-    }
+  useEffect(() => {
+    if (step !== 16) return;
 
-    if (currentStep < totalSteps) {
-      setCurrentStep(currentStep + 1);
-    }
-  };
+    setSetupProgress(18);
+    const values = [36, 58, 76, 91, 100];
+    const timers = values.map((value, index) =>
+      window.setTimeout(() => setSetupProgress(value), 420 * (index + 1)),
+    );
+    const doneTimer = window.setTimeout(() => setStep(17), 2450);
 
-  const handleBack = () => {
-    if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
-    }
+    return () => {
+      timers.forEach(window.clearTimeout);
+      window.clearTimeout(doneTimer);
+    };
+  }, [step]);
+
+  const goNext = () => setStep((value) => Math.min(TOTAL_STEPS, value + 1));
+  const goBack = () => setStep((value) => Math.max(0, value - 1));
+
+  const selectAndNext = <K extends keyof FormData>(key: K, value: FormData[K]) => {
+    setFormData((current) => ({ ...current, [key]: value }));
+    window.setTimeout(() => {
+      setStep((current) => Math.min(TOTAL_STEPS, current + 1));
+    }, 180);
   };
 
   const handleComplete = async () => {
+    if (!formData.gender) {
+      setStep(2);
+      return;
+    }
+
     setIsSubmitting(true);
-
     try {
-      const goals = calculateNutritionGoals({
-        age: Number(formData.age),
-        gender: formData.gender as "male" | "female" | "other",
-        weight_kg: Number(formData.weight_kg),
-        height_cm: Number(formData.height_cm),
-        activity_level: formData.activity_level as any,
-        goal: formData.goal as "lose" | "maintain" | "gain",
-      });
-
-      const goalMap: Record<string, string> = { lose: "weight_loss", gain: "muscle_gain", maintain: "maintenance" };
-      const mealSchedule = calcMealSchedule(formData.wake_time, formData.sleep_time);
       await updateProfile({
-        display_name: formData.display_name,
+        display_name: profile?.display_name || profile?.email?.split("@")[0] || "CaloCare User",
         preferences: {
-          age: Number(formData.age),
+          age,
           gender: formData.gender,
-          height_cm: Number(formData.height_cm),
-          weight_kg: Number(formData.weight_kg),
+          height_cm: formData.height_cm,
+          weight_kg: formData.weight_kg,
           activity_level: formData.activity_level,
-          goal: goalMap[formData.goal] ?? "maintenance",
+          goal: goalToPreference(formData.goal),
           dietary_preference: formData.dietary_preference,
-          allergies: formData.allergies,
-          meal_schedule: mealSchedule,
+          allergies: [],
+          meal_schedule: calcMealSchedule(),
         },
         daily_nutrition_goals: goals,
       });
 
       toast({
-        title: t("onboarding.success.title"),
-        description: t("onboarding.success.description"),
+        title: "Kế hoạch đã sẵn sàng",
+        description: "CaloCare đã cá nhân hóa mục tiêu dinh dưỡng cho bạn.",
       });
-
       navigate("/");
-    } catch (error) {
+    } catch {
       toast({
-        title: t("onboarding.error.title"),
-        description: t("onboarding.error.description"),
+        title: "Không thể hoàn tất onboarding",
+        description: "Vui lòng thử lại sau vài giây.",
         variant: "destructive",
       });
     } finally {
@@ -233,453 +265,768 @@ const Onboarding: React.FC = () => {
     }
   };
 
-  const getStepDescription = () => {
-    switch (currentStep) {
-      case 0: return t("onboarding.language.description");
-      case 1: return t("onboarding.basicInfo.description");
-      case 2: return t("onboarding.physicalStats.description");
-      case 3: return t("onboarding.goals.description");
-      case 4: return "Cho chúng tôi biết chế độ ăn và dị ứng thực phẩm để cá nhân hóa gợi ý";
-      case 5: return "Thiết lập giờ ăn khoa học dựa theo nhịp sinh học của bạn";
-      default: return "";
-    }
-  };
-
   return (
-    <div className="min-h-screen gradient-hero flex items-center justify-center px-5 py-4">
-      <Card className="w-full max-w-lg">
-        <CardHeader>
-          <div className="flex items-center justify-between mb-2">
-            <CardTitle className="page-title">
-              {t("onboarding.welcome")}
-            </CardTitle>
-            {currentStep > 0 && (
-              <span className="text-sm text-muted-foreground">
-                {t("onboarding.step")} {currentStep}/{totalSteps}
-              </span>
-            )}
-          </div>
-          <Progress value={progress} className="mb-2" />
-          <CardDescription>{getStepDescription()}</CardDescription>
-        </CardHeader>
+    <div className="min-h-screen bg-[#f6f8f7] text-[#202621]">
+      <main className="mx-auto flex min-h-screen w-full max-w-[430px] flex-col bg-white shadow-[0_24px_80px_rgba(15,23,42,0.12)]">
+        {step > 0 && step < 17 && (
+          <header className="flex h-14 shrink-0 items-center gap-4 px-5">
+            <button
+              type="button"
+              onClick={goBack}
+              className="grid h-9 w-9 place-items-center rounded-full text-slate-400 transition hover:bg-slate-50 hover:text-slate-700"
+              aria-label="Quay lại"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+            <Progress value={progress} className="h-1.5 flex-1 bg-slate-100" />
+            <span className="w-9 text-right text-xs font-semibold text-slate-400">{progress}%</span>
+          </header>
+        )}
 
-        <CardContent className="space-y-6">
-          {/* Step 0: Language Selection */}
-          {currentStep === 0 && (
-            <div className="space-y-4 animate-slide-up">
-              <div className="flex items-center gap-2 text-primary mb-4">
-                <Languages className="w-5 h-5" />
-                <h3 className="font-semibold">
-                  {t("onboarding.language.title")}
-                </h3>
-              </div>
+        <section className="flex flex-1 flex-col overflow-hidden">
+          {step === 0 && <IntroScreen onNext={goNext} />}
 
-              <div className="grid grid-cols-2 gap-3">
-                <Button
-                  variant={i18n.language === "vi" ? "default" : "outline"}
-                  size="lg"
-                  className="h-24 flex-col gap-2"
-                  onClick={() => i18n.changeLanguage("vi")}
-                >
-                  <span className="text-2xl font-bold">VN</span>
-                  <span className="text-sm font-medium">
-                    {t("onboarding.language.vietnamese")}
-                  </span>
-                </Button>
-                <Button
-                  variant={i18n.language === "en" ? "default" : "outline"}
-                  size="lg"
-                  className="h-24 flex-col gap-2"
-                  onClick={() => i18n.changeLanguage("en")}
-                >
-                  <span className="text-2xl font-bold">EN</span>
-                  <span className="text-sm font-medium">
-                    {t("onboarding.language.english")}
-                  </span>
-                </Button>
-              </div>
-            </div>
+          {step === 1 && (
+            <QuestionScreen title="Mục tiêu chính của bạn là gì?" subtitle="CaloCare sẽ dùng mục tiêu này để tính calo và gợi ý thói quen phù hợp.">
+              <ChoiceList
+                choices={GOAL_CHOICES}
+                selected={formData.goal}
+                onSelect={(value) => selectAndNext("goal", value as Goal)}
+              />
+            </QuestionScreen>
           )}
 
-          {/* Step 1: Basic Info */}
-          {currentStep === 1 && (
-            <div className="space-y-4 animate-slide-up">
-              <div className="flex items-center gap-2 text-primary mb-4">
-                <User className="w-5 h-5" />
-                <h3 className="font-semibold">
-                  {t("onboarding.basicInfo.title")}
-                </h3>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="display_name">
-                  {t("onboarding.basicInfo.name")}
-                </Label>
-                <Input
-                  id="display_name"
-                  placeholder={t("onboarding.basicInfo.namePlaceholder")}
-                  value={formData.display_name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, display_name: e.target.value })
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="age">{t("onboarding.basicInfo.age")}</Label>
-                <Input
-                  id="age"
-                  type="number"
-                  placeholder={t("onboarding.basicInfo.agePlaceholder")}
-                  value={formData.age}
-                  onChange={(e) =>
-                    setFormData({ ...formData, age: e.target.value })
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>{t("onboarding.basicInfo.gender")}</Label>
-                <RadioGroup
-                  value={formData.gender}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, gender: value })
-                  }
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="male" id="male" />
-                    <Label htmlFor="male" className="cursor-pointer">
-                      {t("onboarding.basicInfo.male")}
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="female" id="female" />
-                    <Label htmlFor="female" className="cursor-pointer">
-                      {t("onboarding.basicInfo.female")}
-                    </Label>
-                  </div>
-                </RadioGroup>
-              </div>
-            </div>
+          {step === 2 && (
+            <QuestionScreen title="Bạn muốn CaloCare tính theo giới tính nào?" subtitle="Thông tin này giúp ước tính nhu cầu năng lượng chính xác hơn.">
+              <ChoiceList
+                choices={GENDER_CHOICES}
+                selected={formData.gender}
+                onSelect={(value) => selectAndNext("gender", value as Gender)}
+              />
+            </QuestionScreen>
           )}
 
-          {/* Step 2: Physical Stats */}
-          {currentStep === 2 && (
-            <div className="space-y-4 animate-slide-up">
-              <div className="flex items-center gap-2 text-primary mb-4">
-                <Scale className="w-5 h-5" />
-                <h3 className="font-semibold">
-                  {t("onboarding.physicalStats.title")}
-                </h3>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="height">
-                  {t("onboarding.physicalStats.height")}
-                </Label>
-                <Input
-                  id="height"
-                  type="number"
-                  placeholder={t("onboarding.physicalStats.heightPlaceholder")}
-                  value={formData.height_cm}
-                  onChange={(e) =>
-                    setFormData({ ...formData, height_cm: e.target.value })
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="weight">
-                  {t("onboarding.physicalStats.weight")}
-                </Label>
-                <Input
-                  id="weight"
-                  type="number"
-                  placeholder={t("onboarding.physicalStats.weightPlaceholder")}
-                  value={formData.weight_kg}
-                  onChange={(e) =>
-                    setFormData({ ...formData, weight_kg: e.target.value })
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="activity">
-                  {t("onboarding.physicalStats.activity")}
-                </Label>
-                <Select
-                  value={formData.activity_level}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, activity_level: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="sedentary">
-                      {t("onboarding.physicalStats.sedentary")}
-                    </SelectItem>
-                    <SelectItem value="light">
-                      {t("onboarding.physicalStats.light")}
-                    </SelectItem>
-                    <SelectItem value="moderate">
-                      {t("onboarding.physicalStats.moderate")}
-                    </SelectItem>
-                    <SelectItem value="active">
-                      {t("onboarding.physicalStats.active")}
-                    </SelectItem>
-                    <SelectItem value="very_active">
-                      {t("onboarding.physicalStats.veryActive")}
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+          {step === 3 && (
+            <BirthYearScreen
+              value={formData.birthYear}
+              onChange={(value) => setFormData({ ...formData, birthYear: value })}
+              onNext={goNext}
+            />
           )}
 
-          {/* Step 3: Goals */}
-          {currentStep === 3 && (
-            <div className="space-y-4 animate-slide-up">
-              <div className="flex items-center gap-2 text-primary mb-4">
-                <Target className="w-5 h-5" />
-                <h3 className="font-semibold">{t("onboarding.goals.title")}</h3>
-              </div>
-
-              <div className="space-y-2">
-                <RadioGroup
-                  value={formData.goal}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, goal: value })
-                  }
-                >
-                  <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-accent cursor-pointer">
-                    <RadioGroupItem value="lose" id="lose" />
-                    <Label htmlFor="lose" className="cursor-pointer flex-1">
-                      <div>
-                        <p className="font-medium">
-                          {t("onboarding.goals.lose")}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {t("onboarding.goals.loseDesc")}
-                        </p>
-                      </div>
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-accent cursor-pointer">
-                    <RadioGroupItem value="maintain" id="maintain" />
-                    <Label htmlFor="maintain" className="cursor-pointer flex-1">
-                      <div>
-                        <p className="font-medium">
-                          {t("onboarding.goals.maintain")}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {t("onboarding.goals.maintainDesc")}
-                        </p>
-                      </div>
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-accent cursor-pointer">
-                    <RadioGroupItem value="gain" id="gain" />
-                    <Label htmlFor="gain" className="cursor-pointer flex-1">
-                      <div>
-                        <p className="font-medium">
-                          {t("onboarding.goals.gain")}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {t("onboarding.goals.gainDesc")}
-                        </p>
-                      </div>
-                    </Label>
-                  </div>
-                </RadioGroup>
-              </div>
-
-              <Card className="bg-primary/5 border-primary/20">
-                <CardContent className="pt-6">
-                  <div className="flex items-start gap-3">
-                    <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-                    <div className="text-sm">
-                      <p className="font-medium text-foreground mb-1">
-                        {t("onboarding.goals.calculateInfo")}
-                      </p>
-                      <p className="text-muted-foreground">
-                        {t("onboarding.goals.calculateDesc")}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+          {step === 4 && (
+            <HeightScreen
+              value={formData.height_cm}
+              onChange={(value) => setFormData({ ...formData, height_cm: value })}
+              onNext={goNext}
+            />
           )}
 
-          {/* Step 4: Dietary Preferences */}
-          {currentStep === 4 && (
-            <div className="space-y-5 animate-slide-up">
-              <div className="flex items-center gap-2 text-primary mb-2">
-                <Leaf className="w-5 h-5" />
-                <h3 className="font-semibold">Chế độ ăn & Dị ứng</h3>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Phong cách ăn uống</Label>
-                <div className="grid grid-cols-1 gap-2">
-                  {DIET_TYPES.map((d) => (
-                    <button
-                      key={d.value}
-                      type="button"
-                      onClick={() => setFormData({ ...formData, dietary_preference: d.value })}
-                      className={`flex items-center gap-3 p-3 rounded-xl border text-left transition-colors ${
-                        formData.dietary_preference === d.value
-                          ? "border-primary bg-primary/5"
-                          : "border-border hover:bg-muted/50"
-                      }`}
-                    >
-                      <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${
-                        formData.dietary_preference === d.value ? "border-primary bg-primary" : "border-muted-foreground"
-                      }`} />
-                      <div>
-                        <p className="text-sm font-medium">{d.label}</p>
-                        <p className="text-xs text-muted-foreground">{d.desc}</p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Dị ứng thực phẩm (chọn tất cả phù hợp)</Label>
-                <div className="flex flex-wrap gap-2">
-                  {ALLERGY_OPTIONS.map((a) => {
-                    const active = formData.allergies.includes(a);
-                    return (
-                      <button
-                        key={a}
-                        type="button"
-                        onClick={() => setFormData({
-                          ...formData,
-                          allergies: active
-                            ? formData.allergies.filter((x) => x !== a)
-                            : [...formData.allergies, a],
-                        })}
-                        className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
-                          active
-                            ? "border-destructive bg-destructive/10 text-destructive"
-                            : "border-border text-muted-foreground hover:bg-muted"
-                        }`}
-                      >
-                        {active ? "✕ " : ""}{a}
-                      </button>
-                    );
-                  })}
-                </div>
-                {formData.allergies.length === 0 && (
-                  <p className="text-xs text-muted-foreground">Không có dị ứng — để trống</p>
-                )}
-              </div>
-            </div>
+          {step === 5 && (
+            <WeightScreen
+              value={formData.weight_kg}
+              bmi={bmi}
+              bmiStatus={bmiStatus}
+              idealWeight={idealWeight}
+              onChange={(value) => setFormData({ ...formData, weight_kg: value })}
+              onNext={goNext}
+            />
           )}
 
-          {/* Step 5: Meal Timing (MP-05) */}
-          {currentStep === 5 && (() => {
-            const schedule = calcMealSchedule(formData.wake_time, formData.sleep_time);
-            return (
-              <div className="space-y-4 animate-slide-up">
-                <div className="flex items-center gap-2 text-primary mb-2">
-                  <Clock className="w-5 h-5" />
-                  <h3 className="font-semibold">Lịch ăn khoa học</h3>
-                </div>
+          {step === 6 && (
+            <InsightScreen
+              eyebrow="Đã có mục tiêu"
+              title="CaloCare sẽ lo phần tính toán còn lại"
+              body="Bạn chỉ cần chụp ảnh bữa ăn, theo dõi tiến độ và điều chỉnh nhẹ mỗi ngày."
+              visual={<GoalGradientVisual />}
+              onNext={goNext}
+            />
+          )}
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="wake_time">Giờ thức dậy</Label>
-                    <input
-                      id="wake_time"
-                      type="time"
-                      title="Giờ thức dậy"
-                      value={formData.wake_time}
-                      onChange={(e) => setFormData({ ...formData, wake_time: e.target.value })}
-                      className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="sleep_time">Giờ đi ngủ</Label>
-                    <input
-                      id="sleep_time"
-                      type="time"
-                      title="Giờ đi ngủ"
-                      value={formData.sleep_time}
-                      onChange={(e) => setFormData({ ...formData, sleep_time: e.target.value })}
-                      className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                    />
-                  </div>
-                </div>
+          {step === 7 && (
+            <QuestionScreen title="Điều gì tạo động lực cho bạn nhất?">
+              <ChoiceList
+                choices={MOTIVATION_CHOICES}
+                selected={formData.motivation}
+                onSelect={(value) => selectAndNext("motivation", value)}
+              />
+            </QuestionScreen>
+          )}
 
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Lịch đề xuất</p>
-                  {(["breakfast", "lunch", "snack", "dinner"] as const).map((k) => (
-                    <div key={k} className="flex items-center justify-between p-2.5 rounded-xl bg-muted/50 border border-border">
-                      <div>
-                        <p className="text-sm font-medium">{MEAL_LABEL_VI[k]}</p>
-                        <p className="text-[11px] text-muted-foreground">{MEAL_TIP[k]}</p>
-                      </div>
-                      <span className="text-base font-bold text-primary tabular-nums">{schedule[k]}</span>
-                    </div>
-                  ))}
-                </div>
+          {step === 8 && (
+            <QuestionScreen title="Rào cản lớn nhất của bạn là gì?">
+              <ChoiceList
+                choices={OBSTACLE_CHOICES}
+                selected={formData.obstacle}
+                onSelect={(value) => selectAndNext("obstacle", value)}
+              />
+            </QuestionScreen>
+          )}
 
-                <Card className="bg-primary/5 border-primary/20">
-                  <CardContent className="pt-4 pb-4">
-                    <div className="flex items-start gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
-                      <p className="text-xs text-muted-foreground">
-                        Lịch ăn được tính toán theo nhịp sinh học. Bạn có thể thay đổi sau trong Cài đặt.
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            );
-          })()}
+          {step === 9 && (
+            <QuestionScreen title="Mức độ vận động của bạn?" subtitle="Chọn gần đúng là đủ, bạn có thể chỉnh lại sau.">
+              <ChoiceList
+                choices={ACTIVITY_CHOICES}
+                selected={formData.activity_level}
+                onSelect={(value) => selectAndNext("activity_level", value as ActivityLevel)}
+              />
+            </QuestionScreen>
+          )}
 
-          {/* Navigation Buttons */}
-          <div className="flex gap-3 pt-4">
-            {currentStep > 0 && (
-              <Button variant="outline" onClick={handleBack} className="flex-1">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                {t("onboarding.buttons.back")}
-              </Button>
-            )}
+          {step === 10 && (
+            <QuestionScreen title="Kiểu ăn nào hợp với bạn nhất?">
+              <ChoiceList
+                choices={DIET_CHOICES}
+                selected={formData.dietary_preference}
+                onSelect={(value) => setFormData({ ...formData, dietary_preference: value })}
+              />
+              <BottomAction label="Tiếp tục" onClick={goNext} />
+            </QuestionScreen>
+          )}
 
-            {currentStep < totalSteps ? (
-              <Button onClick={handleNext} className="flex-1">
-                {t("onboarding.buttons.next")}
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
-            ) : (
-              <Button
-                onClick={handleComplete}
-                disabled={isSubmitting}
-                className="flex-1"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    {t("onboarding.buttons.completing")}
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="w-4 h-4 mr-2" />
-                    {t("onboarding.buttons.complete")}
-                  </>
-                )}
-              </Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+          {step === 11 && (
+            <MacroPreview goals={goals} title="Kế hoạch dinh dưỡng sơ bộ đã sẵn sàng" onNext={goNext} />
+          )}
+
+          {step === 12 && (
+            <QuestionScreen title="Bạn thường ghi lại những gì mình ăn chứ?">
+              <ChoiceList
+                choices={TRACKING_CHOICES}
+                selected={formData.tracking_habit}
+                onSelect={(value) => selectAndNext("tracking_habit", value)}
+              />
+            </QuestionScreen>
+          )}
+
+          {step === 13 && (
+            <InsightScreen
+              eyebrow="Theo dõi nhẹ hơn"
+              title="Một tấm ảnh là đủ để bắt đầu"
+              body="AI scan của CaloCare giúp nhận diện món ăn, ước tính calo và macro để bạn không phải nhập thủ công từng nguyên liệu."
+              visual={<FoodPhotoScanVisual />}
+              onNext={goNext}
+            />
+          )}
+
+          {step === 14 && (
+            <QuestionScreen title="Bạn có thường biết mình đã nạp chất gì không?">
+              <ChoiceList
+                choices={NUTRITION_CHOICES}
+                selected={formData.nutrition_awareness}
+                onSelect={(value) => selectAndNext("nutrition_awareness", value)}
+              />
+            </QuestionScreen>
+          )}
+
+          {step === 15 && (
+            <InsightScreen
+              eyebrow="Phù hợp với người bận rộn"
+              title="CaloCare giữ trải nghiệm gọn, nhưng dữ liệu vẫn đủ sâu"
+              body="Bạn có nhật ký ăn uống, kế hoạch bữa ăn, báo cáo macro và gợi ý AI trong cùng một nơi."
+              visual={<SocialProofVisual />}
+              onNext={goNext}
+            />
+          )}
+
+          {step === 16 && <LoadingScreen progress={setupProgress} />}
+
+          {step === 17 && (
+            <FinalScreen
+              formData={formData}
+              goals={goals}
+              bmi={bmi}
+              targetWeight={targetWeight}
+              isSubmitting={isSubmitting}
+              onComplete={handleComplete}
+            />
+          )}
+        </section>
+      </main>
     </div>
   );
 };
+
+function IntroScreen({ onNext }: { onNext: () => void }) {
+  return (
+    <div className="relative flex min-h-screen flex-col overflow-hidden">
+      <div className="relative h-[48vh] min-h-[330px] overflow-hidden">
+        <img src="/welcome-bg-2.png" alt="" className="h-full w-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-black/10 to-white" />
+        <div className="absolute left-5 top-12 flex items-center gap-2.5">
+          <img src="/logo.png" alt="CaloCare" className="h-11 w-11 rounded-2xl shadow-lg" />
+          <span className="text-lg font-extrabold text-white drop-shadow">CaloCare</span>
+        </div>
+        <div className="absolute bottom-6 left-1/2 grid h-20 w-20 -translate-x-1/2 place-items-center rounded-full bg-white/80 shadow-2xl backdrop-blur">
+          <Camera className="h-9 w-9 text-primary" />
+        </div>
+      </div>
+
+      <div className="flex flex-1 flex-col px-7 pb-[calc(2rem+env(safe-area-inset-bottom))] pt-6 text-center">
+        <p className="mb-3 text-xs font-extrabold uppercase tracking-[0.22em] text-primary">AI calorie tracker</p>
+        <h1 className="text-[2rem] font-extrabold leading-tight tracking-normal text-[#202733]">
+          Theo dõi calo dễ hơn, ăn uống thông minh hơn
+        </h1>
+        <p className="mx-auto mt-4 max-w-xs text-sm font-medium leading-6 text-slate-500">
+          Cá nhân hóa mục tiêu, scan món ăn và theo dõi tiến độ chỉ trong vài bước chọn nhanh.
+        </p>
+        <div className="mt-auto pt-8">
+          <Button onClick={onNext} className="h-14 w-full rounded-full bg-[#182232] text-base font-bold shadow-[0_14px_28px_rgba(24,34,50,0.22)] hover:bg-[#111827]">
+            Bắt đầu
+          </Button>
+          <button type="button" className="mt-4 text-xs font-semibold text-slate-400" onClick={() => window.location.assign("/auth")}>
+            Đã có tài khoản? <span className="text-primary">Đăng nhập</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function QuestionScreen({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col px-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
+      <div className="pt-7 text-center">
+        <h1 className="mx-auto max-w-sm text-[1.72rem] font-extrabold leading-tight tracking-normal text-[#242833]">{title}</h1>
+        {subtitle && <p className="mx-auto mt-3 max-w-xs text-sm font-semibold leading-6 text-slate-400">{subtitle}</p>}
+      </div>
+      <div className="mt-auto pb-6 pt-8">{children}</div>
+    </div>
+  );
+}
+
+function ChoiceList({
+  choices,
+  selected,
+  onSelect,
+}: {
+  choices: Choice[];
+  selected: string;
+  onSelect: (value: string) => void;
+}) {
+  return (
+    <div className="space-y-3">
+      {choices.map((choice) => {
+        const active = selected === choice.value;
+        const Icon = choice.icon;
+        return (
+          <button
+            key={choice.value}
+            type="button"
+            onClick={() => onSelect(choice.value)}
+            className={`flex min-h-[4.5rem] w-full items-center gap-4 rounded-2xl border px-4 text-left transition-all ${
+              active
+                ? "border-primary bg-primary/10 shadow-[0_10px_24px_rgba(34,197,94,0.12)]"
+                : "border-slate-100 bg-[#fbfafb] hover:border-primary/40"
+            }`}
+          >
+            <span className="grid h-10 w-10 shrink-0 place-items-center text-primary">
+              <Icon className="h-5 w-5 stroke-[2.2]" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-extrabold text-[#3a3d45]">{choice.title}</span>
+              {choice.desc && <span className="mt-1 block text-xs font-semibold leading-4 text-slate-400">{choice.desc}</span>}
+            </span>
+            {active ? (
+              <span className="grid h-7 w-7 place-items-center rounded-full bg-primary text-white">
+                <Check className="h-4 w-4" />
+              </span>
+            ) : (
+              <ChevronRight className="h-5 w-5 text-slate-200" />
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function BirthYearScreen({
+  value,
+  onChange,
+  onNext,
+}: {
+  value: number;
+  onChange: (value: number) => void;
+  onNext: () => void;
+}) {
+  const itemHeight = 64;
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const years = useMemo(
+    () => Array.from({ length: CURRENT_YEAR - 18 - 1945 + 1 }, (_, index) => CURRENT_YEAR - 18 - index),
+    [],
+  );
+  const age = CURRENT_YEAR - value;
+
+  useEffect(() => {
+    const index = years.indexOf(value);
+    if (index >= 0 && scrollRef.current) {
+      scrollRef.current.scrollTop = index * itemHeight;
+    }
+  }, []);
+
+  const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
+    const index = Math.min(
+      years.length - 1,
+      Math.max(0, Math.round(event.currentTarget.scrollTop / itemHeight)),
+    );
+    const nextYear = years[index];
+    if (nextYear !== value) onChange(nextYear);
+  };
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col px-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
+      <div className="pt-9 text-center">
+        <h1 className="text-[1.75rem] font-extrabold leading-tight text-[#242833]">Năm sinh của bạn?</h1>
+        <p className="mx-auto mt-3 max-w-xs text-sm font-semibold leading-6 text-slate-400">
+          Chúng tôi chỉ dùng để tính nhu cầu dinh dưỡng theo độ tuổi.
+        </p>
+      </div>
+      <div className="my-auto flex flex-col items-center">
+        <div className="relative h-[328px] w-72 overflow-hidden rounded-[2rem] bg-[#f7f9f7] shadow-inner">
+          <div className="pointer-events-none absolute left-5 right-5 top-1/2 z-0 h-16 -translate-y-1/2 rounded-3xl bg-primary/[0.14] shadow-[inset_0_0_0_1px_rgba(34,197,94,0.2)]" />
+          <div
+            ref={scrollRef}
+            onScroll={handleScroll}
+            className="hide-scrollbar relative z-10 h-full snap-y snap-mandatory overflow-y-auto px-5"
+          >
+            <div className="py-[132px]">
+            {years.map((year) => {
+              const active = year === value;
+              return (
+                <button
+                  key={year}
+                  type="button"
+                  onClick={() => onChange(year)}
+                  className={`flex h-16 w-full snap-center items-center justify-center rounded-3xl text-center text-2xl font-extrabold transition-all ${
+                    active ? "text-[#243027] scale-[1.04]" : "text-slate-300"
+                  }`}
+                >
+                  {year}
+                </button>
+              );
+            })}
+            </div>
+          </div>
+        </div>
+        <p className="mt-5 rounded-full bg-primary/10 px-4 py-2 text-sm font-extrabold text-primary">{age} tuổi</p>
+      </div>
+      <BottomAction label="Tiếp tục" onClick={onNext} />
+    </div>
+  );
+}
+
+function HeightScreen({ value, onChange, onNext }: { value: number; onChange: (value: number) => void; onNext: () => void }) {
+  const itemHeight = 10;
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const marks = Array.from({ length: 81 }, (_, index) => 130 + index);
+  const reversedMarks = [...marks].reverse();
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = (210 - value) * itemHeight;
+    }
+  }, []);
+
+  const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
+    const next = 210 - Math.round(event.currentTarget.scrollTop / itemHeight);
+    const clamped = Math.min(210, Math.max(130, next));
+    if (clamped !== value) onChange(clamped);
+  };
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col px-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
+      <div className="pt-8 text-center">
+        <h1 className="text-[1.75rem] font-extrabold leading-tight text-[#242833]">Chiều cao của bạn?</h1>
+      </div>
+      <div className="my-auto">
+        <div className="relative mx-auto flex h-[520px] max-w-xs items-center justify-center overflow-hidden">
+          <div
+            ref={scrollRef}
+            onScroll={handleScroll}
+            className="hide-scrollbar absolute left-0 top-0 h-full w-36 overflow-y-auto"
+          >
+            <div className="py-[260px]">
+              {reversedMarks.map((mark) => {
+                const isMeter = mark % 10 === 0;
+                return (
+                  <div key={mark} className="flex h-[10px] items-center justify-end gap-2">
+                    {isMeter && <span className="w-11 text-right text-xs font-extrabold text-slate-500">{(mark / 100).toFixed(1)}m</span>}
+                    <span className={`${isMeter ? "w-16 bg-slate-500" : mark % 5 === 0 ? "w-12 bg-slate-400" : "w-8 bg-slate-300"} block h-px`} />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <div className="pointer-events-none absolute left-0 right-0 top-[42%] h-0.5 bg-primary" />
+          <div className="pointer-events-none relative ml-24 mt-28 w-40 text-center">
+            <div className="mb-1">
+              <span className="text-6xl font-extrabold leading-none text-[#242833]">{value}</span>
+              <span className="ml-1 text-sm font-extrabold text-slate-500">CM</span>
+            </div>
+            <HumanSilhouette />
+          </div>
+        </div>
+      </div>
+      <BottomAction label="Tiếp tục" onClick={onNext} />
+    </div>
+  );
+}
+
+function WeightScreen({
+  value,
+  bmi,
+  bmiStatus,
+  idealWeight,
+  onChange,
+  onNext,
+}: {
+  value: number;
+  bmi: number;
+  bmiStatus: { label: string; className: string };
+  idealWeight: { minWeight: number; maxWeight: number };
+  onChange: (value: number) => void;
+  onNext: () => void;
+}) {
+  const itemWidth = 8;
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const marks = Array.from({ length: 116 }, (_, index) => 35 + index);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollLeft = (value - 35) * itemWidth;
+    }
+  }, []);
+
+  const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
+    const next = 35 + Math.round(event.currentTarget.scrollLeft / itemWidth);
+    const clamped = Math.min(150, Math.max(35, next));
+    if (clamped !== value) onChange(clamped);
+  };
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col px-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
+      <div className="pt-8 text-center">
+        <h1 className="text-[1.75rem] font-extrabold leading-tight text-[#242833]">Cân nặng hiện tại?</h1>
+      </div>
+      <div className="my-auto space-y-8">
+        <div className="mx-auto w-fit rounded-full border border-primary/40 bg-primary/[0.08] px-7 py-2 text-sm font-extrabold text-primary">KG</div>
+        <div className="text-center">
+          <span className="text-6xl font-extrabold tracking-tight text-[#242833]">{value}</span>
+          <span className="ml-2 text-lg font-extrabold text-slate-400">KG</span>
+        </div>
+        <div className="relative h-28 overflow-hidden rounded-3xl bg-[#fafafa]">
+          <div
+            ref={scrollRef}
+            onScroll={handleScroll}
+            className="hide-scrollbar h-full overflow-x-auto"
+          >
+            <div className="flex h-full items-end px-[50%] pb-8" style={{ width: `${marks.length * itemWidth + 320}px` }}>
+              {marks.map((mark) => {
+                const isTen = mark % 10 === 0;
+                const isFive = mark % 5 === 0;
+                return (
+                  <div key={mark} className="relative flex shrink-0 justify-center" style={{ width: itemWidth }}>
+                    {isTen && <span className="absolute -top-14 text-xs font-extrabold text-slate-500">{mark}</span>}
+                    <span className={`${isTen ? "h-11 bg-slate-500" : isFive ? "h-8 bg-slate-400" : "h-5 bg-slate-300"} w-px`} />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <div className="absolute bottom-4 left-1/2 h-20 w-0.5 -translate-x-1/2 bg-primary shadow-[0_0_0_4px_rgba(34,197,94,0.12)]" />
+        </div>
+        <div className="rounded-3xl bg-[#f8f6f8] p-5 shadow-sm">
+          <div className="flex items-center gap-2 text-sm font-extrabold">
+            <span>BMI của bạn: {bmi}</span>
+            <span className={`rounded-full px-2 py-1 text-xs ${bmiStatus.className}`}>{bmiStatus.label}</span>
+          </div>
+          <p className="mt-2 text-xs font-semibold leading-5 text-slate-500">
+            Khoảng cân nặng khỏe mạnh ước tính: {idealWeight.minWeight}-{idealWeight.maxWeight} kg. CaloCare sẽ dùng chỉ số này để cá nhân hóa kế hoạch.
+          </p>
+        </div>
+      </div>
+      <BottomAction label="Tiếp tục" onClick={onNext} />
+    </div>
+  );
+}
+
+function HumanSilhouette() {
+  return (
+    <div className="relative mx-auto h-60 w-28">
+      <img
+        src="/height-body.svg"
+        alt=""
+        className="h-full w-full object-contain opacity-14"
+        aria-hidden="true"
+      />
+    </div>
+  );
+}
+
+function MacroPreview({ goals, title, onNext }: { goals: ReturnType<typeof calculateNutritionGoals>; title: string; onNext: () => void }) {
+  const items = [
+    { label: "Calorie", value: goals.calories, unit: "cal", icon: Flame, color: "text-orange-500" },
+    { label: "Carbs", value: goals.carbs, unit: "g", icon: Apple, color: "text-yellow-500" },
+    { label: "Protein", value: goals.protein, unit: "g", icon: Beef, color: "text-blue-500" },
+    { label: "Fat", value: goals.fat, unit: "g", icon: Zap, color: "text-rose-500" },
+  ];
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col px-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
+      <div className="pt-9 text-center">
+        <h1 className="mx-auto max-w-xs text-[1.65rem] font-extrabold leading-tight text-[#242833]">{title}</h1>
+      </div>
+      <div className="my-auto rounded-3xl bg-[#f3f1f7] p-4">
+        <p className="mb-4 text-sm font-extrabold text-slate-600">Gợi ý mỗi ngày</p>
+        <div className="grid grid-cols-2 gap-3">
+          {items.map((item) => {
+            const Icon = item.icon;
+            return (
+              <div key={item.label} className="rounded-2xl bg-white p-4 shadow-sm">
+                <div className="mb-6 flex items-center gap-2">
+                  <Icon className={`h-4 w-4 ${item.color}`} />
+                  <span className="text-xs font-extrabold text-slate-500">{item.label}</span>
+                </div>
+                <span className="text-2xl font-extrabold text-[#242833]">{item.value}</span>
+                <span className="ml-1 text-xs font-extrabold text-slate-400">{item.unit}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      <BottomAction label="Tiếp tục" onClick={onNext} />
+    </div>
+  );
+}
+
+function InsightScreen({
+  eyebrow,
+  title,
+  body,
+  visual,
+  onNext,
+}: {
+  eyebrow: string;
+  title: string;
+  body: string;
+  visual: React.ReactNode;
+  onNext: () => void;
+}) {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col px-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
+      <div className="pt-8 text-center">
+        <p className="mb-3 text-xs font-extrabold uppercase tracking-[0.2em] text-primary">{eyebrow}</p>
+        <h1 className="mx-auto max-w-sm text-[1.65rem] font-extrabold leading-tight text-[#242833]">{title}</h1>
+        <p className="mx-auto mt-3 max-w-xs text-sm font-semibold leading-6 text-slate-400">{body}</p>
+      </div>
+      <div className="my-auto">{visual}</div>
+      <BottomAction label="Tiếp tục" onClick={onNext} />
+    </div>
+  );
+}
+
+function LoadingScreen({ progress }: { progress: number }) {
+  return (
+    <div className="flex min-h-screen flex-col px-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-24 text-center">
+      <span className="text-6xl font-extrabold text-[#242833]">{progress}%</span>
+      <h1 className="mx-auto mt-6 max-w-xs text-[1.65rem] font-extrabold leading-tight text-[#242833]">Đang thiết lập mọi thứ cho bạn</h1>
+      <Progress value={progress} className="mt-10 h-2 bg-slate-100" />
+      <p className="mt-4 text-sm font-bold text-slate-400">
+        {progress < 45 ? "Đang ước tính nhu cầu năng lượng" : progress < 80 ? "Đang cá nhân hóa macro" : "Đang chuẩn bị kế hoạch"}
+      </p>
+      <div className="relative mt-auto h-56 overflow-hidden">
+        {[
+          "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&h=120&fit=crop",
+          "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=120&h=120&fit=crop",
+          "https://images.unsplash.com/photo-1527980965255-d3b416303d12?w=120&h=120&fit=crop",
+          "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&h=120&fit=crop",
+          "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=120&h=120&fit=crop",
+          "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=120&h=120&fit=crop",
+        ].map((src, index) => (
+          <img
+            key={src}
+            src={src}
+            alt=""
+            className="absolute h-16 w-16 rounded-full object-cover shadow-lg"
+            style={{
+              left: `${(index * 57) % 320}px`,
+              top: `${index % 2 === 0 ? 30 : 118}px`,
+            }}
+          />
+        ))}
+        <div className="absolute left-1/2 top-16 -translate-x-1/2 rounded-full bg-primary/10 px-4 py-2 text-sm font-extrabold text-primary">
+          1,000,000+ người dùng
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FinalScreen({
+  formData,
+  goals,
+  bmi,
+  targetWeight,
+  isSubmitting,
+  onComplete,
+}: {
+  formData: FormData;
+  goals: ReturnType<typeof calculateNutritionGoals>;
+  bmi: number;
+  targetWeight: number;
+  isSubmitting: boolean;
+  onComplete: () => void;
+}) {
+  const goalLabel = formData.goal === "lose" ? "giảm cân" : formData.goal === "gain" ? "tăng cơ" : "giữ cân";
+
+  return (
+    <div className="flex min-h-screen flex-col px-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-16 text-center">
+      <div className="mx-auto grid h-16 w-16 place-items-center rounded-3xl bg-primary/10 text-primary">
+        <Trophy className="h-8 w-8" />
+      </div>
+      <h1 className="mx-auto mt-6 max-w-xs text-[1.75rem] font-extrabold leading-tight text-[#242833]">Kế hoạch {goalLabel} của bạn đã sẵn sàng</h1>
+      <p className="mt-3 text-sm font-bold text-slate-400">
+        Mục tiêu tham khảo: <span className="text-primary">{targetWeight.toFixed(1)} kg</span>
+      </p>
+
+      <div className="my-auto space-y-4">
+        <div className="rounded-[2rem] bg-gradient-to-br from-primary/10 to-emerald-50 p-5 text-left">
+          <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-primary">Tổng quan</p>
+          <div className="mt-5 grid grid-cols-3 gap-3">
+            <Metric label="BMI" value={bmi.toString()} />
+            <Metric label="Calo" value={goals.calories.toString()} />
+            <Metric label="Protein" value={`${goals.protein}g`} />
+          </div>
+        </div>
+
+        <div className="rounded-[2rem] bg-[#f8f6f8] p-5 text-left">
+          <p className="text-sm font-extrabold text-[#242833]">CaloCare sẽ bắt đầu với</p>
+          <ul className="mt-4 space-y-3 text-sm font-semibold text-slate-500">
+            <li className="flex gap-3"><Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" /> Mục tiêu calo và macro cá nhân hóa</li>
+            <li className="flex gap-3"><Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" /> AI scan món ăn để giảm nhập liệu thủ công</li>
+            <li className="flex gap-3"><Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" /> Nhật ký và báo cáo để theo dõi tiến độ</li>
+          </ul>
+        </div>
+      </div>
+
+      <BottomAction label={isSubmitting ? "Đang lưu..." : "Vào CaloCare"} onClick={onComplete} disabled={isSubmitting} icon={isSubmitting ? Loader2 : BadgeCheck} />
+    </div>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl bg-white p-3 text-center shadow-sm">
+      <p className="text-[11px] font-extrabold text-slate-400">{label}</p>
+      <p className="mt-1 text-lg font-extrabold text-[#242833]">{value}</p>
+    </div>
+  );
+}
+
+function BottomAction({
+  label,
+  onClick,
+  disabled,
+  icon: Icon,
+}: {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  icon?: React.ElementType;
+}) {
+  return (
+    <Button
+      onClick={onClick}
+      disabled={disabled}
+      className="h-14 w-full rounded-full bg-[#182232] text-base font-extrabold shadow-[0_14px_28px_rgba(24,34,50,0.2)] hover:bg-[#111827]"
+    >
+      {Icon && <Icon className={`mr-2 h-5 w-5 ${disabled ? "animate-spin" : ""}`} />}
+      {label}
+    </Button>
+  );
+}
+
+function GoalGradientVisual() {
+  return (
+    <div className="relative mx-auto h-80 max-w-xs">
+      <div className="absolute inset-x-4 top-10 h-56 rounded-[3rem] bg-gradient-to-br from-primary/95 via-primary to-emerald-300 shadow-[0_24px_60px_rgba(34,197,94,0.25)]" />
+      <div className="absolute inset-x-10 top-16 rounded-[2rem] bg-white/[0.18] p-5 text-white backdrop-blur">
+        <div className="flex items-center gap-3">
+          <div className="grid h-12 w-12 place-items-center rounded-2xl bg-white/[0.18]">
+            <Target className="h-6 w-6" />
+          </div>
+          <div>
+            <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-white/70">Goal set</p>
+            <p className="text-lg font-extrabold">CaloCare Plan</p>
+          </div>
+        </div>
+        <div className="mt-8 space-y-3">
+          {["Tính mục tiêu calo", "Cân bằng macro", "Theo dõi tiến độ"].map((item) => (
+            <div key={item} className="flex items-center gap-3 rounded-2xl bg-white/[0.14] px-4 py-3 text-sm font-extrabold">
+              <Check className="h-4 w-4" />
+              {item}
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="absolute bottom-6 left-1/2 h-3 w-44 -translate-x-1/2 rounded-full bg-primary/15 blur-sm" />
+    </div>
+  );
+}
+
+function FoodPhotoScanVisual() {
+  return (
+    <div className="relative mx-auto flex h-[370px] max-w-xs items-center justify-center">
+      <img
+        src="/onboarding-scan.jpg"
+        alt="CaloCare AI scan món ăn"
+        className="h-full w-auto rounded-[2.2rem] object-contain shadow-[0_24px_70px_rgba(15,23,42,0.24)]"
+      />
+    </div>
+  );
+}
+
+function ScanChip({ label, className }: { label: string; className: string }) {
+  return (
+    <div className={`absolute rounded-2xl bg-white px-4 py-2 text-xs font-extrabold text-[#242833] shadow-lg ${className}`}>
+      {label}
+    </div>
+  );
+}
+
+function SocialProofVisual() {
+  return (
+    <div className="mx-auto max-w-sm space-y-4">
+      <div className="flex items-center justify-center -space-x-3">
+        {[
+          "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=96&h=96&fit=crop",
+          "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=96&h=96&fit=crop",
+          "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=96&h=96&fit=crop",
+        ].map((src) => (
+          <img key={src} src={src} alt="" className="h-12 w-12 rounded-full border-4 border-white object-cover shadow" />
+        ))}
+      </div>
+      <p className="text-center text-sm font-extrabold text-slate-500">Cộng đồng CaloCare đang xây dựng thói quen tốt hơn mỗi ngày</p>
+      {[
+        "Scan món ăn rất nhanh, tôi không còn bỏ cuộc vì phải nhập quá nhiều.",
+        "Gợi ý calo và macro rõ ràng hơn các app tôi từng dùng.",
+      ].map((quote, index) => (
+        <div key={quote} className="rounded-3xl bg-white p-4 text-left shadow-[0_10px_30px_rgba(15,23,42,0.08)]">
+          <div className="mb-2 text-sm text-amber-400">★★★★★</div>
+          <p className="text-xs font-semibold leading-5 text-slate-500">{quote}</p>
+          <p className="mt-3 text-xs font-extrabold text-[#242833]">{index === 0 ? "Ava S." : "Roger C."}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default Onboarding;
