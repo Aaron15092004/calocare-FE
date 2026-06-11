@@ -800,6 +800,16 @@ export const en = {
       edit: "Edit",
       addNew: "Add new",
     },
+    account: {
+      deleteTitle: "Delete account",
+      deleteDesc: "Permanently remove your account and core personal data",
+      dialogTitle: "Delete your CaloVie account?",
+      dialogDesc: "This action will remove your account and sign you out of the app.",
+      dialogWarning: "Core data such as food diary entries, chat sessions, favorites, personal meal plans, and key account data will be deleted and cannot be restored.",
+      confirmLabel: "Type DELETE to confirm",
+      deleteAction: "Delete account",
+      deleting: "Deleting...",
+    },
   },
 
   /* ── Onboarding ─────────────────────────────────────────────────── */

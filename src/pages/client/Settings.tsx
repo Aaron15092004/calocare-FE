@@ -7,7 +7,7 @@ import {
   Store as StoreIcon, Eye, UtensilsCrossed, BadgeCheck,
   Clock, XCircle, Pencil, MapPin, Plus, TrendingUp,
   Scale, TrendingDown, Dumbbell, Salad, LogOut,
-  Sun, Moon, Monitor, Camera, MessageSquare, CalendarDays, Lock,
+  Sun, Moon, Monitor, Camera, MessageSquare, CalendarDays, Lock, TriangleAlert,
   Heart, ChefHat, Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,16 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useAuthContext } from "@/contexts/AuthContext";
 import {
   calculateNutritionGoals, calculateBMI, calculateIdealWeightRange,
@@ -68,7 +78,7 @@ interface DailyUsage {
 const Settings: React.FC = () => {
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
-  const { user, profile, loading, isAuthenticated, updateProfile, signOut } = useAuthContext();
+  const { user, profile, loading, isAuthenticated, updateProfile, signOut, deleteAccount } = useAuthContext();
 
   const [screen, setScreen] = useState<Screen>(null);
   const [displayName, setDisplayName] = useState("");
@@ -91,6 +101,9 @@ const Settings: React.FC = () => {
   const [myStores, setMyStores] = useState<any[]>([]);
   const [storesLoaded, setStoresLoaded] = useState(false);
   const [usage, setUsage] = useState<DailyUsage | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const { theme, setTheme } = useTheme();
 
   useEffect(() => {
@@ -740,6 +753,21 @@ const Settings: React.FC = () => {
   const historyLabel = tier === "family" ? "180 ngày" : tier === "premium" ? "30 ngày" : "7 ngày";
   const logLabel     = tier === "free" ? "5 bữa/ngày" : "Không giới hạn";
 
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== "DELETE") return;
+    setIsDeletingAccount(true);
+    try {
+      const result = await deleteAccount();
+      if (!result.error) {
+        navigate("/auth", { replace: true });
+      }
+    } finally {
+      setIsDeletingAccount(false);
+      setDeleteDialogOpen(false);
+      setDeleteConfirmText("");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background pb-nav-safe">
       <header className="sticky top-0 z-50 glass border-b border-border/50">
@@ -944,7 +972,66 @@ const Settings: React.FC = () => {
           <span className="text-sm font-medium text-destructive">Đăng xuất</span>
         </button>
 
+        <button
+          type="button"
+          onClick={() => setDeleteDialogOpen(true)}
+          className="w-full flex items-center gap-4 px-4 py-3.5 bg-card border border-red-200 rounded-2xl hover:bg-red-50 transition-colors text-left"
+        >
+          <TriangleAlert className="w-6 h-6 text-red-600 flex-shrink-0" />
+          <div className="min-w-0">
+            <span className="block text-sm font-medium text-red-700">{t("settings.account.deleteTitle")}</span>
+            <span className="block text-xs text-red-500">{t("settings.account.deleteDesc")}</span>
+          </div>
+        </button>
+
       </main>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("settings.account.dialogTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("settings.account.dialogDesc")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="space-y-3">
+            <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-3 text-sm text-red-700">
+              {t("settings.account.dialogWarning")}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="delete-account-confirm">{t("settings.account.confirmLabel")}</Label>
+              <Input
+                id="delete-account-confirm"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder="DELETE"
+                autoComplete="off"
+              />
+            </div>
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                setDeleteConfirmText("");
+              }}
+            >
+              {t("common.cancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                void handleDeleteAccount();
+              }}
+              disabled={deleteConfirmText !== "DELETE" || isDeletingAccount}
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+            >
+              {isDeletingAccount ? t("settings.account.deleting") : t("settings.account.deleteAction")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <BottomNav />
     </div>
   );

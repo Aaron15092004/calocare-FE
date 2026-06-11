@@ -800,6 +800,16 @@ export const vi = {
       edit: "Chỉnh sửa",
       addNew: "Thêm mới",
     },
+    account: {
+      deleteTitle: "Xóa tài khoản",
+      deleteDesc: "Xóa vĩnh viễn tài khoản và dữ liệu cá nhân chính của bạn",
+      dialogTitle: "Xóa tài khoản CaloVie?",
+      dialogDesc: "Hành động này sẽ xóa tài khoản và đăng xuất bạn khỏi ứng dụng.",
+      dialogWarning: "Dữ liệu như nhật ký ăn uống, phiên chat, mục yêu thích, kế hoạch cá nhân và các dữ liệu người dùng chính sẽ bị xóa và không thể khôi phục.",
+      confirmLabel: "Nhập DELETE để xác nhận",
+      deleteAction: "Xóa tài khoản",
+      deleting: "Đang xóa...",
+    },
   },
 
   /* ── Onboarding ─────────────────────────────────────────────────── */

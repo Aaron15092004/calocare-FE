@@ -149,6 +149,30 @@ export const useAuth = () => {
         return { error: null };
     };
 
+    const deleteAccount = async () => {
+        try {
+            await api.delete("/auth/account", {
+                data: { confirmation: "DELETE" },
+            });
+            clearTokens();
+            clearCachedProfile();
+            setProfile(null);
+            toast({
+                title: "Account deleted",
+                description: "Your CaloVie account and core data have been removed.",
+            });
+            return { error: null };
+        } catch (err) {
+            const error = err as AxiosError<{ error: string }>;
+            toast({
+                title: "Delete failed",
+                description: error.response?.data?.error || "Could not delete account",
+                variant: "destructive",
+            });
+            return { error };
+        }
+    };
+
     const signInWithGoogle = () => {
         window.location.href = getGoogleOAuthUrl();
     };
@@ -186,6 +210,7 @@ export const useAuth = () => {
         signUp,
         signIn,
         signOut,
+        deleteAccount,
         signInWithGoogle,
         updateProfile,
         handleOAuthCallback,
