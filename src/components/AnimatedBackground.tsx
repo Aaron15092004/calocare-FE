@@ -52,7 +52,7 @@ const AnimatedBackground: React.FC = () => (
       return (
         <div
           key={i}
-          className="absolute calocare-bg-icon text-primary"
+          className="absolute calovie-bg-icon text-primary"
           style={
             {
               left:            `${x}%`,

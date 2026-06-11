@@ -117,9 +117,9 @@ const Auth: React.FC = () => {
           <div className="w-16 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-2xl">
             <img src="/logo.png" alt="logo" className="w-16 rounded-2xl" />
           </div>
-          <h1 className="text-2xl font-bold text-foreground">CaloCare</h1>
+          <h1 className="text-2xl font-bold text-foreground">CaloVie</h1>
           <p className="text-sm text-muted-foreground">
-            Track your journey to better health
+            Personalized nutrition for real life
           </p>
         </div>
 

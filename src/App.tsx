@@ -29,6 +29,7 @@ import GenerateMealPlan from "./pages/client/GenerateMealPlan";
 import PaymentStatus from "./pages/client/PaymentStatus";
 import TransactionHistory from "./pages/client/TransactionHistory";
 import Reports from "./pages/client/Reports";
+import AIAssistant from "./pages/client/AIAssistant";
 
 // Admin pages
 import Dashboard from "./pages/admin/Dashboard";
@@ -88,6 +89,7 @@ const App = () => (
             <Route path="/nearby" element={<ProtectedRoute><NearbyRestaurants /></ProtectedRoute>} />
             <Route path="/favorites" element={<ProtectedRoute><Favorites /></ProtectedRoute>} />
             <Route path="/generate-meal-plan" element={<ProtectedRoute><GenerateMealPlan /></ProtectedRoute>} />
+            <Route path="/assistant" element={<ProtectedRoute><AIAssistant /></ProtectedRoute>} />
             <Route path="/subscription/status" element={<ProtectedRoute><PaymentStatus /></ProtectedRoute>} />
             <Route path="/subscription/history" element={<ProtectedRoute><TransactionHistory /></ProtectedRoute>} />
             <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />

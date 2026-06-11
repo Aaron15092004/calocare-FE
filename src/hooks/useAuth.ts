@@ -9,7 +9,7 @@ export interface Profile {
     display_name: string | null;
     avatar_url: string | null;
     role: "user" | "admin" | "moderator" | "store_owner";
-    subscription_tier: "free" | "premium" | "pro";
+    subscription_tier: "free" | "premium" | "family" | "pro";
     subscription_expires_at: string | null;
     is_banned: boolean;
     language: string;
@@ -59,7 +59,9 @@ export const useAuth = () => {
     const isStaff      = isAdmin || isModerator;
     const isBanned     = profile?.is_banned === true;
     const isPremium    =
-        profile?.subscription_tier === "premium" || profile?.subscription_tier === "pro";
+        profile?.subscription_tier === "premium"
+        || profile?.subscription_tier === "family"
+        || profile?.subscription_tier === "pro";
 
     const fetchProfile = useCallback(async (force = false) => {
         try {
@@ -102,7 +104,7 @@ export const useAuth = () => {
             setProfile(data.user);
             setCachedProfile(data.user);
 
-            toast({ title: "Account created!", description: "Welcome to CaloCare." });
+            toast({ title: "Account created!", description: "Welcome to CaloVie." });
             return { data, error: null };
         } catch (err) {
             const error = err as AxiosError<{ error: string }>;

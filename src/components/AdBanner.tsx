@@ -105,7 +105,7 @@ export const AdBanner: React.FC<AdBannerProps> = ({
                         <Crown className="w-6 h-6 text-amber-300" />
                     </div>
                     <div>
-                        <p className="text-white font-bold text-base leading-tight">CaloCare Premium</p>
+                        <p className="text-white font-bold text-base leading-tight">CaloVie Premium</p>
                         <p className="text-white/70 text-xs mt-0.5">Nâng cấp để mở khóa toàn bộ tính năng</p>
                     </div>
                 </div>

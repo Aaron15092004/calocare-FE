@@ -106,12 +106,12 @@ const Users = () => {
                                             </td>
                                             <td className="py-3">
                                                 <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                                                    u.subscription_tier === "pro" ? "bg-purple-100 text-purple-700"
+                                                    u.subscription_tier === "pro" || u.subscription_tier === "family" ? "bg-purple-100 text-purple-700"
                                                     : u.subscription_tier === "premium" ? "bg-blue-100 text-blue-700"
                                                     : "bg-gray-100 text-gray-700"
                                                 }`}>
-                                                    {u.subscription_tier}
-                                                </span>
+                                                    {u.subscription_tier === "pro" ? "family" : u.subscription_tier}
+                                                  </span>
                                             </td>
                                             <td className="py-3">
                                                 {u.is_banned ? (

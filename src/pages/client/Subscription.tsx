@@ -38,11 +38,11 @@ import api from "@/lib/api";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type PlanId = "free" | "premium" | "pro";
+type PlanId = "free" | "premium" | "family";
 type PaymentMethod = "momo" | "bank_transfer";
 
 interface SubscriptionStatus {
-    tier: "free" | "premium" | "pro";
+    tier: "free" | "premium" | "family" | "pro";
     expires_at: string | null;
     is_active: boolean;
     latest_transaction: {
@@ -86,8 +86,8 @@ const PLAN_CONFIG = [
         recommended: true,
     },
     {
-        id: "pro" as PlanId,
-        price: 119000,
+        id: "family" as PlanId,
+        price: 199000,
         icon: Crown,
         cardClass: "border-primary shadow-xl shadow-primary/20",
         headerClass: "gradient-primary",
@@ -148,7 +148,9 @@ const Subscription: React.FC = () => {
         }
     };
 
-    const currentTier = status?.tier || profile?.subscription_tier || "free";
+    const currentTier = (status?.tier === "pro" ? "family" : status?.tier)
+        || (profile?.subscription_tier === "pro" ? "family" : profile?.subscription_tier)
+        || "free";
 
     const openCheckout = (planId: PlanId) => {
         setSelectedPlan(planId);
@@ -307,7 +309,7 @@ const Subscription: React.FC = () => {
                                             {plan.name}
                                         </span>
                                         {plan.recommended && (
-                                            <Badge className={`text-xs font-semibold border-0 ${plan.id === "pro" ? "bg-white/20 text-white" : "bg-primary/15 text-primary"}`}>
+                                            <Badge className={`text-xs font-semibold border-0 ${plan.id === "family" ? "bg-white/20 text-white" : "bg-primary/15 text-primary"}`}>
                                                 {t("subscription.popular")}
                                             </Badge>
                                         )}
@@ -485,7 +487,9 @@ const Subscription: React.FC = () => {
                                         {t("subscription.pendingTitle")}
                                     </p>
                                     <p className="text-xs text-primary mt-0.5">
-                                        {t("subscription.planLabel", { plan: status.latest_transaction.plan_type.toUpperCase() })} ·{" "}
+                                        {t("subscription.planLabel", {
+                                            plan: (status.latest_transaction.plan_type === "pro" ? "FAMILY" : status.latest_transaction.plan_type.toUpperCase()),
+                                        })} ·{" "}
                                         {status.latest_transaction.final_amount.toLocaleString("vi-VN")}₫ ·{" "}
                                         {new Date(status.latest_transaction.created_at).toLocaleDateString("vi-VN")}
                                     </p>

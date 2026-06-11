@@ -621,7 +621,7 @@ const DiscountCodes = () => {
                         <div className="space-y-1.5">
                             <Label>{t("adminDiscount.systemDiscount.applicablePlansLabel")}</Label>
                             <div className="flex gap-4">
-                                {["premium", "pro"].map((plan) => (
+                                {["premium", "family"].map((plan) => (
                                     <label key={plan} className="flex items-center gap-2 cursor-pointer">
                                         <input
                                             type="checkbox"

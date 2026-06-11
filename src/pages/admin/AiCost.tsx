@@ -32,7 +32,7 @@ const USD_TO_VND = 25000;
 
 interface AiCostStats {
     total_chat_messages: number;
-    chat_messages_by_tier: { free: number; premium: number; pro: number };
+    chat_messages_by_tier: { free: number; premium: number; family: number; pro?: number };
     avg_messages_per_premium_user: number;
     premium_users_count: number;
     total_meal_plans: number;
@@ -77,6 +77,7 @@ const fmtUsd = (usd: number) => `$${usd.toFixed(2)}`;
 const TIER_COLORS: Record<string, string> = {
     free: "bg-gray-100 text-gray-600",
     premium: "bg-purple-100 text-purple-700",
+    family: "bg-blue-100 text-blue-700",
     pro: "bg-blue-100 text-blue-700",
 };
 
@@ -261,7 +262,7 @@ const AiCost = () => {
                     icon={MessageSquare}
                     label="Tổng chat messages"
                     value={stats.total_chat_messages.toLocaleString()}
-                    sub={`Free ${stats.chat_messages_by_tier.free} · Pre ${stats.chat_messages_by_tier.premium} · Pro ${stats.chat_messages_by_tier.pro}`}
+                    sub={`Free ${stats.chat_messages_by_tier.free} · Premium ${stats.chat_messages_by_tier.premium} · Family ${stats.chat_messages_by_tier.family}`}
                     color="bg-blue-100 text-blue-600"
                 />
                 <StatCard

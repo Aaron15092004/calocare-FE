@@ -234,7 +234,7 @@ const Onboarding: React.FC = () => {
     setIsSubmitting(true);
     try {
       await updateProfile({
-        display_name: profile?.display_name || profile?.email?.split("@")[0] || "CaloCare User",
+        display_name: profile?.display_name || profile?.email?.split("@")[0] || "CaloVie User",
         preferences: {
           age,
           gender: formData.gender,
@@ -251,7 +251,7 @@ const Onboarding: React.FC = () => {
 
       toast({
         title: "Kế hoạch đã sẵn sàng",
-        description: "CaloCare đã cá nhân hóa mục tiêu dinh dưỡng cho bạn.",
+        description: "CaloVie đã cá nhân hóa mục tiêu dinh dưỡng cho bạn.",
       });
       navigate("/");
     } catch {
@@ -287,7 +287,7 @@ const Onboarding: React.FC = () => {
           {step === 0 && <IntroScreen onNext={goNext} />}
 
           {step === 1 && (
-            <QuestionScreen title="Mục tiêu chính của bạn là gì?" subtitle="CaloCare sẽ dùng mục tiêu này để tính calo và gợi ý thói quen phù hợp.">
+            <QuestionScreen title="Mục tiêu chính của bạn là gì?" subtitle="CaloVie sẽ dùng mục tiêu này để tính calo và gợi ý thói quen phù hợp.">
               <ChoiceList
                 choices={GOAL_CHOICES}
                 selected={formData.goal}
@@ -297,7 +297,7 @@ const Onboarding: React.FC = () => {
           )}
 
           {step === 2 && (
-            <QuestionScreen title="Bạn muốn CaloCare tính theo giới tính nào?" subtitle="Thông tin này giúp ước tính nhu cầu năng lượng chính xác hơn.">
+            <QuestionScreen title="Bạn muốn CaloVie tính theo giới tính nào?" subtitle="Thông tin này giúp ước tính nhu cầu năng lượng chính xác hơn.">
               <ChoiceList
                 choices={GENDER_CHOICES}
                 selected={formData.gender}
@@ -336,7 +336,7 @@ const Onboarding: React.FC = () => {
           {step === 6 && (
             <InsightScreen
               eyebrow="Đã có mục tiêu"
-              title="CaloCare sẽ lo phần tính toán còn lại"
+              title="CaloVie sẽ lo phần tính toán còn lại"
               body="Bạn chỉ cần chụp ảnh bữa ăn, theo dõi tiến độ và điều chỉnh nhẹ mỗi ngày."
               visual={<GoalGradientVisual />}
               onNext={goNext}
@@ -402,7 +402,7 @@ const Onboarding: React.FC = () => {
             <InsightScreen
               eyebrow="Theo dõi nhẹ hơn"
               title="Một tấm ảnh là đủ để bắt đầu"
-              body="AI scan của CaloCare giúp nhận diện món ăn, ước tính calo và macro để bạn không phải nhập thủ công từng nguyên liệu."
+              body="AI scan của CaloVie giúp nhận diện món ăn, ước tính calo và macro để bạn không phải nhập thủ công từng nguyên liệu."
               visual={<FoodPhotoScanVisual />}
               onNext={goNext}
             />
@@ -421,7 +421,7 @@ const Onboarding: React.FC = () => {
           {step === 15 && (
             <InsightScreen
               eyebrow="Phù hợp với người bận rộn"
-              title="CaloCare giữ trải nghiệm gọn, nhưng dữ liệu vẫn đủ sâu"
+              title="CaloVie giữ trải nghiệm gọn, nhưng dữ liệu vẫn đủ sâu"
               body="Bạn có nhật ký ăn uống, kế hoạch bữa ăn, báo cáo macro và gợi ý AI trong cùng một nơi."
               visual={<SocialProofVisual />}
               onNext={goNext}
@@ -450,13 +450,14 @@ function IntroScreen({ onNext }: { onNext: () => void }) {
   return (
     <div className="relative flex min-h-screen flex-col overflow-hidden">
       <div className="relative h-[48vh] min-h-[330px] overflow-hidden">
-        <img src="/welcome-bg-2.png" alt="" className="h-full w-full object-cover" />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-black/10 to-white" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(149,224,155,0.55),_transparent_38%),linear-gradient(180deg,_#f4fcf8_0%,_#d8f3eb_48%,_#ffffff_100%)]" />
+        <img src="/calovie-mascot.png" alt="" className="absolute right-[-2rem] top-8 h-[85%] w-auto opacity-95 drop-shadow-[0_28px_60px_rgba(27,111,132,0.2)]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-white/5 via-transparent to-white" />
         <div className="absolute left-5 top-12 flex items-center gap-2.5">
-          <img src="/logo.png" alt="CaloCare" className="h-11 w-11 rounded-2xl shadow-lg" />
-          <span className="text-lg font-extrabold text-white drop-shadow">CaloCare</span>
+          <img src="/logo.png" alt="CaloVie" className="h-11 w-11 rounded-2xl shadow-lg" />
+          <span className="text-lg font-extrabold text-[#1b6f84] drop-shadow">CaloVie</span>
         </div>
-        <div className="absolute bottom-6 left-1/2 grid h-20 w-20 -translate-x-1/2 place-items-center rounded-full bg-white/80 shadow-2xl backdrop-blur">
+        <div className="absolute bottom-6 left-1/2 grid h-20 w-20 -translate-x-1/2 place-items-center rounded-full bg-white/85 shadow-2xl ring-1 ring-[#37c0be]/15 backdrop-blur">
           <Camera className="h-9 w-9 text-primary" />
         </div>
       </div>
@@ -470,7 +471,7 @@ function IntroScreen({ onNext }: { onNext: () => void }) {
           Cá nhân hóa mục tiêu, scan món ăn và theo dõi tiến độ chỉ trong vài bước chọn nhanh.
         </p>
         <div className="mt-auto pt-8">
-          <Button onClick={onNext} className="h-14 w-full rounded-full bg-[#182232] text-base font-bold shadow-[0_14px_28px_rgba(24,34,50,0.22)] hover:bg-[#111827]">
+          <Button onClick={onNext} className="h-14 w-full rounded-full bg-[#1b6f84] text-base font-bold shadow-[0_14px_28px_rgba(27,111,132,0.24)] hover:bg-[#155869]">
             Bắt đầu
           </Button>
           <button type="button" className="mt-4 text-xs font-semibold text-slate-400" onClick={() => window.location.assign("/auth")}>
@@ -749,7 +750,7 @@ function WeightScreen({
             <span className={`rounded-full px-2 py-1 text-xs ${bmiStatus.className}`}>{bmiStatus.label}</span>
           </div>
           <p className="mt-2 text-xs font-semibold leading-5 text-slate-500">
-            Khoảng cân nặng khỏe mạnh ước tính: {idealWeight.minWeight}-{idealWeight.maxWeight} kg. CaloCare sẽ dùng chỉ số này để cá nhân hóa kế hoạch.
+            Khoảng cân nặng khỏe mạnh ước tính: {idealWeight.minWeight}-{idealWeight.maxWeight} kg. CaloVie sẽ dùng chỉ số này để cá nhân hóa kế hoạch.
           </p>
         </div>
       </div>
@@ -836,6 +837,9 @@ function InsightScreen({
 function LoadingScreen({ progress }: { progress: number }) {
   return (
     <div className="flex min-h-screen flex-col px-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-24 text-center">
+      <div className="mx-auto mb-6 h-24 w-24 overflow-hidden rounded-[2rem] bg-white p-2 shadow-[0_18px_50px_rgba(27,111,132,0.15)]">
+        <img src="/calovie-mascot.png" alt="CaloVie mascot" className="h-full w-full object-cover object-top" />
+      </div>
       <span className="text-6xl font-extrabold text-[#242833]">{progress}%</span>
       <h1 className="mx-auto mt-6 max-w-xs text-[1.65rem] font-extrabold leading-tight text-[#242833]">Đang thiết lập mọi thứ cho bạn</h1>
       <Progress value={progress} className="mt-10 h-2 bg-slate-100" />
@@ -889,8 +893,8 @@ function FinalScreen({
 
   return (
     <div className="flex min-h-screen flex-col px-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-16 text-center">
-      <div className="mx-auto grid h-16 w-16 place-items-center rounded-3xl bg-primary/10 text-primary">
-        <Trophy className="h-8 w-8" />
+      <div className="mx-auto h-20 w-20 overflow-hidden rounded-[2rem] bg-white p-2 shadow-[0_18px_50px_rgba(27,111,132,0.15)]">
+        <img src="/calovie-mascot.png" alt="CaloVie mascot" className="h-full w-full object-cover object-top" />
       </div>
       <h1 className="mx-auto mt-6 max-w-xs text-[1.75rem] font-extrabold leading-tight text-[#242833]">Kế hoạch {goalLabel} của bạn đã sẵn sàng</h1>
       <p className="mt-3 text-sm font-bold text-slate-400">
@@ -908,7 +912,12 @@ function FinalScreen({
         </div>
 
         <div className="rounded-[2rem] bg-[#f8f6f8] p-5 text-left">
-          <p className="text-sm font-extrabold text-[#242833]">CaloCare sẽ bắt đầu với</p>
+          <div className="mb-3 flex items-center gap-3">
+            <div className="grid h-10 w-10 place-items-center rounded-2xl bg-primary/10 text-primary">
+              <Trophy className="h-5 w-5" />
+            </div>
+            <p className="text-sm font-extrabold text-[#242833]">CaloVie sẽ bắt đầu với</p>
+          </div>
           <ul className="mt-4 space-y-3 text-sm font-semibold text-slate-500">
             <li className="flex gap-3"><Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" /> Mục tiêu calo và macro cá nhân hóa</li>
             <li className="flex gap-3"><Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" /> AI scan món ăn để giảm nhập liệu thủ công</li>
@@ -917,7 +926,7 @@ function FinalScreen({
         </div>
       </div>
 
-      <BottomAction label={isSubmitting ? "Đang lưu..." : "Vào CaloCare"} onClick={onComplete} disabled={isSubmitting} icon={isSubmitting ? Loader2 : BadgeCheck} />
+      <BottomAction label={isSubmitting ? "Đang lưu..." : "Vào CaloVie"} onClick={onComplete} disabled={isSubmitting} icon={isSubmitting ? Loader2 : BadgeCheck} />
     </div>
   );
 }
@@ -965,7 +974,7 @@ function GoalGradientVisual() {
           </div>
           <div>
             <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-white/70">Goal set</p>
-            <p className="text-lg font-extrabold">CaloCare Plan</p>
+            <p className="text-lg font-extrabold">CaloVie Plan</p>
           </div>
         </div>
         <div className="mt-8 space-y-3">
@@ -987,7 +996,7 @@ function FoodPhotoScanVisual() {
     <div className="relative mx-auto flex h-[370px] max-w-xs items-center justify-center">
       <img
         src="/onboarding-scan.jpg"
-        alt="CaloCare AI scan món ăn"
+        alt="CaloVie AI scan món ăn"
         className="h-full w-auto rounded-[2.2rem] object-contain shadow-[0_24px_70px_rgba(15,23,42,0.24)]"
       />
     </div>
@@ -1014,7 +1023,7 @@ function SocialProofVisual() {
           <img key={src} src={src} alt="" className="h-12 w-12 rounded-full border-4 border-white object-cover shadow" />
         ))}
       </div>
-      <p className="text-center text-sm font-extrabold text-slate-500">Cộng đồng CaloCare đang xây dựng thói quen tốt hơn mỗi ngày</p>
+      <p className="text-center text-sm font-extrabold text-slate-500">Cộng đồng CaloVie đang xây dựng thói quen tốt hơn mỗi ngày</p>
       {[
         "Scan món ăn rất nhanh, tôi không còn bỏ cuộc vì phải nhập quá nhiều.",
         "Gợi ý calo và macro rõ ràng hơn các app tôi từng dùng.",

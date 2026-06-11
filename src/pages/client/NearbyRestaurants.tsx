@@ -43,6 +43,10 @@ interface StoreAPI {
     rating_count: number;
     location?: { lat: number; lng: number };
     google_maps_url?: string;
+    recommendation_score?: number;
+    match_reasons?: string[];
+    price_range?: { min: number; max: number } | null;
+    distance_km?: number;
 }
 
 const CATEGORIES = [
@@ -243,6 +247,23 @@ const StoreCard: React.FC<{ store: StoreAPI }> = ({ store }) => {
                         <p className="text-xs text-muted-foreground mb-3 line-clamp-2">{store.description}</p>
                     )}
 
+                    {store.match_reasons && store.match_reasons.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mb-3">
+                            {store.match_reasons.map((reason) => (
+                                <span key={reason} className="inline-flex items-center rounded-full bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary">
+                                    {reason}
+                                </span>
+                            ))}
+                        </div>
+                    )}
+
+                    {store.price_range && (
+                        <div className="text-xs text-muted-foreground mb-3">
+                            Giá tham khảo: {store.price_range.min.toLocaleString("vi-VN")}₫
+                            {store.price_range.max !== store.price_range.min ? ` - ${store.price_range.max.toLocaleString("vi-VN")}₫` : ""}
+                        </div>
+                    )}
+
                     {/* Contact */}
                     <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3">
                         {store.phone && (
@@ -253,6 +274,11 @@ const StoreCard: React.FC<{ store: StoreAPI }> = ({ store }) => {
                         {store.website && (
                             <a href={store.website} target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-primary">
                                 <Globe className="w-3 h-3" /> Website
+                            </a>
+                        )}
+                        {store.google_maps_url && (
+                            <a href={store.google_maps_url} target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-primary">
+                                <MapPin className="w-3 h-3" /> Bản đồ
                             </a>
                         )}
                     </div>
@@ -446,6 +472,11 @@ const NearbyRestaurants: React.FC = () => {
                             <p className="text-xs text-muted-foreground px-1">
                                 {stores.length} quán{category ? ` · ${CATEGORIES.find((c) => c.value === category)?.label}` : ""}
                             </p>
+                            {stores.some((store) => (store.recommendation_score ?? 0) > 0) && (
+                                <div className="rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-primary">
+                                    Gợi ý được ưu tiên dựa trên mục tiêu, sở thích ăn uống và dữ liệu onboarding của bạn.
+                                </div>
+                            )}
                             <AdSenseUnit
                                 slot={import.meta.env.VITE_ADSENSE_SLOT_NEARBY ?? import.meta.env.VITE_ADSENSE_SLOT_INLINE ?? ""}
                                 format="auto"

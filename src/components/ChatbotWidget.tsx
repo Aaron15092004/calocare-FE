@@ -229,8 +229,8 @@ export const ChatbotWidget: React.FC = () => {
                 setTimeout(() => inputRef.current?.focus(), 150);
             }
         };
-        window.addEventListener("calocare:open-chat", handler);
-        return () => window.removeEventListener("calocare:open-chat", handler);
+        window.addEventListener("CaloVie:open-chat", handler);
+        return () => window.removeEventListener("CaloVie:open-chat", handler);
     }, []);
 
     // Navigate when chatbot emits a navigate event
@@ -251,7 +251,7 @@ export const ChatbotWidget: React.FC = () => {
         const isOffline = !navigator.onLine || error.toLowerCase().includes("fetch") || error.includes("hết thời gian");
         if (isOffline) {
             toast({
-                title: "CaloCare AI không phản hồi",
+                title: "CaloVie AI không phản hồi",
                 description: "Kiểm tra kết nối mạng và thử lại.",
                 variant: "destructive",
             });
@@ -302,7 +302,7 @@ export const ChatbotWidget: React.FC = () => {
                             <Sparkles className="w-4 h-4 text-white" />
                         </div>
                         <div className="flex-1 min-w-0">
-                            <p className="text-sm font-bold text-white">CaloCare AI</p>
+                            <p className="text-sm font-bold text-white">CaloVie AI</p>
                             <p className="text-[10px] text-white/70">Trợ lý dinh dưỡng</p>
                         </div>
                         <div className="flex items-center gap-1">
@@ -335,7 +335,7 @@ export const ChatbotWidget: React.FC = () => {
                                     <Sparkles className="w-7 h-7 text-primary" />
                                 </div>
                                 <div className="text-center">
-                                    <p className="text-sm font-semibold text-foreground mb-1">Xin chào! Tôi là CaloCare AI</p>
+                                    <p className="text-sm font-semibold text-foreground mb-1">Xin chào! Tôi là CaloVie AI</p>
                                     <p className="text-xs text-muted-foreground leading-relaxed">
                                         Tôi có thể giúp bạn tư vấn dinh dưỡng, theo dõi calo và gợi ý thực đơn.
                                     </p>

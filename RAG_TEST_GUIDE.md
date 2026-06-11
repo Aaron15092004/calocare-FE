@@ -1,9 +1,9 @@
-# CaloCare RAG — Hướng dẫn Test Thủ Công
+# CaloVie RAG — Hướng dẫn Test Thủ Công
 
 ## Chuẩn bị
 
-- Backend đang chạy (`npm run dev` trong `calocare-BE`)
-- Frontend đang chạy (`npm run dev` trong `calocare-FE`)
+- Backend đang chạy (`npm run dev` trong `CaloVie-BE`)
+- Frontend đang chạy (`npm run dev` trong `CaloVie-FE`)
 - Đã đăng nhập tài khoản (bất kỳ tier nào)
 - Tài khoản **premium/pro** để test Chat và Meal Plan
 
@@ -56,7 +56,7 @@
 | 3.6 | Gõ `"Thêm 200g cơm trắng vào bữa trưa"` | AI gọi function, thêm entry — **Action mode** |
 | 3.7 | Nhấn nút ⬛ Stop khi AI đang trả lời | Stream dừng, không có error toast |
 | 3.8 | Nhấn 🗑️ Trash | Xoá toàn bộ hội thoại |
-| 3.9 | Tắt mạng → gõ tin nhắn | Sau 30s: toast đỏ "CaloCare AI không phản hồi — Kiểm tra kết nối mạng" |
+| 3.9 | Tắt mạng → gõ tin nhắn | Sau 30s: toast đỏ "CaloVie AI không phản hồi — Kiểm tra kết nối mạng" |
 
 ---
 
@@ -126,6 +126,6 @@
 
 ## Ghi chú
 
-- Log RAG được ghi vào `calocare-BE/logs/rag.log` — xem để debug latency
+- Log RAG được ghi vào `CaloVie-BE/logs/rag.log` — xem để debug latency
 - Chạy backend test: `TOKEN=<jwt> bash scripts/test-rag.sh`
 - Lấy JWT token: F12 → Application → localStorage → `access_token`

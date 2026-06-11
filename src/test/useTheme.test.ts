@@ -16,7 +16,7 @@ describe("useTheme", () => {
   });
 
   it('reads stored theme from localStorage on mount', () => {
-    localStorage.setItem("calocare-theme", "dark");
+    localStorage.setItem("CaloVie-theme", "dark");
     const { result } = renderHook(() => useTheme());
     expect(result.current.theme).toBe("dark");
   });
@@ -43,7 +43,7 @@ describe("useTheme", () => {
     const { result } = renderHook(() => useTheme());
     act(() => result.current.setTheme("dark"));
 
-    expect(localStorage.getItem("calocare-theme")).toBe("dark");
+    expect(localStorage.getItem("CaloVie-theme")).toBe("dark");
   });
 
   it('setTheme("system") respects system preference (mock returns false → no dark class)', () => {

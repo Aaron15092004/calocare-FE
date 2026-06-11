@@ -24,7 +24,8 @@ import {
 
 const PLAN_LABELS: Record<string, string> = {
     premium: "Premium",
-    pro: "Pro",
+    family: "Family",
+    pro: "Family",
     store_pro: "Store Pro",
 };
 

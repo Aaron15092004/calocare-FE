@@ -1,4 +1,4 @@
-const CACHE_NAME = "calocare-runtime-v1";
+const CACHE_NAME = "calovie-runtime-v1";
 const CACHEABLE_PATHS = [
   "/manifest.webmanifest",
   "/logo.png",

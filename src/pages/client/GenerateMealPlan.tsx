@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { invalidateMealPlanCache } from "@/pages/client/MealPlan";
 import {
@@ -154,7 +154,7 @@ const MealDetailModal: React.FC<{
                         className="w-full flex items-center gap-2 text-xs text-primary bg-primary/5 hover:bg-primary/10 transition-colors rounded-xl px-3 py-2.5 border border-primary/20"
                     >
                         <MessageCircle className="w-3.5 h-3.5 shrink-0" />
-                        <span className="flex-1 text-left">Muốn công thức chi tiết hơn? Hỏi CaloCare AI →</span>
+                        <span className="flex-1 text-left">Muốn công thức chi tiết hơn? Hỏi CaloVie AI →</span>
                     </button>
                 </div>
             </DialogContent>
@@ -237,9 +237,9 @@ const GenerateMealPlan: React.FC = () => {
     const { profile } = useAuthContext();
     const { toast } = useToast();
 
-    const tier      = profile?.subscription_tier ?? "free";
-    const isPremium = tier === "premium" || tier === "pro";
-    const isPro     = tier === "pro";
+    const tier      = profile?.subscription_tier === "pro" ? "family" : (profile?.subscription_tier ?? "free");
+    const isPremium = tier === "premium" || tier === "family";
+    const isPro     = tier === "family";
     const totalDays = isPro ? 21 : 7;
 
     const [goalType,     setGoalType]     = useState("weight_loss");
@@ -336,7 +336,7 @@ const GenerateMealPlan: React.FC = () => {
                             <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
                                 <Sparkles className="w-4 h-4 text-primary-foreground" />
                             </div>
-                            <h1 className="page-title">CaloCare AI</h1>
+                            <h1 className="page-title">CaloVie AI</h1>
                         </div>
                     </div>
                 </header>
@@ -345,9 +345,9 @@ const GenerateMealPlan: React.FC = () => {
                         <Lock className="w-9 h-9 text-primary-foreground" />
                     </div>
                     <div>
-                        <h2 className="text-xl font-bold mb-2">Tính năng Premium & Pro</h2>
+                        <h2 className="text-xl font-bold mb-2">Tính năng Premium & Family</h2>
                         <p className="text-muted-foreground text-sm leading-relaxed">
-                            CaloCare AI phân tích hồ sơ sức khỏe và tạo thực đơn cá nhân hóa hoàn toàn — có công thức nấu ăn chi tiết, nguyên liệu và calo từng món.
+                            CaloVie AI phân tích hồ sơ sức khỏe và tạo thực đơn cá nhân hóa hoàn toàn — có công thức nấu ăn chi tiết, nguyên liệu và calo từng món.
                         </p>
                     </div>
                     <div className="w-full space-y-3">
@@ -365,7 +365,7 @@ const GenerateMealPlan: React.FC = () => {
                         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-left">
                             <div className="flex items-center gap-2 mb-2">
                                 <Zap className="w-4 h-4 text-amber-600" />
-                                <span className="text-sm font-semibold text-amber-700">Pro — 21 ngày</span>
+                                <span className="text-sm font-semibold text-amber-700">Family — 21 ngày</span>
                             </div>
                             <ul className="text-xs text-amber-600 space-y-1.5">
                                 {["Thực đơn 21 ngày đầy đủ", "Tất cả tính năng Premium", "Tái tạo không giới hạn"].map((t) => (
@@ -394,7 +394,7 @@ const GenerateMealPlan: React.FC = () => {
                     <div className="absolute -inset-3 rounded-3xl border-2 border-primary/30 animate-ping" />
                 </div>
                 <div className="text-center">
-                    <h2 className="text-xl font-bold mb-1">CaloCare AI đang tạo thực đơn...</h2>
+                    <h2 className="text-xl font-bold mb-1">CaloVie AI đang tạo thực đơn...</h2>
                     {progress && (
                         <p className="text-muted-foreground text-sm mt-1">
                             Ngày {progress.current_day}/{progress.total_days}
@@ -450,7 +450,7 @@ const GenerateMealPlan: React.FC = () => {
                             <p className="text-xs text-muted-foreground">{displayDays.length} ngày · Xem trước</p>
                         </div>
                         <Badge className="bg-primary/15 text-primary border-0 shrink-0">
-                            <Sparkles className="w-3 h-3 mr-1" />CaloCare AI
+                            <Sparkles className="w-3 h-3 mr-1" />CaloVie AI
                         </Badge>
                     </div>
                 </header>
@@ -496,10 +496,7 @@ const GenerateMealPlan: React.FC = () => {
                     <MealDetailModal
                         meal={selectedMeal}
                         onClose={() => setSelectedMeal(null)}
-                        onAskChatbot={(prompt) => {
-                            // Broadcast to ChatbotWidget via custom DOM event
-                            window.dispatchEvent(new CustomEvent("calocare:open-chat", { detail: { prompt } }));
-                        }}
+                        onAskChatbot={(prompt) => navigate("/assistant", { state: { prompt } })}
                     />
                 </main>
 
@@ -533,7 +530,7 @@ const GenerateMealPlan: React.FC = () => {
                             <Sparkles className="w-4 h-4 text-primary-foreground" />
                         </div>
                         <div>
-                            <h1 className="page-title leading-tight">CaloCare AI</h1>
+                            <h1 className="page-title leading-tight">CaloVie AI</h1>
                             <p className="text-[10px] text-muted-foreground leading-tight">Thực đơn cá nhân hóa</p>
                         </div>
                     </div>
@@ -541,7 +538,7 @@ const GenerateMealPlan: React.FC = () => {
                         ? "bg-gradient-to-r from-amber-400 to-orange-500"
                         : "bg-gradient-to-r from-primary to-primary/80"}`}>
                         {isPro
-                            ? <><Zap className="w-3 h-3 mr-1" />Pro · 21 ngày</>
+                            ? <><Zap className="w-3 h-3 mr-1" />Family · 21 ngày</>
                             : <><Crown className="w-3 h-3 mr-1" />Premium · 7 ngày</>
                         }
                     </Badge>
@@ -766,7 +763,7 @@ const GenerateMealPlan: React.FC = () => {
                     <div className="flex items-center gap-3 border border-amber-200 bg-amber-50 rounded-xl p-3.5">
                         <Zap className="w-5 h-5 text-amber-500 shrink-0" />
                         <div className="flex-1">
-                            <p className="text-xs font-semibold text-amber-700">Nâng cấp Pro → thực đơn 21 ngày</p>
+                            <p className="text-xs font-semibold text-amber-700">Nâng cấp Family → thực đơn 21 ngày</p>
                             <p className="text-xs text-amber-600">Hiện tại bạn có thực đơn 7 ngày.</p>
                         </div>
                         <Button size="sm" variant="outline"
@@ -781,7 +778,7 @@ const GenerateMealPlan: React.FC = () => {
             <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur border-t border-border p-4">
                 <Button className="w-full gradient-primary gap-2" size="lg" onClick={handleGenerate}>
                     <Sparkles className="w-5 h-5" />
-                    Tạo thực đơn {totalDays} ngày bằng CaloCare AI
+                    Tạo thực đơn {totalDays} ngày bằng CaloVie AI
                 </Button>
             </div>
         </div>

@@ -634,7 +634,7 @@ const StoreRegistration: React.FC = () => {
                                     <MultiImageUpload
                                         value={storeForm.images}
                                         onChange={(urls) => setStoreForm({ ...storeForm, images: urls })}
-                                        folder="calocare/stores"
+                                        folder="CaloVie/stores"
                                         maxImages={8}
                                     />
                                 </div>
@@ -686,7 +686,7 @@ const StoreRegistration: React.FC = () => {
                     <div className="text-center py-16">
                         <StoreIcon className="w-12 h-12 mx-auto text-gray-300 mb-3" />
                         <p className="text-muted-foreground text-sm">Bạn chưa có cửa hàng nào.</p>
-                        <p className="text-xs text-muted-foreground mt-1">Đăng ký miễn phí để hiển thị trên bản đồ CaloCare!</p>
+                        <p className="text-xs text-muted-foreground mt-1">Đăng ký miễn phí để hiển thị trên bản đồ CaloVie!</p>
                         <Button className="mt-4" onClick={openCreateStore}>
                             <Plus className="w-4 h-4 mr-1" /> Đăng ký cửa hàng
                         </Button>

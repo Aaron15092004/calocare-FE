@@ -1,13 +1,13 @@
 {
-  "name": "CaloCare",
-  "short_name": "CaloCare",
-  "description": "Track calories, scan meals, and manage personalized nutrition plans.",
+  "name": "CaloVie",
+  "short_name": "CaloVie",
+  "description": "Track calories, scan meals, discover healthy places, and manage personalized nutrition plans.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#ffffff",
-  "theme_color": "#10b981",
+  "theme_color": "#1b6f84",
   "categories": ["health", "fitness", "food"],
   "icons": [
     {

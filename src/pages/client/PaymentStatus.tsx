@@ -52,7 +52,8 @@ const STATUS_UI: Record<string, { icon: React.ReactNode; label: string; color: s
 const PLAN_NAMES: Record<string, string> = {
     free: "Free",
     premium: "Premium",
-    pro: "Pro",
+    family: "Family",
+    pro: "Family",
 };
 
 const METHOD_LABELS: Record<string, string> = {

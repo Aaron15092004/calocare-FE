@@ -26,7 +26,7 @@ const STATUS_META: Record<string, { icon: React.ReactNode; label: string; varian
     cancelled: { icon: <XCircle className="w-3.5 h-3.5" />, label: "Đã hủy", variant: "outline" },
 };
 
-const PLAN_NAMES: Record<string, string> = { free: "Free", premium: "Premium", pro: "Pro" };
+const PLAN_NAMES: Record<string, string> = { free: "Free", premium: "Premium", family: "Family", pro: "Family" };
 const METHOD_LABELS: Record<string, string> = {
     bank_transfer: "Chuyển khoản",
     momo: "MoMo",

@@ -31,7 +31,7 @@ export const Header: React.FC = () => {
             <img src="/logo.png" alt="logo" className="w-8 h-8" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-foreground">CaloCare</h1>
+            <h1 className="text-lg font-bold text-foreground">CaloVie</h1>
             <p className="text-xs text-muted-foreground">
               {t("header.tagline")}
             </p>

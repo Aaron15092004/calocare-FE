@@ -17,7 +17,7 @@ function applyTheme(theme: Theme) {
 
 export function useTheme() {
     const [theme, setThemeState] = useState<Theme>(() => {
-        return (localStorage.getItem("calocare-theme") as Theme | null) ?? "system";
+        return (localStorage.getItem("calovie-theme") as Theme | null) ?? "system";
     });
 
     useEffect(() => {
@@ -33,7 +33,7 @@ export function useTheme() {
     }, [theme]);
 
     const setTheme = (t: Theme) => {
-        localStorage.setItem("calocare-theme", t);
+        localStorage.setItem("calovie-theme", t);
         setThemeState(t);
     };
 

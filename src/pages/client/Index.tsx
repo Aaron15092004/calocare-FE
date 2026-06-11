@@ -29,7 +29,6 @@ import { useFoodDiary } from "@/hooks/useFoodDiary";
 import api from "@/lib/api";
 import { AdBanner } from "@/components/AdBanner";
 import { HomeBannerCarousel } from "@/components/HomeBannerCarousel";
-import { ChatbotWidget } from "@/components/ChatbotWidget";
 import { AdSenseUnit } from "@/components/AdSenseUnit";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Crown, Zap, X, Sparkles, ChevronRight } from "lucide-react";
@@ -214,9 +213,9 @@ const Index = () => {
     const calorieGoal = goals?.calories || 2000;
     const caloriePercent = Math.min(100, Math.round((todaysTotals.calories / calorieGoal) * 100));
 
-    const tier = profile?.subscription_tier ?? "free";
-    const isPremiumUser = tier === "premium" || tier === "pro";
-    const isProUser = tier === "pro";
+    const tier = profile?.subscription_tier === "pro" ? "family" : (profile?.subscription_tier ?? "free");
+    const isPremiumUser = tier === "premium" || tier === "family";
+    const isFamilyUser = tier === "family";
 
     return (
         <div className="min-h-screen bg-background pb-nav-safe">
@@ -313,7 +312,7 @@ const Index = () => {
                     <QuickActions onBarcode={() => setShowBarcode(true)} />
                 </section>
 
-                {/* CaloCare AI spotlight — premium/pro only */}
+                {/* CaloVie AI spotlight — premium/pro only */}
                 {isPremiumUser && (
                     <section>
                         <button
@@ -326,9 +325,9 @@ const Index = () => {
                             </div>
                             <div className="flex-1 text-left min-w-0">
                                 <div className="flex items-center gap-2 mb-0.5">
-                                    <p className="font-bold text-sm">CaloCare AI</p>
+                                    <p className="font-bold text-sm">CaloVie AI</p>
                                     <span className="text-[10px] font-semibold bg-white/20 px-1.5 py-0.5 rounded-full">
-                                        {isProUser ? "Pro · 21 ngày" : "Premium · 7 ngày"}
+                                        {isFamilyUser ? "Family · 21 ngày" : "Premium · 7 ngày"}
                                     </span>
                                 </div>
                                 <p className="text-xs text-primary-foreground/80 leading-snug">
@@ -339,6 +338,37 @@ const Index = () => {
                         </button>
                     </section>
                 )}
+
+                <section>
+                    <button
+                        type="button"
+                        onClick={() => navigate("/assistant")}
+                        className="w-full overflow-hidden rounded-[1.75rem] border border-[#dceae2] bg-[linear-gradient(135deg,#eef9f2_0%,#ffffff_48%,#fff6ea_100%)] p-4 text-left shadow-sm transition-all duration-150 hover:shadow-md active:scale-[0.99]"
+                    >
+                        <div className="flex items-center gap-4">
+                            <div className="h-20 w-20 shrink-0 overflow-hidden rounded-[1.5rem] bg-white shadow-sm ring-1 ring-primary/10">
+                                <img src="/calovie-mascot.png" alt="CaloVie mascot" className="h-full w-full object-cover object-top" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <div className="mb-1 flex items-center gap-2">
+                                    <span className="rounded-full bg-[#1b6f84] px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-white">
+                                        Assistant
+                                    </span>
+                                    <span className="text-[10px] font-semibold text-[#1b6f84]">
+                                        Dùng dữ liệu onboarding
+                                    </span>
+                                </div>
+                                <p className="text-base font-bold leading-tight text-[#203029]">
+                                    Trợ lý sức khỏe của bạn giờ đã có màn riêng
+                                </p>
+                                <p className="mt-1 text-xs leading-5 text-slate-500">
+                                    Hỏi mascot về bữa ăn, kế hoạch ngày hôm nay, quán healthy gần bạn và các lời khuyên cá nhân hóa.
+                                </p>
+                            </div>
+                            <ChevronRight className="h-5 w-5 shrink-0 text-[#1b6f84]/60" />
+                        </div>
+                    </button>
+                </section>
 
                 {/* Rotating banner carousel (admin-managed + house ads) */}
                 <HomeBannerCarousel />
@@ -402,7 +432,7 @@ const Index = () => {
                                 <div className="flex-1 text-left">
                                     <p className="text-sm font-bold">Tạo thực đơn bằng AI</p>
                                     <p className="text-xs text-primary-foreground/80">
-                                        {isProUser ? "21" : "7"} ngày · cá nhân hóa · có công thức nấu ăn
+                                        {isFamilyUser ? "21" : "7"} ngày · cá nhân hóa · có công thức nấu ăn
                                     </p>
                                 </div>
                                 <ChevronRight className="w-4 h-4 text-primary-foreground/60 shrink-0" />
@@ -473,7 +503,7 @@ const Index = () => {
                             <p className="text-xs font-semibold text-white/60 uppercase tracking-wide mb-1">Scan thành công!</p>
                             <h3 className="text-xl font-bold leading-snug">Nâng cấp để scan<br />không giới hạn</h3>
                             <p className="text-sm text-white/75 mt-2">
-                                Gói Free: <strong className="text-white">2 lần/ngày</strong> · Premium: <strong className="text-white">10 lần</strong> · Pro: <strong className="text-white">20 lần</strong>
+                                Gói Free: <strong className="text-white">2 lần/ngày</strong> · Premium: <strong className="text-white">10 lần</strong> · Family: <strong className="text-white">20 lần</strong>
                             </p>
                         </div>
                     </div>
@@ -508,8 +538,8 @@ const Index = () => {
                         >
                             <Crown className="w-6 h-6 text-muted-foreground shrink-0" />
                             <div className="flex-1">
-                                <p className="text-sm font-bold text-amber-900">Pro · 179.000₫/tháng</p>
-                                <p className="text-xs text-amber-700 mt-0.5">20 scan/ngày · Tất cả tính năng · Nhiều cửa hàng</p>
+                                <p className="text-sm font-bold text-amber-900">Family · 199.000₫/tháng</p>
+                                <p className="text-xs text-amber-700 mt-0.5">20 scan/ngày · 5 thành viên · báo cáo riêng · tư vấn chuyên gia</p>
                             </div>
                             <span className="text-amber-400 text-lg">›</span>
                         </button>
@@ -527,8 +557,6 @@ const Index = () => {
                     </div>
                 </DialogContent>
             </Dialog>
-
-            <ChatbotWidget />
             <BottomNav />
         </div>
     );

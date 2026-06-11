@@ -656,10 +656,10 @@ const Settings: React.FC = () => {
   }
 
   /* ── MAIN MENU ───────────────────────────────────────────────────── */
-  const tier      = profile?.subscription_tier || "free";
-  const tierLabel = tier === "pro" ? "Pro" : tier === "premium" ? "Premium" : "Free";
-  const TierIcon  = tier === "pro" ? Crown : tier === "premium" ? Zap : Star;
-  const tierColor = tier === "pro" ? "text-yellow-500" : tier === "premium" ? "text-primary" : "text-muted-foreground";
+  const tier      = profile?.subscription_tier === "pro" ? "family" : (profile?.subscription_tier || "free");
+  const tierLabel = tier === "family" ? "Family" : tier === "premium" ? "Premium" : "Free";
+  const TierIcon  = tier === "family" ? Crown : tier === "premium" ? Zap : Star;
+  const tierColor = tier === "family" ? "text-yellow-500" : tier === "premium" ? "text-primary" : "text-muted-foreground";
 
   const menuItems = [
     {
@@ -737,7 +737,7 @@ const Settings: React.FC = () => {
     return <span className="text-xs font-medium text-muted-foreground">{label ?? `${limit}/ngày`}</span>;
   };
 
-  const historyLabel = tier === "pro" ? "90 ngày" : tier === "premium" ? "30 ngày" : "7 ngày";
+  const historyLabel = tier === "family" ? "180 ngày" : tier === "premium" ? "30 ngày" : "7 ngày";
   const logLabel     = tier === "free" ? "5 bữa/ngày" : "Không giới hạn";
 
   return (

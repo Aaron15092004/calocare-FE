@@ -132,7 +132,7 @@ export const ReviewSection: React.FC<ReviewSectionProps> = ({
         if (!toUpload.length) return;
         setUploading(true);
         try {
-            const results = await Promise.all(toUpload.map((f) => uploadFile(f, "calocare/reviews")));
+            const results = await Promise.all(toUpload.map((f) => uploadFile(f, "CaloVie/reviews")));
             setImages((prev) => [...prev, ...results.map((r) => r.url)]);
         } catch {
             toast({ title: "Upload lỗi", description: "Không thể upload ảnh", variant: "destructive" });
@@ -217,7 +217,7 @@ export const ReviewSection: React.FC<ReviewSectionProps> = ({
                 <p className="text-sm text-muted-foreground leading-relaxed">
                     {ratingCount === 0
                         ? "Chưa có đánh giá nào. Hãy là người đầu tiên!"
-                        : `Dựa trên ${ratingCount} đánh giá từ cộng đồng CaloCare`}
+                        : `Dựa trên ${ratingCount} đánh giá từ cộng đồng CaloVie`}
                 </p>
             </div>
 

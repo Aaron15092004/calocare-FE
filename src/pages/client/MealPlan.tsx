@@ -41,8 +41,9 @@ const MealPlan: React.FC = () => {
     const [selectedWeek, setSelectedWeek] = useState<string>("all");
     const [mainTab, setMainTab] = useState<"plan" | "ai">("plan");
 
-    const isPremium = profile?.subscription_tier === "premium" || profile?.subscription_tier === "pro";
-    const isPro = profile?.subscription_tier === "pro";
+    const normalizedTier = profile?.subscription_tier === "pro" ? "family" : profile?.subscription_tier;
+    const isPremium = normalizedTier === "premium" || normalizedTier === "family";
+    const isPro = normalizedTier === "family";
 
     const totalDays = activePlan?.meal_plan_id?.total_days ?? 0;
 
@@ -163,9 +164,9 @@ const MealPlan: React.FC = () => {
                                         <Sparkles className="w-6 h-6" />
                                     </div>
                                     <div>
-                                        <p className="font-bold text-base">CaloCare AI</p>
+                                        <p className="font-bold text-base">CaloVie AI</p>
                                         <p className="text-xs text-primary-foreground/75">
-                                            {isPro ? "Pro · 21 ngày" : "Premium · 7 ngày"} · Cá nhân hóa
+                                            {isPro ? "Family · 21 ngày" : "Premium · 7 ngày"} · Cá nhân hóa
                                         </p>
                                     </div>
                                 </div>
@@ -213,7 +214,7 @@ const MealPlan: React.FC = () => {
                                 >
                                     <Zap className="w-5 h-5 text-amber-500 shrink-0" />
                                     <div className="flex-1 text-left">
-                                        <p className="text-xs font-semibold text-amber-700">Nâng Pro → thực đơn 21 ngày</p>
+                                        <p className="text-xs font-semibold text-amber-700">Nâng Family → thực đơn 21 ngày</p>
                                         <p className="text-xs text-amber-600">Hiện tại: 7 ngày với Premium</p>
                                     </div>
                                     <ChevronRight className="w-4 h-4 text-amber-400" />
@@ -231,7 +232,7 @@ const MealPlan: React.FC = () => {
                                             <Sparkles className="w-6 h-6" />
                                         </div>
                                         <div>
-                                            <p className="font-bold text-base">CaloCare AI</p>
+                                            <p className="font-bold text-base">CaloVie AI</p>
                                             <p className="text-xs">Premium · 7 ngày · Cá nhân hóa</p>
                                         </div>
                                     </div>
@@ -324,7 +325,7 @@ const MealPlan: React.FC = () => {
                                 <Sparkles className="w-6 h-6" />
                             </div>
                             <div>
-                                <p className="font-bold text-base">CaloCare AI</p>
+                                <p className="font-bold text-base">CaloVie AI</p>
                                 <p className="text-xs text-primary-foreground/75">Thực đơn cá nhân hóa</p>
                             </div>
                         </div>
@@ -364,7 +365,7 @@ const MealPlan: React.FC = () => {
                         >
                             <Zap className="w-5 h-5 text-amber-500 shrink-0" />
                             <div className="flex-1 text-left">
-                                <p className="text-xs font-semibold text-amber-700">Nâng Pro → thực đơn 21 ngày</p>
+                                <p className="text-xs font-semibold text-amber-700">Nâng Family → thực đơn 21 ngày</p>
                                 <p className="text-xs text-amber-600">Hiện tại: 7 ngày với Premium</p>
                             </div>
                             <ChevronRight className="w-4 h-4 text-amber-400" />
@@ -466,7 +467,7 @@ const MealPlan: React.FC = () => {
                     </div>
                 )}
 
-                {/* CaloCare AI card — always visible in plan tab for premium/pro */}
+                {/* CaloVie AI card — always visible in plan tab for premium/pro */}
                 {isPremium && (
                     <button
                         type="button"

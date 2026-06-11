@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Search, X, Loader2, Flame, Leaf } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import api from "@/lib/api";
@@ -175,7 +175,7 @@ export const SmartSearchBar: React.FC<SmartSearchBarProps> = ({
                     </ul>
                     <div className="px-3 py-1.5 border-t border-border/50">
                         <p className="text-[10px] text-muted-foreground text-center">
-                            {results.length} kết quả · CaloCare AI Search
+                            {results.length} kết quả · CaloVie AI Search
                         </p>
                     </div>
                 </div>

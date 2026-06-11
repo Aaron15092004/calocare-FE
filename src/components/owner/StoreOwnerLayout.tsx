@@ -58,7 +58,7 @@ const StoreOwnerLayout = () => {
                     <div className="flex items-center gap-2">
                         <img src="/logo.png" className="w-8 h-8 rounded-lg" alt="Logo" />
                         <div>
-                            <span className="font-bold text-sm block">CaloCare</span>
+                            <span className="font-bold text-sm block">CaloVie</span>
                             <span className="text-xs text-muted-foreground">Quản lý quán</span>
                         </div>
                     </div>
