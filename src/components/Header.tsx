@@ -1,5 +1,5 @@
-import React from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Bell, Settings, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,8 +14,27 @@ import { useTranslation } from "react-i18next";
 
 export const Header: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, profile, isAuthenticated, signOut } = useAuthContext();
   const { t } = useTranslation();
+  const [isCompact, setIsCompact] = useState(false);
+
+  const isHome = location.pathname === "/";
+
+  useEffect(() => {
+    if (!isHome) {
+      setIsCompact(false);
+      return;
+    }
+
+    const onScroll = () => {
+      setIsCompact(window.scrollY > 28);
+    };
+
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [isHome]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -26,17 +45,33 @@ export const Header: React.FC = () => {
     <header className="sticky top-0 z-50 glass border-b border-border/50">
       <div className="container flex items-center justify-between h-16 px-4">
         {/* Logo */}
-        <div className="flex items-center gap-2">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-md bg-[#ECEDEC]">
-            <img src="/logo.png" alt="logo" className="w-8 h-8" />
-          </div>
-          <div>
-            <h1 className="text-lg font-bold text-foreground">CaloVie</h1>
-            <p className="text-xs text-muted-foreground">
-              {t("header.tagline")}
-            </p>
-          </div>
-        </div>
+        <button
+          type="button"
+          onClick={() => navigate("/")}
+          className="flex items-center text-left"
+          aria-label="CaloVie home"
+        >
+          {isHome ? (
+            <div className="flex flex-col justify-center">
+              <img
+                src="/logo.png"
+                alt="CaloVie"
+                className={`w-auto object-contain origin-left transition-all duration-200 ${
+                  isCompact ? "h-8" : "h-11"
+                }`}
+              />
+              {!isCompact && (
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  {t("header.tagline")}
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="grid h-10 w-10 place-items-center rounded-2xl bg-[#eef6f1] shadow-sm ring-1 ring-[#dceae2]">
+              <img src="/calovie-mark.png" alt="CaloVie" className="h-7 w-7 object-contain" />
+            </div>
+          )}
+        </button>
 
         {/* Actions */}
         <div className="flex items-center gap-2">
