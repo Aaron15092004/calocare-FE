@@ -244,7 +244,7 @@ const MessageBubble: React.FC<{
     return (
         <div className={`mb-3 flex ${isUser ? "justify-end" : "justify-start"}`}>
             {!isUser && (
-                <div className="mr-3 mt-1 h-24 w-24 shrink-0 overflow-hidden">
+                <div className="mr-1.5 mt-1 h-16 w-16 shrink-0 overflow-hidden">
                     <img src={mascotSrc} alt="" className="h-full w-full object-cover object-top" />
                 </div>
             )}
@@ -374,10 +374,10 @@ const AIAssistant: React.FC = () => {
                     </button>
 
                     <div className="relative flex min-w-0 flex-1 items-center justify-center">
-                        <div className="absolute top-[-30px] h-40 w-40 overflow-hidden">
+                        <div className="absolute top-[-18px] h-28 w-28 overflow-hidden">
                             <img src={mascotSrc} alt="CaloVie mascot" className="h-full w-full object-cover object-top" />
                         </div>
-                        <img src="/logo.png" alt="CaloVie" className="h-10 w-auto object-contain pt-16" />
+                        <img src="/logo.png" alt="CaloVie" className="h-10 w-auto object-contain pt-11" />
                     </div>
 
                     {messages.length > 0 ? (
@@ -402,7 +402,7 @@ const AIAssistant: React.FC = () => {
                             <div className="flex min-h-[62vh] flex-col justify-between px-4">
                                 <div>
                                     <div className="mb-5 flex items-center gap-3">
-                                        <div className="h-32 w-32 overflow-hidden">
+                                        <div className="h-24 w-24 overflow-hidden">
                                             <img src={mascotSrc} alt="CaloVie mascot" className="h-full w-full object-cover object-top" />
                                         </div>
                                         <div className="min-w-0">
@@ -471,7 +471,7 @@ const AIAssistant: React.FC = () => {
 
                                 {isLoading && (
                                     <div className="mb-3 flex items-start gap-3 px-3">
-                                        <div className="h-24 w-24 shrink-0 overflow-hidden">
+                                        <div className="h-16 w-16 shrink-0 overflow-hidden">
                                             <img src="/mascot-curious.png" alt="" className="h-full w-full object-cover object-top" />
                                         </div>
                                         <div className="w-full max-w-[86%] rounded-[1.6rem] rounded-bl-md border border-border/80 bg-card px-4 py-3 shadow-sm">
