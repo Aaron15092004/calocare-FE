@@ -69,6 +69,10 @@ export function useSSEChat() {
         setMessages((prev) => [...prev, userMsg]);
         setIsLoading(true);
         setError(null);
+        setProposal(null);
+        setNavigateTo(null);
+        setActionProposal(null);
+        setSearchResults(null);
 
         abortRef.current?.abort();
         const controller = new AbortController();
@@ -78,7 +82,7 @@ export function useSSEChat() {
         const timeoutId = setTimeout(() => { timedOut = true; controller.abort(); }, 30_000);
 
         let assistantContent = "";
-        setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
+        let assistantStarted = false;
 
         try {
             const res = await fetch(`${API_URL}/api/rag/chat`, {
@@ -129,7 +133,13 @@ export function useSSEChat() {
                         assistantContent += chunk;
                         setMessages((prev) => {
                             const copy = [...prev];
-                            copy[copy.length - 1] = { role: "assistant", content: assistantContent };
+                            const last = copy[copy.length - 1];
+                            if (!assistantStarted || last?.role !== "assistant") {
+                                copy.push({ role: "assistant", content: assistantContent });
+                                assistantStarted = true;
+                            } else {
+                                copy[copy.length - 1] = { role: "assistant", content: assistantContent };
+                            }
                             return copy;
                         });
                     } else if (lastEvent === "proposal") {
@@ -155,13 +165,6 @@ export function useSSEChat() {
                 ? "Yêu cầu hết thời gian chờ. Vui lòng thử lại."
                 : err instanceof Error ? err.message : "Chat failed";
             setError(msg);
-            setMessages((prev) => {
-                const copy = [...prev];
-                if (copy[copy.length - 1]?.role === "assistant" && !copy[copy.length - 1].content) {
-                    copy.pop();
-                }
-                return copy;
-            });
         } finally {
             clearTimeout(timeoutId);
             setIsLoading(false);

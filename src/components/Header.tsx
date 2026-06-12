@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Bell, Settings, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,24 +15,8 @@ export const Header: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, profile, isAuthenticated, signOut } = useAuthContext();
-  const [isCompact, setIsCompact] = useState(false);
 
   const isHome = location.pathname === "/";
-
-  useEffect(() => {
-    if (!isHome) {
-      setIsCompact(false);
-      return;
-    }
-
-    const onScroll = () => {
-      setIsCompact(window.scrollY > 28);
-    };
-
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, [isHome]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -54,9 +38,7 @@ export const Header: React.FC = () => {
               <img
                 src="/logo.png"
                 alt="CaloVie"
-                className={`w-auto object-contain origin-left transition-all duration-200 ${
-                  isCompact ? "h-10" : "h-20"
-                }`}
+                className="h-24 w-auto object-contain origin-left"
               />
             </div>
           ) : (

@@ -255,7 +255,7 @@ const MessageBubble: React.FC<{
                         : "rounded-bl-md border border-[#e6ecea] bg-white text-foreground shadow-sm"
                 }`}
             >
-                {content || <span className="animate-pulse text-muted-foreground">calovie đang nghĩ...</span>}
+                {content}
             </div>
         </div>
     );
@@ -547,7 +547,7 @@ const AIAssistant: React.FC = () => {
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
                                 onKeyDown={handleKeyDown}
-                                placeholder={isLoading ? "Thinking..." : "Hỏi calovie bất cứ điều gì"}
+                                placeholder="Hỏi calovie bất cứ điều gì"
                                 rows={1}
                                 disabled={isLoading}
                                 className="max-h-[110px] flex-1 resize-none rounded-full border border-[#ecefed] bg-[#f8f8f8] px-4 py-3 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-70"
