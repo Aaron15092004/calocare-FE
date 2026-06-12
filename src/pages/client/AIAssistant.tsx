@@ -244,7 +244,7 @@ const MessageBubble: React.FC<{
     return (
         <div className={`mb-3 flex ${isUser ? "justify-end" : "justify-start"}`}>
             {!isUser && (
-                <div className="mr-3 mt-1 h-12 w-12 shrink-0 overflow-hidden">
+                <div className="mr-3 mt-1 h-20 w-20 shrink-0 overflow-hidden">
                     <img src={mascotSrc} alt="" className="h-full w-full object-cover object-top" />
                 </div>
             )}
@@ -363,7 +363,7 @@ const AIAssistant: React.FC = () => {
     return (
         <div className="min-h-screen bg-[linear-gradient(180deg,#f4f6f4_0%,#fbfbfb_100%)] pb-nav-safe">
             <header className="sticky top-0 z-20 bg-white/70 backdrop-blur-xl">
-                <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-4">
+                <div className="mx-auto flex max-w-5xl items-center gap-3 px-2 py-4">
                     <button
                         type="button"
                         onClick={() => navigate(-1)}
@@ -374,10 +374,10 @@ const AIAssistant: React.FC = () => {
                     </button>
 
                     <div className="relative flex min-w-0 flex-1 items-center justify-center">
-                        <div className="absolute top-[-12px] h-16 w-16 overflow-hidden">
+                        <div className="absolute top-[-18px] h-28 w-28 overflow-hidden">
                             <img src={mascotSrc} alt="CaloVie mascot" className="h-full w-full object-cover object-top" />
                         </div>
-                        <img src="/logo.png" alt="CaloVie" className="h-9 w-auto object-contain pt-8" />
+                        <img src="/logo.png" alt="CaloVie" className="h-9 w-auto object-contain pt-12" />
                     </div>
 
                     {messages.length > 0 ? (
@@ -397,12 +397,12 @@ const AIAssistant: React.FC = () => {
 
             <main className="mx-auto flex max-w-5xl flex-col pb-6 pt-2">
                 <section className="overflow-hidden">
-                    <div className="min-h-[72vh] overflow-y-auto px-4 pb-4 pt-5 sm:px-5">
+                    <div className="min-h-[72vh] overflow-y-auto px-0 pb-4 pt-5">
                         {messages.length === 0 ? (
-                            <div className="flex min-h-[62vh] flex-col justify-between">
+                            <div className="flex min-h-[62vh] flex-col justify-between px-2">
                                 <div>
                                     <div className="mb-5 flex items-center gap-3">
-                                        <div className="h-16 w-16 overflow-hidden">
+                                        <div className="h-24 w-24 overflow-hidden">
                                             <img src={mascotSrc} alt="CaloVie mascot" className="h-full w-full object-cover object-top" />
                                         </div>
                                         <div className="min-w-0">
@@ -461,18 +461,20 @@ const AIAssistant: React.FC = () => {
                             </div>
                         ) : (
                             <>
-                                {messages.map((message, index) => (
-                                    <MessageBubble
-                                        key={`${message.role}-${index}`}
-                                        role={message.role}
-                                        content={message.content}
-                                        mascotSrc={mascotSrc}
-                                    />
-                                ))}
+                                <div className="px-2">
+                                    {messages.map((message, index) => (
+                                        <MessageBubble
+                                            key={`${message.role}-${index}`}
+                                            role={message.role}
+                                            content={message.content}
+                                            mascotSrc={mascotSrc}
+                                        />
+                                    ))}
+                                </div>
 
                                 {isLoading && (
-                                    <div className="mb-3 flex items-start gap-3">
-                                        <div className="h-12 w-12 shrink-0 overflow-hidden">
+                                    <div className="mb-3 flex items-start gap-3 px-2">
+                                        <div className="h-20 w-20 shrink-0 overflow-hidden">
                                             <img src="/mascot-curious.png" alt="" className="h-full w-full object-cover object-top" />
                                         </div>
                                         <div className="w-full max-w-[84%] rounded-[1.6rem] rounded-bl-md border border-[#e6ecea] bg-white px-4 py-3 shadow-sm">
@@ -490,7 +492,7 @@ const AIAssistant: React.FC = () => {
                                 )}
 
                                 {!isLoading && messages[messages.length - 1]?.role === "assistant" && (
-                                    <div className="mb-3 flex flex-wrap gap-2 px-1">
+                                    <div className="mb-3 flex flex-wrap gap-2 px-2">
                                         {FOLLOW_UP_CHIPS.map((chip) => (
                                             <button
                                                 key={chip}
@@ -531,7 +533,7 @@ const AIAssistant: React.FC = () => {
                         )}
                     </div>
 
-                    <div className="border-t border-[#eef0ee] bg-white/95 px-4 py-3">
+                    <div className="border-t border-[#eef0ee] bg-white/95 px-2 py-3">
                         <div className="flex items-end gap-2">
                             <button
                                 type="button"
