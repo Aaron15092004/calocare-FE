@@ -450,14 +450,13 @@ function IntroScreen({ onNext }: { onNext: () => void }) {
   return (
     <div className="relative flex min-h-screen flex-col overflow-hidden">
       <div className="relative h-[48vh] min-h-[330px] overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(149,224,155,0.55),_transparent_38%),linear-gradient(180deg,_#f4fcf8_0%,_#d8f3eb_48%,_#ffffff_100%)]" />
-        <img src="/calovie-mascot.png" alt="" className="absolute right-[-2rem] top-8 h-[85%] w-auto opacity-95 drop-shadow-[0_28px_60px_rgba(27,111,132,0.2)]" />
-        <div className="absolute inset-0 bg-gradient-to-b from-white/5 via-transparent to-white" />
+        <img src="/welcome-bg-2.png" alt="" className="h-full w-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-black/10 to-white" />
         <div className="absolute left-5 top-12 flex items-center gap-2.5">
           <img src="/logo.png" alt="CaloVie" className="h-11 w-11 rounded-2xl shadow-lg" />
-          <span className="text-lg font-extrabold text-[#1b6f84] drop-shadow">CaloVie</span>
+          <span className="text-lg font-extrabold text-white drop-shadow">CaloVie</span>
         </div>
-        <div className="absolute bottom-6 left-1/2 grid h-20 w-20 -translate-x-1/2 place-items-center rounded-full bg-white/85 shadow-2xl ring-1 ring-[#37c0be]/15 backdrop-blur">
+        <div className="absolute bottom-6 left-1/2 grid h-20 w-20 -translate-x-1/2 place-items-center rounded-full bg-white/80 shadow-2xl backdrop-blur">
           <Camera className="h-9 w-9 text-primary" />
         </div>
       </div>
@@ -625,7 +624,9 @@ function BirthYearScreen({
 }
 
 function HeightScreen({ value, onChange, onNext }: { value: number; onChange: (value: number) => void; onNext: () => void }) {
-  const itemHeight = 10;
+  const itemHeight = 12;
+  const viewportHeight = 420;
+  const centerPadding = (viewportHeight - itemHeight) / 2;
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const marks = Array.from({ length: 81 }, (_, index) => 130 + index);
   const reversedMarks = [...marks].reverse();
@@ -634,7 +635,7 @@ function HeightScreen({ value, onChange, onNext }: { value: number; onChange: (v
     if (scrollRef.current) {
       scrollRef.current.scrollTop = (210 - value) * itemHeight;
     }
-  }, []);
+  }, [itemHeight, value]);
 
   const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
     const next = 210 - Math.round(event.currentTarget.scrollTop / itemHeight);
@@ -652,22 +653,31 @@ function HeightScreen({ value, onChange, onNext }: { value: number; onChange: (v
           <div
             ref={scrollRef}
             onScroll={handleScroll}
-            className="hide-scrollbar absolute left-0 top-0 h-full w-36 overflow-y-auto"
+            className="hide-scrollbar absolute left-0 top-1/2 h-[420px] w-36 -translate-y-1/2 overflow-y-auto"
           >
-            <div className="py-[260px]">
+            <div style={{ paddingTop: `${centerPadding}px`, paddingBottom: `${centerPadding}px` }}>
               {reversedMarks.map((mark) => {
                 const isMeter = mark % 10 === 0;
+                const isFive = mark % 5 === 0;
+                const active = mark === value;
                 return (
-                  <div key={mark} className="flex h-[10px] items-center justify-end gap-2">
-                    {isMeter && <span className="w-11 text-right text-xs font-extrabold text-slate-500">{(mark / 100).toFixed(1)}m</span>}
-                    <span className={`${isMeter ? "w-16 bg-slate-500" : mark % 5 === 0 ? "w-12 bg-slate-400" : "w-8 bg-slate-300"} block h-px`} />
+                  <div key={mark} className="flex items-center justify-end gap-2" style={{ height: `${itemHeight}px` }}>
+                    {isMeter && (
+                      <span className={`w-11 text-right text-xs font-extrabold ${active ? "text-primary" : "text-slate-500"}`}>
+                        {(mark / 100).toFixed(1)}m
+                      </span>
+                    )}
+                    <span
+                      className={`block ${active ? "bg-primary" : isMeter ? "bg-slate-500" : isFive ? "bg-slate-400" : "bg-slate-300"}`}
+                      style={{ width: active ? "72px" : isMeter ? "64px" : isFive ? "48px" : "32px", height: active ? "2px" : "1px" }}
+                    />
                   </div>
                 );
               })}
             </div>
           </div>
-          <div className="pointer-events-none absolute left-0 right-0 top-[42%] h-0.5 bg-primary" />
-          <div className="pointer-events-none relative ml-24 mt-28 w-40 text-center">
+          <div className="pointer-events-none absolute left-0 right-0 top-1/2 h-0.5 -translate-y-1/2 bg-primary" />
+          <div className="pointer-events-none relative ml-24 w-40 text-center">
             <div className="mb-1">
               <span className="text-6xl font-extrabold leading-none text-[#242833]">{value}</span>
               <span className="ml-1 text-sm font-extrabold text-slate-500">CM</span>
@@ -837,8 +847,8 @@ function InsightScreen({
 function LoadingScreen({ progress }: { progress: number }) {
   return (
     <div className="flex min-h-screen flex-col px-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-24 text-center">
-      <div className="mx-auto mb-6 h-24 w-24 overflow-hidden rounded-[2rem] bg-white p-2 shadow-[0_18px_50px_rgba(27,111,132,0.15)]">
-        <img src="/calovie-mascot.png" alt="CaloVie mascot" className="h-full w-full object-cover object-top" />
+      <div className="mx-auto mb-6 grid h-20 w-20 place-items-center rounded-[2rem] bg-primary/10 text-primary shadow-[0_18px_50px_rgba(27,111,132,0.12)]">
+        <Sparkles className="h-9 w-9" />
       </div>
       <span className="text-6xl font-extrabold text-[#242833]">{progress}%</span>
       <h1 className="mx-auto mt-6 max-w-xs text-[1.65rem] font-extrabold leading-tight text-[#242833]">Đang thiết lập mọi thứ cho bạn</h1>
