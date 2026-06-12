@@ -244,7 +244,7 @@ const MessageBubble: React.FC<{
     return (
         <div className={`mb-3 flex ${isUser ? "justify-end" : "justify-start"}`}>
             {!isUser && (
-                <div className="mr-3 mt-1 h-10 w-10 shrink-0 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-primary/10">
+                <div className="mr-3 mt-1 h-12 w-12 shrink-0 overflow-hidden">
                     <img src={mascotSrc} alt="" className="h-full w-full object-cover object-top" />
                 </div>
             )}
@@ -363,7 +363,7 @@ const AIAssistant: React.FC = () => {
     return (
         <div className="min-h-screen bg-[linear-gradient(180deg,#f4f6f4_0%,#fbfbfb_100%)] pb-nav-safe">
             <header className="sticky top-0 z-20 bg-white/70 backdrop-blur-xl">
-                <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-4">
+                <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-4">
                     <button
                         type="button"
                         onClick={() => navigate(-1)}
@@ -374,10 +374,10 @@ const AIAssistant: React.FC = () => {
                     </button>
 
                     <div className="relative flex min-w-0 flex-1 items-center justify-center">
-                        <div className="absolute top-[-2px] h-10 w-10 overflow-hidden rounded-full bg-[#b9d8ff] p-1 shadow-sm">
+                        <div className="absolute top-[-12px] h-16 w-16 overflow-hidden">
                             <img src={mascotSrc} alt="CaloVie mascot" className="h-full w-full object-cover object-top" />
                         </div>
-                        <img src="/logo.png" alt="CaloVie" className="h-8 w-auto object-contain pt-5" />
+                        <img src="/logo.png" alt="CaloVie" className="h-9 w-auto object-contain pt-8" />
                     </div>
 
                     {messages.length > 0 ? (
@@ -395,14 +395,14 @@ const AIAssistant: React.FC = () => {
                 </div>
             </header>
 
-            <main className="mx-auto flex max-w-3xl flex-col px-4 pb-6 pt-2">
-                <section className="overflow-hidden rounded-[2rem] border border-black/5 bg-white/85 shadow-[0_8px_30px_rgba(0,0,0,0.06)] backdrop-blur">
+            <main className="mx-auto flex max-w-5xl flex-col pb-6 pt-2">
+                <section className="overflow-hidden">
                     <div className="min-h-[72vh] overflow-y-auto px-4 pb-4 pt-5 sm:px-5">
                         {messages.length === 0 ? (
                             <div className="flex min-h-[62vh] flex-col justify-between">
                                 <div>
                                     <div className="mb-5 flex items-center gap-3">
-                                        <div className="h-14 w-14 overflow-hidden rounded-[1.4rem] bg-[#eef6f1] p-1">
+                                        <div className="h-16 w-16 overflow-hidden">
                                             <img src={mascotSrc} alt="CaloVie mascot" className="h-full w-full object-cover object-top" />
                                         </div>
                                         <div className="min-w-0">
@@ -472,7 +472,7 @@ const AIAssistant: React.FC = () => {
 
                                 {isLoading && (
                                     <div className="mb-3 flex items-start gap-3">
-                                        <div className="h-10 w-10 shrink-0 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-primary/10">
+                                        <div className="h-12 w-12 shrink-0 overflow-hidden">
                                             <img src="/mascot-curious.png" alt="" className="h-full w-full object-cover object-top" />
                                         </div>
                                         <div className="w-full max-w-[84%] rounded-[1.6rem] rounded-bl-md border border-[#e6ecea] bg-white px-4 py-3 shadow-sm">
