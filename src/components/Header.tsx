@@ -38,11 +38,11 @@ export const Header: React.FC = () => {
               <img
                 src="/logo.png"
                 alt="CaloVie"
-                className="h-24 w-auto object-contain origin-left"
+                className="h-28 w-auto object-contain origin-left"
               />
             </div>
           ) : (
-            <div className="grid h-10 w-10 place-items-center rounded-2xl bg-[#eef6f1] shadow-sm ring-1 ring-[#dceae2]">
+            <div className="grid h-10 w-10 place-items-center rounded-2xl bg-card shadow-sm ring-1 ring-border/80">
               <img src="/calovie-mark.png" alt="CaloVie" className="h-7 w-7 object-contain" />
             </div>
           )}

@@ -339,33 +339,31 @@ const Index = () => {
                     </section>
                 )}
 
-                <section>
+                <section className="-mx-5 border-y border-border/60 bg-card/40 px-5 py-4">
                     <button
                         type="button"
                         onClick={() => navigate("/assistant")}
-                        className="w-full overflow-hidden rounded-[1.75rem] border border-[#dceae2] bg-[linear-gradient(135deg,#eef9f2_0%,#ffffff_48%,#fff6ea_100%)] p-4 text-left shadow-sm transition-all duration-150 hover:shadow-md active:scale-[0.99]"
+                        className="w-full text-left transition-all duration-150 active:scale-[0.99]"
                     >
                         <div className="flex items-center gap-4">
-                            <div className="h-20 w-20 shrink-0 overflow-hidden rounded-[1.5rem] bg-white shadow-sm ring-1 ring-primary/10">
-                                <img src="/calovie-mascot.png" alt="CaloVie mascot" className="h-full w-full object-cover object-top" />
+                            <div className="h-28 w-28 shrink-0 overflow-hidden">
+                                <img src="/mascot-playful.png" alt="CaloVie mascot" className="h-full w-full object-cover object-top" />
                             </div>
                             <div className="min-w-0 flex-1">
-                                <div className="mb-1 flex items-center gap-2">
-                                    <span className="rounded-full bg-[#1b6f84] px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-white">
+                                <div className="flex items-center gap-3">
+                                    <img src="/logo.png" alt="CaloVie" className="h-8 w-auto object-contain" />
+                                    <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-primary">
                                         Assistant
                                     </span>
-                                    <span className="text-[10px] font-semibold text-[#1b6f84]">
-                                        Dùng dữ liệu onboarding
-                                    </span>
                                 </div>
-                                <p className="text-base font-bold leading-tight text-[#203029]">
-                                    Trợ lý sức khỏe của bạn giờ đã có màn riêng
+                                <p className="mt-2 text-lg font-bold leading-tight text-foreground">
+                                    Nói chuyện với Calovie về bữa ăn, quán gần bạn và kế hoạch hôm nay
                                 </p>
-                                <p className="mt-1 text-xs leading-5 text-slate-500">
-                                    Hỏi mascot về bữa ăn, kế hoạch ngày hôm nay, quán healthy gần bạn và các lời khuyên cá nhân hóa.
+                                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                                    Mở màn trò chuyện riêng với mascot để hỏi nhanh, nhận gợi ý sát hồ sơ của bạn và được dẫn đường trong app.
                                 </p>
                             </div>
-                            <ChevronRight className="h-5 w-5 shrink-0 text-[#1b6f84]/60" />
+                            <ChevronRight className="h-5 w-5 shrink-0 text-primary/60" />
                         </div>
                     </button>
                 </section>
@@ -509,7 +507,7 @@ const Index = () => {
                     </div>
 
                     {/* Plan options */}
-                    <div className="p-5 space-y-2.5 bg-white">
+                    <div className="space-y-2.5 bg-card p-5">
                         <button
                             type="button"
                             className="w-full flex items-center gap-3.5 p-3.5 rounded-2xl border-2 border-violet-200 bg-violet-50 hover:bg-violet-100 active:scale-[0.98] transition-all text-left"

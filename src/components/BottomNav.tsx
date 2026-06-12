@@ -103,7 +103,7 @@ export const BottomNav: React.FC = () => {
         onClick={closeFan}
       />
 
-      <nav className="fixed bottom-0 left-0 right-0 z-50 backdrop-blur-2xl saturate-[180%] bg-white/80 border-t border-[rgb(60_60_67/0.15)]">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border/70 bg-background/88 backdrop-blur-2xl saturate-[180%]">
         <div className="flex items-center h-16 px-1">
           {/* Left tabs */}
           {TABS_LEFT.map((tab) => (
@@ -146,7 +146,7 @@ export const BottomNav: React.FC = () => {
                     type="button"
                     onClick={() => handleFabAction(action.target)}
                     className={cn(
-                      "absolute flex flex-col items-center justify-center w-14 h-14 rounded-full bg-white shadow-ios",
+                      "absolute flex flex-col items-center justify-center w-14 h-14 rounded-full bg-card shadow-ios ring-1 ring-border/60",
                       isOpen
                         ? "opacity-100 scale-100"
                         : "opacity-0 scale-0 pointer-events-none",

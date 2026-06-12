@@ -158,6 +158,10 @@
     background: linear-gradient(180deg, #ffffff 0%, hsl(132, 42%, 97%) 100%);
   }
 
+  .dark .gradient-hero {
+    background: linear-gradient(180deg, hsl(193 47% 13%) 0%, hsl(193 42% 11%) 100%);
+  }
+
   .shadow-card {
     box-shadow: var(--shadow-md);
   }
@@ -176,6 +180,10 @@
   .glass {
     backdrop-filter: blur(20px);
     background: hsl(0 0% 100% / 0.8);
+  }
+
+  .dark .glass {
+    background: hsl(193 47% 14% / 0.84);
   }
 
   /* Safe-area padding for pages with BottomNav */
@@ -216,7 +224,7 @@
 
 /* iOS overscroll bounce fix */
 html {
-  background-color: white;
+  background-color: hsl(var(--background));
 }
 
 /* Custom animations */

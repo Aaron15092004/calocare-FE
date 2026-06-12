@@ -84,7 +84,7 @@ const ProposalCard: React.FC<{
     };
 
     return (
-        <div className="mx-1 my-2 rounded-[1.6rem] border border-primary/20 bg-[#eef9f4] p-4 text-sm shadow-sm">
+        <div className="mx-3 my-2 rounded-[1.6rem] border border-primary/20 bg-primary/5 p-4 text-sm shadow-sm">
             <div className="mb-2 flex items-center gap-2 font-semibold text-primary">
                 <Clock className="h-4 w-4" />
                 Lịch ăn gợi ý
@@ -142,7 +142,7 @@ const ActionProposalCard: React.FC<{
     };
 
     return (
-        <div className="mx-1 my-2 rounded-[1.6rem] border border-[#f4d7aa] bg-[#fff7ea] p-4 text-sm shadow-sm">
+        <div className="mx-3 my-2 rounded-[1.6rem] border border-[#f4d7aa] bg-[#fff7ea] p-4 text-sm shadow-sm dark:border-amber-400/30 dark:bg-amber-500/10">
             <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-[#b16b00]">
                 <Settings className="h-3.5 w-3.5" />
                 Cập nhật trước khi lưu
@@ -181,7 +181,7 @@ const SearchResultsCard: React.FC<{
     results: ChatSearchResults;
     onDismiss: () => void;
 }> = ({ results, onDismiss }) => (
-    <div className="mx-1 my-2 rounded-[1.6rem] border border-sky-200 bg-sky-50 p-4 text-sm shadow-sm">
+    <div className="mx-3 my-2 rounded-[1.6rem] border border-sky-200 bg-sky-50 p-4 text-sm shadow-sm dark:border-sky-400/30 dark:bg-sky-500/10">
         <div className="mb-2 flex items-center justify-between">
             <div className="flex items-center gap-2 text-xs font-semibold text-sky-700">
                 <Search className="h-3.5 w-3.5" />
@@ -196,7 +196,7 @@ const SearchResultsCard: React.FC<{
         ) : (
             <div className="space-y-2">
                 {results.results.slice(0, 4).map((item, index) => (
-                    <div key={`${item.name}-${index}`} className="rounded-2xl border border-white bg-white/90 px-3 py-2">
+                    <div key={`${item.name}-${index}`} className="rounded-2xl border border-border/60 bg-card px-3 py-2">
                         <div className="flex items-start justify-between gap-2">
                             <span className="flex-1 text-xs font-medium text-foreground">{item.name}</span>
                             <span className="shrink-0 text-[11px] font-semibold text-orange-500">{item.energy_kcal} kcal</span>
@@ -244,15 +244,15 @@ const MessageBubble: React.FC<{
     return (
         <div className={`mb-3 flex ${isUser ? "justify-end" : "justify-start"}`}>
             {!isUser && (
-                <div className="mr-3 mt-1 h-20 w-20 shrink-0 overflow-hidden">
+                <div className="mr-3 mt-1 h-24 w-24 shrink-0 overflow-hidden">
                     <img src={mascotSrc} alt="" className="h-full w-full object-cover object-top" />
                 </div>
             )}
             <div
-                className={`max-w-[84%] rounded-[1.6rem] px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
+                className={`max-w-[86%] rounded-[1.6rem] px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
                     isUser
-                        ? "rounded-br-md bg-[#163f4b] text-white shadow-sm"
-                        : "rounded-bl-md border border-[#e6ecea] bg-white text-foreground shadow-sm"
+                        ? "rounded-br-md bg-primary text-primary-foreground shadow-sm"
+                        : "rounded-bl-md border border-border/80 bg-card text-foreground shadow-sm"
                 }`}
             >
                 {content}
@@ -361,30 +361,30 @@ const AIAssistant: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-[linear-gradient(180deg,#f4f6f4_0%,#fbfbfb_100%)] pb-nav-safe">
-            <header className="sticky top-0 z-20 bg-white/70 backdrop-blur-xl">
-                <div className="mx-auto flex max-w-5xl items-center gap-3 px-2 py-4">
+        <div className="min-h-screen bg-background pb-nav-safe">
+            <header className="sticky top-0 z-20 border-b border-border/60 bg-background/88 backdrop-blur-xl">
+                <div className="flex items-center gap-3 px-3 py-4">
                     <button
                         type="button"
                         onClick={() => navigate(-1)}
-                        className="grid h-10 w-10 place-items-center rounded-2xl bg-white/90 text-foreground shadow-sm ring-1 ring-black/5"
+                        className="grid h-10 w-10 place-items-center rounded-2xl bg-card text-foreground shadow-sm ring-1 ring-border/70"
                         title="Quay lại"
                     >
                         <ArrowLeft className="h-4 w-4" />
                     </button>
 
                     <div className="relative flex min-w-0 flex-1 items-center justify-center">
-                        <div className="absolute top-[-18px] h-28 w-28 overflow-hidden">
+                        <div className="absolute top-[-30px] h-40 w-40 overflow-hidden">
                             <img src={mascotSrc} alt="CaloVie mascot" className="h-full w-full object-cover object-top" />
                         </div>
-                        <img src="/logo.png" alt="CaloVie" className="h-9 w-auto object-contain pt-12" />
+                        <img src="/logo.png" alt="CaloVie" className="h-10 w-auto object-contain pt-16" />
                     </div>
 
                     {messages.length > 0 ? (
                         <button
                             type="button"
                             onClick={clearMessages}
-                            className="grid h-10 w-10 place-items-center rounded-2xl bg-white/90 text-foreground shadow-sm ring-1 ring-black/5"
+                            className="grid h-10 w-10 place-items-center rounded-2xl bg-card text-foreground shadow-sm ring-1 ring-border/70"
                             title="Làm mới"
                         >
                             <Trash2 className="h-4 w-4" />
@@ -395,19 +395,19 @@ const AIAssistant: React.FC = () => {
                 </div>
             </header>
 
-            <main className="mx-auto flex max-w-5xl flex-col pb-6 pt-2">
-                <section className="overflow-hidden">
-                    <div className="min-h-[72vh] overflow-y-auto px-0 pb-4 pt-5">
+            <main className="flex flex-col pb-6 pt-2">
+                <section>
+                    <div className="min-h-[72vh] overflow-y-auto pb-4 pt-5">
                         {messages.length === 0 ? (
-                            <div className="flex min-h-[62vh] flex-col justify-between px-2">
+                            <div className="flex min-h-[62vh] flex-col justify-between px-4">
                                 <div>
                                     <div className="mb-5 flex items-center gap-3">
-                                        <div className="h-24 w-24 overflow-hidden">
+                                        <div className="h-32 w-32 overflow-hidden">
                                             <img src={mascotSrc} alt="CaloVie mascot" className="h-full w-full object-cover object-top" />
                                         </div>
                                         <div className="min-w-0">
                                             <p className="text-base font-semibold text-foreground">Chào {userName}, hôm nay bạn thấy sao rồi?</p>
-                                            <p className="text-sm text-muted-foreground">Mình có thể gợi ý bữa ăn, chỉ cách dùng app, hoặc tìm quán gần bạn.</p>
+                                            <p className="text-sm text-muted-foreground">Mình có thể gợi ý bữa ăn, chỉ cách dùng app hoặc tìm quán gần bạn.</p>
                                         </div>
                                     </div>
 
@@ -417,7 +417,7 @@ const AIAssistant: React.FC = () => {
                                                 key={chip}
                                                 type="button"
                                                 onClick={() => sendMessage(chip)}
-                                                className="flex w-full items-center justify-between rounded-[1.35rem] border border-[#ecefed] bg-[#fafafa] px-4 py-3 text-left text-sm font-medium text-foreground transition-colors hover:bg-white"
+                                                className="flex w-full items-center justify-between rounded-[1.35rem] border border-border bg-card px-4 py-3 text-left text-sm font-medium text-foreground transition-colors hover:bg-accent/30"
                                             >
                                                 <span>{chip}</span>
                                                 <ChevronRight className="h-4 w-4 text-muted-foreground" />
@@ -433,24 +433,21 @@ const AIAssistant: React.FC = () => {
                                                 key={chip.label}
                                                 type="button"
                                                 onClick={() => sendMessage(chip.prompt)}
-                                                className="rounded-full border border-border bg-white px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:border-primary hover:text-primary"
+                                                className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:border-primary hover:text-primary"
                                             >
                                                 {chip.label}
                                             </button>
                                         ))}
                                     </div>
 
-                                    <div className="rounded-[1.5rem] bg-[#f7f8f7] p-3">
-                                        <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                                            Cần hướng dẫn dùng app?
-                                        </p>
+                                    <div className="rounded-[1.5rem] bg-muted/70 p-3">
                                         <div className="flex flex-wrap gap-2">
                                             {APP_HELP_CHIPS.map((chip) => (
                                                 <button
                                                     key={chip}
                                                     type="button"
                                                     onClick={() => sendMessage(chip)}
-                                                    className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-foreground shadow-sm ring-1 ring-black/5"
+                                                    className="rounded-full bg-card px-3 py-1.5 text-xs font-medium text-foreground shadow-sm ring-1 ring-border/60"
                                                 >
                                                     {chip}
                                                 </button>
@@ -461,7 +458,7 @@ const AIAssistant: React.FC = () => {
                             </div>
                         ) : (
                             <>
-                                <div className="px-2">
+                                <div className="px-3">
                                     {messages.map((message, index) => (
                                         <MessageBubble
                                             key={`${message.role}-${index}`}
@@ -473,15 +470,15 @@ const AIAssistant: React.FC = () => {
                                 </div>
 
                                 {isLoading && (
-                                    <div className="mb-3 flex items-start gap-3 px-2">
-                                        <div className="h-20 w-20 shrink-0 overflow-hidden">
+                                    <div className="mb-3 flex items-start gap-3 px-3">
+                                        <div className="h-24 w-24 shrink-0 overflow-hidden">
                                             <img src="/mascot-curious.png" alt="" className="h-full w-full object-cover object-top" />
                                         </div>
-                                        <div className="w-full max-w-[84%] rounded-[1.6rem] rounded-bl-md border border-[#e6ecea] bg-white px-4 py-3 shadow-sm">
-                                            <p className="text-sm text-muted-foreground">Thinking...</p>
+                                        <div className="w-full max-w-[86%] rounded-[1.6rem] rounded-bl-md border border-border/80 bg-card px-4 py-3 shadow-sm">
+                                            <p className="text-sm text-muted-foreground">Calovie đang chuẩn bị câu trả lời</p>
                                             <div className="mt-2 space-y-1.5">
                                                 {THINKING_STEPS.map((step) => (
-                                                    <div key={step} className="flex items-center gap-2 text-sm text-slate-600">
+                                                    <div key={step} className="flex items-center gap-2 text-sm text-muted-foreground">
                                                         <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
                                                         {step}
                                                     </div>
@@ -492,13 +489,13 @@ const AIAssistant: React.FC = () => {
                                 )}
 
                                 {!isLoading && messages[messages.length - 1]?.role === "assistant" && (
-                                    <div className="mb-3 flex flex-wrap gap-2 px-2">
+                                    <div className="mb-3 flex flex-wrap gap-2 px-3">
                                         {FOLLOW_UP_CHIPS.map((chip) => (
                                             <button
                                                 key={chip}
                                                 type="button"
                                                 onClick={() => sendMessage(chip)}
-                                                className="rounded-full border border-border bg-[#f5f6f5] px-3 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-white hover:text-foreground"
+                                                className="rounded-full border border-border bg-muted/60 px-3 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-card hover:text-foreground"
                                             >
                                                 {chip}
                                             </button>
@@ -533,12 +530,12 @@ const AIAssistant: React.FC = () => {
                         )}
                     </div>
 
-                    <div className="border-t border-[#eef0ee] bg-white/95 px-2 py-3">
+                    <div className="border-t border-border/70 bg-background/96 px-3 py-3 backdrop-blur-xl">
                         <div className="flex items-end gap-2">
                             <button
                                 type="button"
                                 onClick={() => sendMessage("Chỉ mình cách dùng app này với")}
-                                className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#f4f5f4] text-foreground ring-1 ring-black/5 transition-colors hover:bg-white"
+                                className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-card text-foreground ring-1 ring-border/70 transition-colors hover:bg-accent/30"
                                 title="Gợi ý"
                             >
                                 <Plus className="h-4 w-4" />
@@ -552,7 +549,7 @@ const AIAssistant: React.FC = () => {
                                 placeholder="Hỏi calovie bất cứ điều gì"
                                 rows={1}
                                 disabled={isLoading}
-                                className="max-h-[110px] flex-1 resize-none rounded-full border border-[#ecefed] bg-[#f8f8f8] px-4 py-3 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-70"
+                                className="max-h-[110px] flex-1 resize-none rounded-full border border-border bg-card px-4 py-3 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-70"
                             />
 
                             {isLoading ? (
@@ -560,7 +557,7 @@ const AIAssistant: React.FC = () => {
                                     <StopCircle className="h-5 w-5" />
                                 </Button>
                             ) : (
-                                <Button size="icon" onClick={handleSend} disabled={!input.trim()} className="h-11 w-11 rounded-full bg-[#1f2e2e]">
+                                <Button size="icon" onClick={handleSend} disabled={!input.trim()} className="h-11 w-11 rounded-full bg-primary text-primary-foreground">
                                     <Send className="h-4 w-4" />
                                 </Button>
                             )}

@@ -474,7 +474,7 @@ const NearbyRestaurants: React.FC = () => {
                             </p>
                             {stores.some((store) => (store.recommendation_score ?? 0) > 0) && (
                                 <div className="rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-primary">
-                                    Gợi ý được ưu tiên dựa trên mục tiêu, sở thích ăn uống và dữ liệu onboarding của bạn.
+                                    Gợi ý được ưu tiên theo mục tiêu, sở thích ăn uống và hồ sơ sức khỏe bạn đã thiết lập.
                                 </div>
                             )}
                             <AdSenseUnit
