@@ -55,7 +55,7 @@ export const Header: React.FC = () => {
                 src="/logo.png"
                 alt="CaloVie"
                 className={`w-auto object-contain origin-left transition-all duration-200 ${
-                  isCompact ? "h-9" : "h-14"
+                  isCompact ? "h-10" : "h-20"
                 }`}
               />
             </div>
