@@ -807,9 +807,9 @@ const Settings: React.FC = () => {
             className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-muted/40 transition-colors text-left"
           >
             <TierIcon className="w-6 h-6 text-muted-foreground flex-shrink-0" />
-            <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold">
-                {tier === "free" ? "Gói Free" : tier === "premium" ? "Gói Premium" : "Gói Pro"}
+                {tier === "free" ? "Gói Free" : tier === "premium" ? "Gói Premium" : "Gói Gia đình"}
               </p>
               <p className="text-xs text-muted-foreground">
                 {tier === "free"
@@ -962,27 +962,40 @@ const Settings: React.FC = () => {
           </div>
         </div>
 
-        {/* Logout */}
-        <button
-          type="button"
-          onClick={signOut}
-          className="w-full flex items-center gap-4 px-4 py-3.5 bg-card border border-destructive/30 rounded-2xl hover:bg-destructive/5 transition-colors text-left"
-        >
-          <LogOut className="w-6 h-6 text-destructive flex-shrink-0" />
-          <span className="text-sm font-medium text-destructive">Đăng xuất</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setDeleteDialogOpen(true)}
-          className="w-full flex items-center gap-4 px-4 py-3.5 bg-card border border-red-200 rounded-2xl hover:bg-red-50 transition-colors text-left"
-        >
-          <TriangleAlert className="w-6 h-6 text-red-600 flex-shrink-0" />
-          <div className="min-w-0">
-            <span className="block text-sm font-medium text-red-700">{t("settings.account.deleteTitle")}</span>
-            <span className="block text-xs text-red-500">{t("settings.account.deleteDesc")}</span>
+        <div className="rounded-2xl overflow-hidden shadow-ios-sm divide-y divide-border bg-card">
+          <div className="px-4 pt-3.5 pb-1.5">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tài khoản & quyền riêng tư</p>
           </div>
-        </button>
+          <div className="flex items-start gap-4 px-4 py-3.5">
+            <TriangleAlert className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-foreground">{t("settings.account.deleteTitle")}</p>
+              <p className="text-xs text-muted-foreground">
+                Dành cho trường hợp bạn muốn xoá toàn bộ dữ liệu tài khoản khỏi CaloVie.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setDeleteDialogOpen(true)}
+              className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-700"
+            >
+              Xóa
+            </Button>
+          </div>
+          <button
+            type="button"
+            onClick={signOut}
+            className="w-full flex items-center gap-4 px-4 py-3.5 hover:bg-muted/40 transition-colors text-left"
+          >
+            <LogOut className="w-5 h-5 text-destructive flex-shrink-0" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-destructive">Đăng xuất</p>
+              <p className="text-xs text-muted-foreground">Thoát khỏi thiết bị hiện tại.</p>
+            </div>
+          </button>
+        </div>
 
       </main>
 
