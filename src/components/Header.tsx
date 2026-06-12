@@ -10,13 +10,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuthContext } from "@/contexts/AuthContext";
-import { useTranslation } from "react-i18next";
 
 export const Header: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, profile, isAuthenticated, signOut } = useAuthContext();
-  const { t } = useTranslation();
   const [isCompact, setIsCompact] = useState(false);
 
   const isHome = location.pathname === "/";
@@ -57,14 +55,9 @@ export const Header: React.FC = () => {
                 src="/logo.png"
                 alt="CaloVie"
                 className={`w-auto object-contain origin-left transition-all duration-200 ${
-                  isCompact ? "h-8" : "h-11"
+                  isCompact ? "h-9" : "h-14"
                 }`}
               />
-              {!isCompact && (
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  {t("header.tagline")}
-                </p>
-              )}
             </div>
           ) : (
             <div className="grid h-10 w-10 place-items-center rounded-2xl bg-[#eef6f1] shadow-sm ring-1 ring-[#dceae2]">
@@ -107,10 +100,10 @@ export const Header: React.FC = () => {
                 </div>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => navigate("/meal-plan")}>
-                  <span>{t("header.myMealPlan")}</span>
+                  <span>Kế hoạch bữa ăn</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate("/settings")}>
-                  <span>{t("header.settings")}</span>
+                  <span>Cài đặt</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
@@ -118,7 +111,7 @@ export const Header: React.FC = () => {
                   className="text-destructive"
                 >
                   <LogOut className="w-4 h-4 mr-2" />
-                  <span>{t("header.signOut")}</span>
+                  <span>Đăng xuất</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
