@@ -36,13 +36,22 @@ export const AdSenseUnit: React.FC<AdSenseUnitProps> = ({
     useEffect(() => {
         if (!shouldRenderAd) return;
         if (pushed.current) return;
+        const scriptId = "calovie-adsense-script";
+        if (!document.getElementById(scriptId)) {
+            const script = document.createElement("script");
+            script.id = scriptId;
+            script.async = true;
+            script.crossOrigin = "anonymous";
+            script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${publisherId}`;
+            document.head.appendChild(script);
+        }
         try {
             (window.adsbygoogle = window.adsbygoogle || []).push({});
             pushed.current = true;
         } catch {
             // AdSense script not loaded yet — silently ignore
         }
-    }, [shouldRenderAd]);
+    }, [publisherId, shouldRenderAd]);
 
     // Only show to free-tier users, and don't render until env var is set.
     if (!shouldRenderAd) return null;

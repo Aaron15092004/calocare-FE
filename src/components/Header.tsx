@@ -1,6 +1,6 @@
 import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Bell, Settings, LogOut } from "lucide-react";
+import { Settings, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -50,11 +50,7 @@ export const Header: React.FC = () => {
 
         {/* Actions */}
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="relative">
-            <Bell className="w-5 h-5" />
-            <span className="absolute top-2 right-2 w-2 h-2 bg-destructive rounded-full" />
-          </Button>
-          <Button variant="ghost" size="icon">
+          <Button variant="ghost" size="icon" onClick={() => navigate("/settings")} aria-label="Cài đặt">
             <Settings className="w-5 h-5" />
           </Button>
 
@@ -104,7 +100,7 @@ export const Header: React.FC = () => {
               onClick={() => navigate("/auth")}
               className="ml-1"
             >
-              Sign In
+              Đăng nhập
             </Button>
           )}
         </div>

@@ -36,6 +36,7 @@ import { BottomNav } from "@/components/BottomNav";
 import { DietaryPreferences } from "@/components/DietaryPreferences";
 import api from "@/lib/api";
 import { useTheme } from "@/hooks/useTheme";
+import { CaloVieGuideMascot } from "@/components/brand/CaloVieMascot";
 
 type Screen = null | "profile" | "physical" | "nutrition" | "dietary" | "language" | "store";
 
@@ -54,6 +55,20 @@ type NutritionGoals = {
   carbs: number;
   fat: number;
   fiber: number;
+};
+
+type StoreSummary = {
+  _id: string;
+  name: string;
+  address?: string;
+  city?: string;
+  images?: string[];
+  is_active?: boolean;
+  reject_reason?: string | null;
+  views_count?: number;
+  average_rating?: number;
+  rating_count?: number;
+  menu_items?: unknown[];
 };
 
 const GOAL_REVERSE: Record<string, PhysicalStats["goal"]> = {
@@ -98,7 +113,7 @@ const Settings: React.FC = () => {
     goal: "maintain",
   });
   const [isSaving, setIsSaving] = useState(false);
-  const [myStores, setMyStores] = useState<any[]>([]);
+  const [myStores, setMyStores] = useState<StoreSummary[]>([]);
   const [storesLoaded, setStoresLoaded] = useState(false);
   const [usage, setUsage] = useState<DailyUsage | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -203,7 +218,7 @@ const Settings: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="calovie-ios-surface min-h-screen flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
@@ -231,7 +246,7 @@ const Settings: React.FC = () => {
   /* ── SCREEN: Profile ─────────────────────────────────────────────── */
   if (screen === "profile") {
     return (
-      <div className="min-h-screen bg-background pb-nav-safe">
+      <div className="calovie-ios-surface min-h-screen pb-nav-safe">
         <SubHeader title={t("settings.menu.profile")} showSave />
         <main className="container isolate px-5 py-6 space-y-5 max-w-lg mx-auto">
           <div className="space-y-2">
@@ -263,7 +278,7 @@ const Settings: React.FC = () => {
     ];
 
     return (
-      <div className="min-h-screen bg-background pb-nav-safe">
+      <div className="calovie-ios-surface min-h-screen pb-nav-safe">
         <SubHeader title={t("settings.menu.physical")} showSave />
         <main className="container isolate px-5 py-6 space-y-6 max-w-lg mx-auto">
           {/* Age & Gender */}
@@ -398,7 +413,7 @@ const Settings: React.FC = () => {
     ];
 
     return (
-      <div className="min-h-screen bg-background pb-nav-safe">
+      <div className="calovie-ios-surface min-h-screen pb-nav-safe">
         <SubHeader title={t("settings.menu.nutrition")} showSave />
         <main className="container isolate px-5 py-6 space-y-6 max-w-lg mx-auto">
           {/* Macro distribution bar */}
@@ -503,7 +518,7 @@ const Settings: React.FC = () => {
   /* ── SCREEN: Dietary ─────────────────────────────────────────────── */
   if (screen === "dietary") {
     return (
-      <div className="min-h-screen bg-background pb-nav-safe">
+      <div className="calovie-ios-surface min-h-screen pb-nav-safe">
         <SubHeader title={t("settings.menu.dietary")} />
         <main className="container isolate px-5 py-6 max-w-lg mx-auto">
           <DietaryPreferences />
@@ -516,7 +531,7 @@ const Settings: React.FC = () => {
   /* ── SCREEN: Language ────────────────────────────────────────────── */
   if (screen === "language") {
     return (
-      <div className="min-h-screen bg-background pb-nav-safe">
+      <div className="calovie-ios-surface min-h-screen pb-nav-safe">
         <SubHeader title={t("settings.language.title")} />
         <main className="container isolate px-5 py-6 space-y-3 max-w-lg mx-auto">
           {([
@@ -556,7 +571,7 @@ const Settings: React.FC = () => {
       : null;
 
     return (
-      <div className="min-h-screen bg-background pb-nav-safe">
+      <div className="calovie-ios-surface min-h-screen pb-nav-safe">
         <SubHeader title={t("settings.menu.store")} />
         <main className="container isolate px-5 py-6 space-y-4 max-w-lg mx-auto">
           <div className="rounded-2xl overflow-hidden shadow-md bg-gradient-to-br from-amber-400 via-red-500 to-red-700">
@@ -769,7 +784,7 @@ const Settings: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-nav-safe">
+    <div className="calovie-ios-surface min-h-screen pb-nav-safe">
       <header className="sticky top-0 z-50 glass border-b border-border/50">
         <div className="container flex items-center h-16 px-5 gap-4">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
@@ -781,25 +796,30 @@ const Settings: React.FC = () => {
 
       <main className="container isolate px-5 py-6 space-y-4 max-w-lg mx-auto">
 
-        {/* User card */}
-        <div className="flex items-center gap-4 px-4 py-4 bg-card shadow-ios-sm rounded-2xl">
-          <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-            <User className="w-6 h-6 text-primary" />
+        {/* User hero */}
+        <div className="relative overflow-hidden rounded-[2rem] bg-card p-5 shadow-ios-sm ring-1 ring-border/60">
+          <div className="absolute -right-4 -top-3 h-32 w-32 rounded-full bg-primary/10 blur-2xl" />
+          <div className="relative flex items-center gap-4">
+            <CaloVieGuideMascot mood="hello" className="h-28 w-24 shrink-0" motion="breathe" />
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Hồ sơ CaloVie</p>
+              <p className="mt-1 truncate text-xl font-extrabold text-foreground">
+                {profile?.display_name || t("settings.profile.displayNamePlaceholder")}
+              </p>
+              <p className="mt-1 truncate text-sm text-muted-foreground">{user?.email}</p>
+              <div className={`mt-3 inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1.5 ${tierColor}`}>
+                <TierIcon className="w-3.5 h-3.5" />
+                <span className="text-xs font-bold">{tierLabel}</span>
+              </div>
+            </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-bold text-base truncate">
-              {profile?.display_name || t("settings.profile.displayNamePlaceholder")}
-            </p>
-            <p className="text-sm text-muted-foreground truncate">{user?.email}</p>
-          </div>
-          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted ${tierColor}`}>
-            <TierIcon className="w-3.5 h-3.5" />
-            <span className="text-xs font-semibold">{tierLabel}</span>
-          </div>
+          <p className="relative mt-4 rounded-2xl bg-muted/70 px-4 py-3 text-xs font-semibold leading-5 text-muted-foreground">
+            Bạn có thể chỉnh mục tiêu, kiểm soát dữ liệu và xóa tài khoản trong cùng một nơi.
+          </p>
         </div>
 
         {/* Subscription + feature usage card */}
-        <div className="rounded-2xl overflow-hidden shadow-ios-sm bg-card">
+        <div className="overflow-hidden rounded-[1.75rem] bg-card shadow-ios-sm ring-1 ring-border/60">
           {/* Plan row */}
           <button
             type="button"
@@ -813,10 +833,10 @@ const Settings: React.FC = () => {
               </p>
               <p className="text-xs text-muted-foreground">
                 {tier === "free"
-                  ? t("settings.upgradeDesc")
+                  ? "Family 199k cho 5 người, báo cáo riêng và hỗ trợ chuyên gia"
                   : profile?.subscription_expires_at
                   ? `${t("settings.expiresOn")} ${new Date(profile.subscription_expires_at).toLocaleDateString("vi-VN")}`
-                  : "Không giới hạn thời gian"}
+                  : "Gia đình dùng chung, dữ liệu từng người vẫn riêng biệt"}
               </p>
             </div>
             <span className={`text-xs font-semibold px-3 py-1 rounded-full flex-shrink-0 whitespace-nowrap ${
@@ -827,7 +847,7 @@ const Settings: React.FC = () => {
           </button>
 
           {/* Feature usage rows */}
-          <div className="border-t border-border divide-y divide-border/60">
+          <div className="border-t border-border divide-y divide-border/60 bg-muted/20">
             {[
               {
                 Icon: Camera,
@@ -878,7 +898,7 @@ const Settings: React.FC = () => {
         <button
           type="button"
           onClick={() => navigate("/reports")}
-          className="w-full rounded-2xl shadow-ios-sm bg-primary/10 border border-primary/20 flex items-center gap-4 px-5 py-4 hover:bg-primary/15 transition-all text-left"
+          className="w-full rounded-[1.75rem] shadow-ios-sm bg-primary/10 border border-primary/20 flex items-center gap-4 px-5 py-4 hover:bg-primary/15 transition-all text-left"
         >
           <div className="w-11 h-11 rounded-xl bg-primary/20 flex items-center justify-center flex-shrink-0">
             <TrendingUp className="w-5 h-5 text-primary" />
@@ -891,7 +911,7 @@ const Settings: React.FC = () => {
         </button>
 
         {/* Settings menu */}
-        <div className="rounded-2xl overflow-hidden shadow-ios-sm divide-y divide-border bg-card">
+        <div className="overflow-hidden rounded-[1.75rem] bg-card shadow-ios-sm ring-1 ring-border/60 divide-y divide-border">
           {menuItems.filter((item) => item.show).map((item) => (
             <button
               key={item.id} type="button"
@@ -909,7 +929,7 @@ const Settings: React.FC = () => {
         </div>
 
         {/* Explore — links to all discoverable features */}
-        <div className="rounded-2xl overflow-hidden shadow-ios-sm divide-y divide-border bg-card">
+        <div className="overflow-hidden rounded-[1.75rem] bg-card shadow-ios-sm ring-1 ring-border/60 divide-y divide-border">
           <div className="px-4 pt-3.5 pb-1.5">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Khám phá</p>
           </div>
@@ -935,7 +955,7 @@ const Settings: React.FC = () => {
         </div>
 
         {/* Appearance */}
-        <div className="rounded-2xl overflow-hidden shadow-ios-sm bg-card px-4 py-3.5 space-y-3">
+        <div className="overflow-hidden rounded-[1.75rem] bg-card px-4 py-3.5 shadow-ios-sm ring-1 ring-border/60 space-y-3">
           <div className="flex items-center gap-3">
             <Monitor className="w-6 h-6 text-muted-foreground flex-shrink-0" />
             <p className="text-sm font-medium flex-1">Giao diện</p>
@@ -962,9 +982,18 @@ const Settings: React.FC = () => {
           </div>
         </div>
 
-        <div className="rounded-2xl overflow-hidden shadow-ios-sm divide-y divide-border bg-card">
+        <div className="overflow-hidden rounded-[1.75rem] bg-card shadow-ios-sm ring-1 ring-border/60 divide-y divide-border">
           <div className="px-4 pt-3.5 pb-1.5">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tài khoản & quyền riêng tư</p>
+          </div>
+          <div className="flex items-start gap-4 px-4 py-3.5">
+            <Info className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-foreground">Dữ liệu cá nhân</p>
+              <p className="text-xs text-muted-foreground">
+                CaloVie dùng hồ sơ, mục tiêu và nhật ký để cá nhân hóa gợi ý trong app.
+              </p>
+            </div>
           </div>
           <div className="flex items-start gap-4 px-4 py-3.5">
             <TriangleAlert className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
@@ -979,7 +1008,7 @@ const Settings: React.FC = () => {
               variant="outline"
               size="sm"
               onClick={() => setDeleteDialogOpen(true)}
-              className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-700"
+              className="border-red-300/70 text-red-700 hover:bg-red-500/10 hover:text-red-700 dark:text-red-300"
             >
               Xóa
             </Button>
@@ -1009,7 +1038,7 @@ const Settings: React.FC = () => {
           </AlertDialogHeader>
 
           <div className="space-y-3">
-            <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-3 text-sm text-red-700">
+            <div className="rounded-xl border border-red-300/70 bg-red-500/10 px-3 py-3 text-sm text-red-700 dark:text-red-200">
               {t("settings.account.dialogWarning")}
             </div>
             <div className="space-y-2">

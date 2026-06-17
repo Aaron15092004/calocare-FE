@@ -2,6 +2,7 @@ const CACHE_NAME = "calovie-runtime-v1";
 const CACHEABLE_PATHS = [
   "/manifest.webmanifest",
   "/logo.png",
+  "/install-icon.png",
   "/apple-touch-icon.png",
   "/pwa-192x192.png",
   "/pwa-512x512.png"

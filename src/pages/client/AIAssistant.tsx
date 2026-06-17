@@ -19,6 +19,7 @@ import { useSSEChat, type ChatSearchResults, type MealScheduleProposal, type Pro
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { MEAL_ORDER } from "@/types/mealPlan";
+import { CaloVieFaceMascot, type MascotFaceMood } from "@/components/brand/CaloVieMascot";
 
 const MEAL_LABELS: Record<string, string> = {
     breakfast: "Bữa sáng",
@@ -52,11 +53,7 @@ const APP_HELP_CHIPS = [
     "Cách tạo meal plan",
 ];
 
-const THINKING_STEPS = [
-    "Đang xem dữ liệu gần đây",
-    "Đang ghép với mục tiêu của bạn",
-    "Đang chọn gợi ý dễ áp dụng",
-];
+const THINKING_STEPS = ["Đang xem nhanh", "Đang chọn gợi ý", "Đang viết ngắn gọn"];
 
 const PROFILE_FIELD_LABELS: Record<string, string> = {
     goal: "Mục tiêu sức khỏe",
@@ -65,6 +62,27 @@ const PROFILE_FIELD_LABELS: Record<string, string> = {
     activity_level: "Mức độ vận động",
     weight_kg: "Cân nặng",
     height_cm: "Chiều cao",
+};
+
+const getChatMascotMood = ({
+    isLoading,
+    hasError,
+    hasConversation,
+    lastAssistantMessage,
+}: {
+    isLoading: boolean;
+    hasError: boolean;
+    hasConversation: boolean;
+    lastAssistantMessage?: string;
+}): MascotFaceMood => {
+    if (hasError) return "worried";
+    if (isLoading) return "curious";
+    if (!hasConversation) return "playful";
+
+    const text = (lastAssistantMessage ?? "").toLowerCase();
+    if (text.includes("tuyệt") || text.includes("ổn") || text.includes("tốt") || text.includes("yên tâm")) return "love";
+    if (text.includes("chưa") || text.includes("không") || text.includes("lỗi")) return "worried";
+    return "neutral";
 };
 
 const ProposalCard: React.FC<{
@@ -84,7 +102,7 @@ const ProposalCard: React.FC<{
     };
 
     return (
-        <div className="mx-3 my-2 rounded-[1.6rem] border border-primary/20 bg-primary/5 p-4 text-sm shadow-sm">
+        <div className="my-2 rounded-3xl border border-primary/20 bg-primary/5 p-4 text-sm shadow-sm">
             <div className="mb-2 flex items-center gap-2 font-semibold text-primary">
                 <Clock className="h-4 w-4" />
                 Lịch ăn gợi ý
@@ -103,7 +121,7 @@ const ProposalCard: React.FC<{
                     type="button"
                     onClick={handleApprove}
                     disabled={saving}
-                    className="flex flex-1 items-center justify-center gap-1 rounded-2xl bg-primary py-2 text-xs font-semibold text-primary-foreground disabled:opacity-60"
+                    className="flex flex-1 items-center justify-center gap-1 rounded-full bg-primary py-2 text-xs font-semibold text-primary-foreground disabled:opacity-60"
                 >
                     <Check className="h-3 w-3" />
                     {saving ? "Đang lưu..." : "Áp dụng"}
@@ -111,7 +129,7 @@ const ProposalCard: React.FC<{
                 <button
                     type="button"
                     onClick={onDismiss}
-                    className="flex flex-1 items-center justify-center gap-1 rounded-2xl border border-border py-2 text-xs font-semibold text-muted-foreground"
+                    className="flex flex-1 items-center justify-center gap-1 rounded-full border border-border py-2 text-xs font-semibold text-muted-foreground"
                 >
                     <Ban className="h-3 w-3" />
                     Bỏ qua
@@ -142,7 +160,7 @@ const ActionProposalCard: React.FC<{
     };
 
     return (
-        <div className="mx-3 my-2 rounded-[1.6rem] border border-[#f4d7aa] bg-[#fff7ea] p-4 text-sm shadow-sm dark:border-amber-400/30 dark:bg-amber-500/10">
+        <div className="my-2 rounded-3xl border border-amber-400/25 bg-amber-500/10 p-4 text-sm shadow-sm">
             <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-[#b16b00]">
                 <Settings className="h-3.5 w-3.5" />
                 Cập nhật trước khi lưu
@@ -159,7 +177,7 @@ const ActionProposalCard: React.FC<{
                     type="button"
                     onClick={handleApprove}
                     disabled={saving}
-                    className="flex flex-1 items-center justify-center gap-1 rounded-2xl bg-[#f1a325] py-2 text-xs font-semibold text-white disabled:opacity-60"
+                    className="flex flex-1 items-center justify-center gap-1 rounded-full bg-[#f1a325] py-2 text-xs font-semibold text-white disabled:opacity-60"
                 >
                     <Check className="h-3 w-3" />
                     {saving ? "Đang lưu..." : "Áp dụng"}
@@ -167,7 +185,7 @@ const ActionProposalCard: React.FC<{
                 <button
                     type="button"
                     onClick={onDismiss}
-                    className="flex flex-1 items-center justify-center gap-1 rounded-2xl border border-border py-2 text-xs font-semibold text-muted-foreground"
+                    className="flex flex-1 items-center justify-center gap-1 rounded-full border border-border py-2 text-xs font-semibold text-muted-foreground"
                 >
                     <Ban className="h-3 w-3" />
                     Bỏ qua
@@ -181,7 +199,7 @@ const SearchResultsCard: React.FC<{
     results: ChatSearchResults;
     onDismiss: () => void;
 }> = ({ results, onDismiss }) => (
-    <div className="mx-3 my-2 rounded-[1.6rem] border border-sky-200 bg-sky-50 p-4 text-sm shadow-sm dark:border-sky-400/30 dark:bg-sky-500/10">
+    <div className="my-2 rounded-3xl border border-sky-400/25 bg-sky-500/10 p-4 text-sm shadow-sm">
         <div className="mb-2 flex items-center justify-between">
             <div className="flex items-center gap-2 text-xs font-semibold text-sky-700">
                 <Search className="h-3.5 w-3.5" />
@@ -213,46 +231,23 @@ const SearchResultsCard: React.FC<{
     </div>
 );
 
-const getMascotByState = ({
-    isLoading,
-    error,
-    lastAssistantMessage,
-    hasConversation,
-}: {
-    isLoading: boolean;
-    error: string | null;
-    lastAssistantMessage: string;
-    hasConversation: boolean;
-}) => {
-    const text = lastAssistantMessage.toLowerCase();
-
-    if (error) return "/mascot-worried.png";
-    if (isLoading) return "/mascot-curious.png";
-    if (!hasConversation) return "/mascot-playful.png";
-    if (text.includes("tuyệt") || text.includes("ổn") || text.includes("tốt") || text.includes("yên tâm")) return "/mascot-love.png";
-    if (text.includes("chưa") || text.includes("không")) return "/mascot-worried.png";
-    return "/mascot-neutral.png";
-};
-
 const MessageBubble: React.FC<{
     role: "user" | "assistant";
     content: string;
-    mascotSrc: string;
-}> = ({ role, content, mascotSrc }) => {
+    mascotMood: MascotFaceMood;
+}> = ({ role, content, mascotMood }) => {
     const isUser = role === "user";
 
     return (
         <div className={`mb-3 flex ${isUser ? "justify-end" : "justify-start"}`}>
             {!isUser && (
-                <div className="mr-1.5 mt-1 h-16 w-16 shrink-0 overflow-hidden">
-                    <img src={mascotSrc} alt="" className="h-full w-full object-cover object-top" />
-                </div>
+                <CaloVieFaceMascot mood={mascotMood} className="-ml-1 mr-0.5 mt-0.5 h-[4.25rem] w-[4.25rem] shrink-0" motion="breathe" />
             )}
             <div
-                className={`max-w-[86%] rounded-[1.6rem] px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
+                className={`max-w-[84%] rounded-[1.35rem] px-4 py-3 text-[15px] leading-relaxed whitespace-pre-wrap ${
                     isUser
                         ? "rounded-br-md bg-primary text-primary-foreground shadow-sm"
-                        : "rounded-bl-md border border-border/80 bg-card text-foreground shadow-sm"
+                        : "rounded-bl-md border border-border/70 bg-card text-foreground shadow-sm"
                 }`}
             >
                 {content}
@@ -303,12 +298,14 @@ const AIAssistant: React.FC = () => {
         [messages],
     );
 
-    const mascotSrc = getMascotByState({
+    const mascotMood = getChatMascotMood({
         isLoading,
-        error,
+        hasError: Boolean(error),
         lastAssistantMessage,
         hasConversation: messages.length > 0,
     });
+    const lastMessageIsAssistant = messages[messages.length - 1]?.role === "assistant";
+    const showThinking = isLoading && !lastMessageIsAssistant;
 
     useEffect(() => {
         if (!navigateTo) return;
@@ -361,30 +358,28 @@ const AIAssistant: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-background pb-nav-safe">
-            <header className="sticky top-0 z-20 border-b border-border/60 bg-background/88 backdrop-blur-xl">
-                <div className="flex items-center gap-3 px-3 py-4">
+        <div className="calovie-ios-surface min-h-screen pb-nav-safe text-foreground">
+            <header className="sticky top-0 z-20 border-b border-border/50 bg-background/86 backdrop-blur-xl">
+                <div className="flex items-center gap-3 px-3 pb-3 pt-[calc(0.8rem+env(safe-area-inset-top,0px))]">
                     <button
                         type="button"
                         onClick={() => navigate(-1)}
-                        className="grid h-10 w-10 place-items-center rounded-2xl bg-card text-foreground shadow-sm ring-1 ring-border/70"
+                        className="grid h-10 w-10 place-items-center rounded-full bg-card/90 text-foreground shadow-sm ring-1 ring-border/70"
                         title="Quay lại"
                     >
                         <ArrowLeft className="h-4 w-4" />
                     </button>
 
-                    <div className="relative flex min-w-0 flex-1 items-center justify-center">
-                        <div className="absolute top-[-18px] h-28 w-28 overflow-hidden">
-                            <img src={mascotSrc} alt="CaloVie mascot" className="h-full w-full object-cover object-top" />
-                        </div>
-                        <img src="/logo.png" alt="CaloVie" className="h-10 w-auto object-contain pt-11" />
+                    <div className="relative flex min-w-0 flex-1 flex-col items-center justify-center">
+                        <CaloVieFaceMascot mood={mascotMood} className="-mb-5 h-[6.2rem] w-[6.2rem]" motion={isLoading ? "bob" : "breathe"} />
+                        <img src="/logo.png" alt="CaloVie" className="h-11 w-auto object-contain" />
                     </div>
 
                     {messages.length > 0 ? (
                         <button
                             type="button"
                             onClick={clearMessages}
-                            className="grid h-10 w-10 place-items-center rounded-2xl bg-card text-foreground shadow-sm ring-1 ring-border/70"
+                            className="grid h-10 w-10 place-items-center rounded-full bg-card/90 text-foreground shadow-sm ring-1 ring-border/70"
                             title="Làm mới"
                         >
                             <Trash2 className="h-4 w-4" />
@@ -395,29 +390,27 @@ const AIAssistant: React.FC = () => {
                 </div>
             </header>
 
-            <main className="flex flex-col pb-6 pt-2">
-                <section>
-                    <div className="min-h-[72vh] overflow-y-auto pb-4 pt-5">
+            <main className="flex flex-col">
+                <section className="flex min-h-[calc(100vh-9.5rem)] flex-col">
+                    <div className="flex-1 overflow-y-auto pb-4 pt-5">
                         {messages.length === 0 ? (
-                            <div className="flex min-h-[62vh] flex-col justify-between px-4">
+                            <div className="flex min-h-[58vh] flex-col justify-between px-4">
                                 <div>
-                                    <div className="mb-5 flex items-center gap-3">
-                                        <div className="h-24 w-24 overflow-hidden">
-                                            <img src={mascotSrc} alt="CaloVie mascot" className="h-full w-full object-cover object-top" />
-                                        </div>
+                                    <div className="mb-5 flex items-center gap-2">
+                                        <CaloVieFaceMascot mood={mascotMood} className="h-24 w-24 shrink-0" motion="breathe" />
                                         <div className="min-w-0">
-                                            <p className="text-base font-semibold text-foreground">Chào {userName}, hôm nay bạn thấy sao rồi?</p>
-                                            <p className="text-sm text-muted-foreground">Mình có thể gợi ý bữa ăn, chỉ cách dùng app hoặc tìm quán gần bạn.</p>
+                                            <p className="text-base font-bold text-foreground">Chào {userName}, hôm nay bạn cần mình giúp gì?</p>
+                                            <p className="mt-1 text-sm leading-6 text-muted-foreground">Hỏi về bữa ăn, cách dùng app hoặc gợi ý gần bạn.</p>
                                         </div>
                                     </div>
 
-                                    <div className="space-y-2.5">
+                                    <div className="space-y-2">
                                         {STARTER_CHIPS.map((chip) => (
                                             <button
                                                 key={chip}
                                                 type="button"
                                                 onClick={() => sendMessage(chip)}
-                                                className="flex w-full items-center justify-between rounded-[1.35rem] border border-border bg-card px-4 py-3 text-left text-sm font-medium text-foreground transition-colors hover:bg-accent/30"
+                                                className="flex w-full items-center justify-between rounded-2xl border border-border bg-card/90 px-4 py-3 text-left text-sm font-semibold text-foreground transition-colors hover:bg-accent/30"
                                             >
                                                 <span>{chip}</span>
                                                 <ChevronRight className="h-4 w-4 text-muted-foreground" />
@@ -440,8 +433,8 @@ const AIAssistant: React.FC = () => {
                                         ))}
                                     </div>
 
-                                    <div className="rounded-[1.5rem] bg-muted/70 p-3">
-                                        <div className="flex flex-wrap gap-2">
+                                    <div className="overflow-x-auto pb-1">
+                                        <div className="flex w-max gap-2">
                                             {APP_HELP_CHIPS.map((chip) => (
                                                 <button
                                                     key={chip}
@@ -464,21 +457,19 @@ const AIAssistant: React.FC = () => {
                                             key={`${message.role}-${index}`}
                                             role={message.role}
                                             content={message.content}
-                                            mascotSrc={mascotSrc}
+                                            mascotMood={mascotMood}
                                         />
                                     ))}
                                 </div>
 
-                                {isLoading && (
-                                    <div className="mb-3 flex items-start gap-3 px-3">
-                                        <div className="h-16 w-16 shrink-0 overflow-hidden">
-                                            <img src="/mascot-curious.png" alt="" className="h-full w-full object-cover object-top" />
-                                        </div>
-                                        <div className="w-full max-w-[86%] rounded-[1.6rem] rounded-bl-md border border-border/80 bg-card px-4 py-3 shadow-sm">
-                                            <p className="text-sm text-muted-foreground">Calovie đang chuẩn bị câu trả lời</p>
+                                {showThinking && (
+                                    <div className="mb-3 flex items-start px-3">
+                                        <CaloVieFaceMascot mood="curious" className="-ml-1 mr-0.5 mt-0.5 h-[4.25rem] w-[4.25rem] shrink-0" motion="bob" />
+                                        <div className="w-full max-w-[84%] rounded-[1.35rem] rounded-bl-md border border-border/70 bg-card px-4 py-3 shadow-sm">
+                                            <p className="text-sm font-semibold text-muted-foreground">Calovie đang nghĩ...</p>
                                             <div className="mt-2 space-y-1.5">
                                                 {THINKING_STEPS.map((step) => (
-                                                    <div key={step} className="flex items-center gap-2 text-sm text-muted-foreground">
+                                                    <div key={step} className="flex items-center gap-2 text-xs text-muted-foreground">
                                                         <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
                                                         {step}
                                                     </div>
@@ -489,13 +480,13 @@ const AIAssistant: React.FC = () => {
                                 )}
 
                                 {!isLoading && messages[messages.length - 1]?.role === "assistant" && (
-                                    <div className="mb-3 flex flex-wrap gap-2 px-3">
+                                    <div className="mb-3 flex gap-2 overflow-x-auto px-3 pb-1">
                                         {FOLLOW_UP_CHIPS.map((chip) => (
                                             <button
                                                 key={chip}
                                                 type="button"
                                                 onClick={() => sendMessage(chip)}
-                                                className="rounded-full border border-border bg-muted/60 px-3 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-card hover:text-foreground"
+                                                className="shrink-0 rounded-full border border-border bg-muted/60 px-3 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-card hover:text-foreground"
                                             >
                                                 {chip}
                                             </button>
@@ -503,34 +494,36 @@ const AIAssistant: React.FC = () => {
                                     </div>
                                 )}
 
-                                {proposal && (
-                                    <ProposalCard
-                                        proposal={proposal}
-                                        onApprove={async () => {
-                                            await approveProposal(proposal);
-                                            toast({ title: "Đã lưu lịch ăn", description: "Lịch ăn mới đã được áp dụng." });
-                                        }}
-                                        onDismiss={dismissProposal}
-                                    />
-                                )}
-                                {actionProposal && (
-                                    <ActionProposalCard
-                                        proposal={actionProposal}
-                                        onApprove={async () => {
-                                            await approveActionProposal(actionProposal);
-                                            toast({ title: "Đã cập nhật hồ sơ", description: actionProposal.label });
-                                        }}
-                                        onDismiss={dismissActionProposal}
-                                    />
-                                )}
-                                {searchResults && <SearchResultsCard results={searchResults} onDismiss={dismissSearchResults} />}
+                                <div className="px-3">
+                                    {proposal && (
+                                        <ProposalCard
+                                            proposal={proposal}
+                                            onApprove={async () => {
+                                                await approveProposal(proposal);
+                                                toast({ title: "Đã lưu lịch ăn", description: "Lịch ăn mới đã được áp dụng." });
+                                            }}
+                                            onDismiss={dismissProposal}
+                                        />
+                                    )}
+                                    {actionProposal && (
+                                        <ActionProposalCard
+                                            proposal={actionProposal}
+                                            onApprove={async () => {
+                                                await approveActionProposal(actionProposal);
+                                                toast({ title: "Đã cập nhật hồ sơ", description: actionProposal.label });
+                                            }}
+                                            onDismiss={dismissActionProposal}
+                                        />
+                                    )}
+                                    {searchResults && <SearchResultsCard results={searchResults} onDismiss={dismissSearchResults} />}
+                                </div>
                                 {error && <p className="py-1 text-center text-xs text-destructive">{error}</p>}
                                 <div ref={messagesEndRef} />
                             </>
                         )}
                     </div>
 
-                    <div className="border-t border-border/70 bg-background/96 px-3 py-3 backdrop-blur-xl">
+                    <div className="sticky bottom-16 border-t border-border/70 bg-background/96 px-3 py-3 backdrop-blur-xl">
                         <div className="flex items-end gap-2">
                             <button
                                 type="button"
