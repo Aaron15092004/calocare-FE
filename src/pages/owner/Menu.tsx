@@ -3,6 +3,7 @@ import QRCode from "qrcode";
 import {
     Plus, Pencil, Trash2, Zap, Upload, QrCode, BadgeCheck,
     Sparkles, Loader2, Flame, Check, X, ChevronDown, ChevronUp,
+    ImagePlus,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
 import api from "@/lib/api";
+import { uploadFile } from "@/utils/cloudinary";
 
 interface MenuItem {
     _id: string;
@@ -29,6 +31,20 @@ interface MenuItem {
     fiber?: number;
     nutrition_verified?: boolean;
     is_available: boolean;
+}
+
+interface StoreRecord {
+    _id: string;
+    subscription_tier?: "basic" | "pro";
+    menu_items?: MenuItem[];
+}
+
+interface ApiError {
+    response?: {
+        data?: {
+            message?: string;
+        };
+    };
 }
 
 const EMPTY_ITEM: Omit<MenuItem, "_id"> = {
@@ -53,9 +69,9 @@ const OwnerMenu = () => {
     const { toast } = useToast();
     const { t } = useTranslation();
 
-    const [stores, setStores]         = useState<any[]>([]);
+    const [stores, setStores]         = useState<StoreRecord[]>([]);
     const [storeId, setStoreId]       = useState<string | null>(null);
-    const [store, setStore]           = useState<any>(null);
+    const [store, setStore]           = useState<StoreRecord | null>(null);
     const [items, setItems]           = useState<MenuItem[]>([]);
     const [loading, setLoading]       = useState(true);
     const [showForm, setShowForm]     = useState(false);
@@ -69,6 +85,8 @@ const OwnerMenu = () => {
     const [qrUrl, setQrUrl]           = useState<string | null>(null);
     const [showQr, setShowQr]         = useState(false);
     const [expandedNutrition, setExpandedNutrition] = useState<string | null>(null);
+    const [imageUploading, setImageUploading] = useState(false);
+    const imageInputRef = useRef<HTMLInputElement>(null);
 
     const isPro = store?.subscription_tier === "pro";
     const isBasic = !isPro;
@@ -77,13 +95,13 @@ const OwnerMenu = () => {
 
     const loadStore = async () => {
         try {
-            const { data } = await api.get("/stores/mine");
+            const { data } = await api.get<{ data: StoreRecord[] }>("/stores/mine");
             const list = data.data || [];
             setStores(list);
             const sid = storeId || list[0]?._id;
             setStoreId(sid);
             if (sid) {
-                const s = list.find((x: any) => x._id === sid) || list[0];
+                const s = list.find((x) => x._id === sid) || list[0];
                 setStore(s);
                 setItems(s?.menu_items || []);
             }
@@ -120,8 +138,9 @@ const OwnerMenu = () => {
             await loadStore();
             setShowForm(false);
             toast({ title: editItem ? "Đã cập nhật món" : "Đã thêm món" });
-        } catch (err: any) {
-            const msg = err.response?.data?.message || "Không thể lưu";
+        } catch (err: unknown) {
+            const apiError = err as ApiError;
+            const msg = apiError.response?.data?.message || "Không thể lưu";
             toast({ title: "Lỗi", description: msg, variant: "destructive" });
         } finally {
             setSaving(false);
@@ -146,8 +165,9 @@ const OwnerMenu = () => {
             const { data } = await api.post(`/stores/${storeId}/menu/${itemId}/ai-nutrition`);
             await loadStore();
             toast({ title: "AI đã ước tính dinh dưỡng", description: `${data.estimate.energy_kcal} kcal ước tính` });
-        } catch (err: any) {
-            toast({ title: "Lỗi AI", description: err.response?.data?.message, variant: "destructive" });
+        } catch (err: unknown) {
+            const apiError = err as ApiError;
+            toast({ title: "Lỗi AI", description: apiError.response?.data?.message, variant: "destructive" });
         } finally {
             setAiLoading(null);
         }
@@ -162,8 +182,9 @@ const OwnerMenu = () => {
             setShowBulk(false);
             setCsvText("");
             toast({ title: `Đã nhập ${data.added} món từ CSV` });
-        } catch (err: any) {
-            toast({ title: "Lỗi", description: err.response?.data?.message, variant: "destructive" });
+        } catch (err: unknown) {
+            const apiError = err as ApiError;
+            toast({ title: "Lỗi", description: apiError.response?.data?.message, variant: "destructive" });
         } finally {
             setBulkLoading(false);
         }
@@ -174,6 +195,25 @@ const OwnerMenu = () => {
         const dataUrl = await QRCode.toDataURL(url, { width: 300, margin: 2 });
         setQrUrl(dataUrl);
         setShowQr(true);
+    };
+
+    const handleImageFile = async (file: File) => {
+        if (!file.type.startsWith("image/")) {
+            toast({ title: "File không hợp lệ", description: "Vui lòng chọn file ảnh.", variant: "destructive" });
+            return;
+        }
+
+        setImageUploading(true);
+        try {
+            const uploaded = await uploadFile(file, "calovie/store-menu");
+            setForm((f) => ({ ...f, image_url: uploaded.url }));
+            toast({ title: "Đã upload ảnh món" });
+        } catch {
+            toast({ title: "Upload lỗi", description: "Không thể upload ảnh, thử lại.", variant: "destructive" });
+        } finally {
+            setImageUploading(false);
+            if (imageInputRef.current) imageInputRef.current.value = "";
+        }
     };
 
     if (loading) {
@@ -330,10 +370,70 @@ const OwnerMenu = () => {
                             <Textarea value={form.description || ""} rows={2}
                                 onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
                         </div>
-                        <div className="space-y-1.5">
-                            <Label>URL hình ảnh</Label>
-                            <Input value={form.image_url || ""} onChange={(e) => setForm((f) => ({ ...f, image_url: e.target.value }))}
-                                placeholder="https://..." />
+                        <div className="space-y-2">
+                            <Label>Hình ảnh món ăn</Label>
+                            <input
+                                ref={imageInputRef}
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) void handleImageFile(file);
+                                }}
+                            />
+
+                            {form.image_url ? (
+                                <div className="overflow-hidden rounded-xl border bg-muted/30">
+                                    <div className="relative aspect-video bg-muted">
+                                        <img src={form.image_url} alt={form.name_vi || "Ảnh món ăn"} className="h-full w-full object-cover" />
+                                        <button
+                                            type="button"
+                                            aria-label="Xóa ảnh"
+                                            className="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80"
+                                            onClick={() => setForm((f) => ({ ...f, image_url: "" }))}
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </button>
+                                    </div>
+                                    <div className="flex flex-wrap items-center justify-between gap-2 p-3">
+                                        <p className="text-xs text-muted-foreground">Ảnh này sẽ hiển thị trong menu quán.</p>
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            disabled={imageUploading}
+                                            onClick={() => imageInputRef.current?.click()}
+                                        >
+                                            {imageUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImagePlus className="mr-2 h-4 w-4" />}
+                                            Đổi ảnh
+                                        </Button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <button
+                                    type="button"
+                                    disabled={imageUploading}
+                                    onClick={() => imageInputRef.current?.click()}
+                                    className="flex min-h-32 w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground transition-colors hover:border-primary/50 hover:bg-primary/5 disabled:opacity-60"
+                                >
+                                    {imageUploading ? (
+                                        <Loader2 className="h-6 w-6 animate-spin" />
+                                    ) : (
+                                        <ImagePlus className="h-7 w-7" />
+                                    )}
+                                    <span>{imageUploading ? "Đang upload ảnh..." : "Bấm để tải ảnh món ăn"}</span>
+                                </button>
+                            )}
+
+                            <div className="space-y-1.5 rounded-xl border border-dashed bg-muted/20 p-3">
+                                <Label className="text-xs text-muted-foreground">Hoặc dán URL hình ảnh</Label>
+                                <Input
+                                    value={form.image_url || ""}
+                                    onChange={(e) => setForm((f) => ({ ...f, image_url: e.target.value }))}
+                                    placeholder="https://..."
+                                />
+                            </div>
                         </div>
 
                         {/* Nutrition */}
@@ -380,7 +480,7 @@ const OwnerMenu = () => {
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setShowForm(false)}>Huỷ</Button>
-                        <Button onClick={handleSave} disabled={saving}>
+                        <Button onClick={handleSave} disabled={saving || imageUploading}>
                             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                             {editItem ? " Lưu" : " Thêm"}
                         </Button>
