@@ -6,6 +6,10 @@ import { useAuthContext } from "@/contexts/AuthContext";
 const HIDDEN_PATH_PREFIXES = ["/auth", "/onboarding", "/assistant", "/admin", "/owner"];
 const POSITION_KEY = "calovie_floating_assistant_position";
 const NUDGE_KEY = "calovie_assistant_nudge";
+const BUTTON_SIZE = 76;
+const EDGE_MARGIN = 8;
+const TOP_SAFE = 80;
+const BOTTOM_SAFE = 92;
 
 const MOODS: MascotFaceMood[] = ["neutral", "curious", "playful", "love", "curious"];
 
@@ -18,11 +22,9 @@ const PHRASES = [
 
 const clampViewportPosition = (x: number, y: number) => {
   if (typeof window === "undefined") return { x, y };
-  const margin = 8;
-  const buttonSize = 76;
   return {
-    x: Math.max(margin, Math.min(window.innerWidth - buttonSize - margin, x)),
-    y: Math.max(80, Math.min(window.innerHeight - buttonSize - 16, y)),
+    x: Math.max(EDGE_MARGIN, Math.min(window.innerWidth - BUTTON_SIZE - EDGE_MARGIN, x)),
+    y: Math.max(TOP_SAFE, Math.min(window.innerHeight - BUTTON_SIZE - BOTTOM_SAFE, y)),
   };
 };
 
@@ -33,6 +35,9 @@ export const CaloVieFloatingAssistant: React.FC = () => {
   const [tick, setTick] = useState(0);
   const [showBubble, setShowBubble] = useState(false);
   const [customPhrase, setCustomPhrase] = useState("");
+  const [viewportWidth, setViewportWidth] = useState(() => (
+    typeof window === "undefined" ? 390 : window.innerWidth
+  ));
   const [position, setPosition] = useState<{ x: number; y: number } | null>(() => {
     try {
       const raw = localStorage.getItem(POSITION_KEY);
@@ -53,6 +58,7 @@ export const CaloVieFloatingAssistant: React.FC = () => {
     originY: 0,
   });
   const latestPositionRef = useRef(position);
+  const suppressClickRef = useRef(false);
 
   const hidden =
     loading ||
@@ -64,8 +70,8 @@ export const CaloVieFloatingAssistant: React.FC = () => {
   }, [position]);
 
   useEffect(() => {
-    if (!position) return;
     const handleResize = () => {
+      setViewportWidth(window.innerWidth);
       setPosition((current) => {
         if (!current) return current;
         const next = clampViewportPosition(current.x, current.y);
@@ -75,7 +81,7 @@ export const CaloVieFloatingAssistant: React.FC = () => {
     };
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
-  }, [position]);
+  }, []);
 
   useEffect(() => {
     if (hidden) return;
@@ -118,8 +124,11 @@ export const CaloVieFloatingAssistant: React.FC = () => {
 
   const mood = MOODS[tick % MOODS.length];
   const phrase = customPhrase || PHRASES[tick % PHRASES.length];
+  const bubbleOnRight = position ? position.x < viewportWidth / 2 : false;
 
   const handlePointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
+    setShowBubble(false);
+
     const rect = event.currentTarget.getBoundingClientRect();
     dragRef.current = {
       active: true,
@@ -141,24 +150,32 @@ export const CaloVieFloatingAssistant: React.FC = () => {
       setPosition(next);
     };
 
-    const handleUp = () => {
+    const finishDrag = () => {
       const state = dragRef.current;
       dragRef.current.active = false;
       window.removeEventListener("pointermove", handleMove);
-      window.removeEventListener("pointerup", handleUp);
+      window.removeEventListener("pointerup", finishDrag);
+      window.removeEventListener("pointercancel", finishDrag);
       if (state.moved) {
         const next = latestPositionRef.current ?? clampViewportPosition(state.originX, state.originY);
         localStorage.setItem(POSITION_KEY, JSON.stringify(next));
+        suppressClickRef.current = true;
+        window.setTimeout(() => {
+          suppressClickRef.current = false;
+        }, 350);
       }
     };
 
     window.addEventListener("pointermove", handleMove);
-    window.addEventListener("pointerup", handleUp);
+    window.addEventListener("pointerup", finishDrag);
+    window.addEventListener("pointercancel", finishDrag);
   };
 
-  const handleClick = () => {
-    if (dragRef.current.moved) {
+  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    if (dragRef.current.moved || suppressClickRef.current) {
+      event.preventDefault();
       dragRef.current.moved = false;
+      suppressClickRef.current = false;
       return;
     }
     navigate("/assistant");
@@ -166,11 +183,17 @@ export const CaloVieFloatingAssistant: React.FC = () => {
 
   return (
     <div
-      className={`fixed z-40 flex items-end gap-2 touch-none ${position ? "" : "bottom-[calc(5.15rem+env(safe-area-inset-bottom))] right-3"}`}
+      className={`fixed z-40 h-[4.4rem] w-[4.4rem] touch-none select-none ${position ? "" : "bottom-[calc(5.15rem+env(safe-area-inset-bottom))] right-3"}`}
       style={position ? { left: position.x, top: position.y } : undefined}
     >
       {showBubble && (
-        <div className="max-w-[12.5rem] rounded-3xl rounded-br-md bg-card/95 px-4 py-3 text-xs font-bold leading-5 text-foreground shadow-ios-lg ring-1 ring-border/70 backdrop-blur animate-slide-up">
+        <div
+          className={`pointer-events-none absolute bottom-1 w-[12.5rem] max-w-[calc(100vw-6.5rem)] rounded-3xl bg-card/95 px-4 py-3 text-xs font-bold leading-5 text-foreground shadow-ios-lg ring-1 ring-border/70 backdrop-blur animate-slide-up ${
+            bubbleOnRight
+              ? "left-[calc(100%+0.45rem)] rounded-bl-md"
+              : "right-[calc(100%+0.45rem)] rounded-br-md"
+          }`}
+        >
           {phrase}
         </div>
       )}
