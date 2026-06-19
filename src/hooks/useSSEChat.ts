@@ -20,6 +20,25 @@ export interface ProfileUpdateProposal {
     reason?: string;
 }
 
+export interface DiaryProposal {
+    type: "add_food_to_diary";
+    food_name: string;
+    meal_type: "breakfast" | "lunch" | "dinner" | "snack";
+    weight_grams: number;
+    source_type: "food" | "usda" | "ai_estimate";
+    source_id?: string;
+    usda_fdc_id?: number;
+    nutrition: {
+        calories: number;
+        protein: number;
+        carbs: number;
+        fat: number;
+        fiber: number;
+    };
+    label: string;
+    reason?: string;
+}
+
 export interface FoodSearchResult {
     name: string;
     energy_kcal: number;
@@ -42,6 +61,7 @@ export function useSSEChat() {
     const [proposal, setProposal] = useState<MealScheduleProposal | null>(null);
     const [navigateTo, setNavigateTo] = useState<string | null>(null);
     const [actionProposal, setActionProposal] = useState<ProfileUpdateProposal | null>(null);
+    const [diaryProposal, setDiaryProposal] = useState<DiaryProposal | null>(null);
     const [searchResults, setSearchResults] = useState<ChatSearchResults | null>(null);
     const abortRef = useRef<AbortController | null>(null);
 
@@ -72,6 +92,7 @@ export function useSSEChat() {
         setProposal(null);
         setNavigateTo(null);
         setActionProposal(null);
+        setDiaryProposal(null);
         setSearchResults(null);
 
         abortRef.current?.abort();
@@ -149,6 +170,8 @@ export function useSSEChat() {
                         if (nav.path) setNavigateTo(nav.path);
                     } else if (lastEvent === "action_proposal") {
                         setActionProposal(parsed as ProfileUpdateProposal);
+                    } else if (lastEvent === "diary_proposal") {
+                        setDiaryProposal(parsed as DiaryProposal);
                     } else if (lastEvent === "search_results") {
                         setSearchResults(parsed as ChatSearchResults);
                     } else if (lastEvent === "done") {
@@ -178,6 +201,7 @@ export function useSSEChat() {
         setProposal(null);
         setNavigateTo(null);
         setActionProposal(null);
+        setDiaryProposal(null);
         setSearchResults(null);
     }, []);
 
@@ -210,6 +234,8 @@ export function useSSEChat() {
     const approveActionProposal = useCallback(async (p: ProfileUpdateProposal): Promise<void> => {
         const token = localStorage.getItem("access_token");
         if (!token) return;
+        const allowedFields = new Set(["goal", "dietary_preference", "allergies", "activity_level", "weight_kg", "height_cm"]);
+        if (!allowedFields.has(p.field)) throw new Error("Trường cập nhật không hợp lệ");
         const res = await fetch(`${API_URL}/api/profile`, {
             method: "PUT",
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -220,6 +246,33 @@ export function useSSEChat() {
     }, []);
 
     const dismissActionProposal = useCallback(() => setActionProposal(null), []);
+    const approveDiaryProposal = useCallback(async (p: DiaryProposal): Promise<void> => {
+        const token = localStorage.getItem("access_token");
+        if (!token) return;
+        const res = await fetch(`${API_URL}/api/food-diary`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({
+                foods: [{
+                    dish_name: p.food_name,
+                    matched_name: p.food_name,
+                    source: p.source_type,
+                    food_id: p.source_type === "food" ? p.source_id : undefined,
+                    usda_fdc_id: p.source_type === "usda" ? p.usda_fdc_id : undefined,
+                    nutrition: p.nutrition,
+                    weight_grams: p.weight_grams,
+                }],
+                totals: p.nutrition,
+                meal_type: p.meal_type,
+                health_score: 0,
+                vitamins: [],
+                health_tips: [],
+            }),
+        });
+        if (!res.ok) throw new Error("Không thể lưu món vào nhật ký");
+        setDiaryProposal(null);
+    }, []);
+    const dismissDiaryProposal = useCallback(() => setDiaryProposal(null), []);
     const dismissSearchResults = useCallback(() => setSearchResults(null), []);
 
     return {
@@ -227,6 +280,7 @@ export function useSSEChat() {
         proposal, approveProposal, dismissProposal,
         navigateTo, clearNavigate,
         actionProposal, approveActionProposal, dismissActionProposal,
+        diaryProposal, approveDiaryProposal, dismissDiaryProposal,
         searchResults, dismissSearchResults,
     };
 }

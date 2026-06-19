@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
     ArrowLeft,
@@ -41,11 +41,28 @@ import api from "@/lib/api";
 type PlanId = "free" | "premium" | "family";
 type PaymentMethod = "momo" | "bank_transfer";
 
+interface SubscriptionQuote {
+    plan_type: "premium" | "family";
+    plan_name: string;
+    duration_months: number;
+    price_monthly: number;
+    amount: number;
+    final_amount: number;
+    currency: "VND";
+    duration_discount_pct: number;
+    duration_discount_amount: number;
+    global_discount_pct: number;
+    global_discount_amount: number;
+    discount_code?: string;
+    discount_code_amount: number;
+}
+
 interface SubscriptionStatus {
     tier: "free" | "premium" | "family" | "pro";
     expires_at: string | null;
     is_active: boolean;
     latest_transaction: {
+        _id?: string;
         plan_type: string;
         status: string;
         final_amount: number;
@@ -59,6 +76,77 @@ interface SystemDiscount {
     expires_at: string | null;
     applicable_plans: string[];
 }
+
+interface PaymentInstructions {
+    method?: string;
+    bank?: string;
+    account?: string;
+    owner?: string;
+    phone?: string;
+    amount?: string;
+    note?: string;
+}
+
+interface OrderResult {
+    transaction_id?: string;
+    tx_id?: string;
+    plan_type?: string;
+    status?: string;
+    final_amount?: number;
+    created_at?: string;
+    payment_ref?: string;
+    payment_ref_code?: string;
+    payment_instructions?: PaymentInstructions;
+    quote?: SubscriptionQuote;
+    message?: string;
+}
+
+interface FamilyUser {
+    _id?: string;
+    display_name?: string;
+    email?: string;
+}
+
+interface FamilyMember {
+    user_id?: FamilyUser | string;
+    role: "owner" | "member";
+    joined_at: string;
+}
+
+interface FamilyInvite {
+    code: string;
+    expires_at: string;
+}
+
+interface FamilyGroup {
+    seats_used: number;
+    seats_available: number;
+    max_members: number;
+    members: FamilyMember[];
+    invites: FamilyInvite[];
+}
+
+interface FamilyData {
+    is_family_active?: boolean;
+    role?: string | null;
+    owned_group?: FamilyGroup | null;
+    member_group?: FamilyGroup | null;
+}
+
+interface ApiError {
+    response?: {
+        status?: number;
+        data?: (Partial<OrderResult> & {
+            error?: string;
+            message?: string;
+        });
+    };
+}
+
+const getApiErrorMessage = (error: unknown) => {
+    const apiError = error as ApiError;
+    return apiError.response?.data?.message || apiError.response?.data?.error;
+};
 
 // ── Static plan styling config (no hardcoded text) ────────────────────────────
 
@@ -102,6 +190,7 @@ const PLAN_CONFIG = [
 
 const Subscription: React.FC = () => {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const { t } = useTranslation();
     const { toast } = useToast();
     const { profile } = useAuthContext();
@@ -117,7 +206,10 @@ const Subscription: React.FC = () => {
     const [discountCode, setDiscountCode] = useState("");
     const [showCheckout, setShowCheckout] = useState(false);
     const [ordering, setOrdering] = useState(false);
-    const [orderResult, setOrderResult] = useState<any>(null);
+    const [orderResult, setOrderResult] = useState<OrderResult | null>(null);
+    const [checkoutQuote, setCheckoutQuote] = useState<SubscriptionQuote | null>(null);
+    const [quoteLoading, setQuoteLoading] = useState(false);
+    const [quoteError, setQuoteError] = useState<string | null>(null);
     const orderingRef = useRef(false);
 
     const [expandedPlan, setExpandedPlan] = useState<PlanId | null>(null);
@@ -128,16 +220,14 @@ const Subscription: React.FC = () => {
     } | null>(null);
     const [applyCode, setApplyCode] = useState("");
     const [applyingCode, setApplyingCode] = useState(false);
+    const [familyData, setFamilyData] = useState<FamilyData | null>(null);
+    const [familyLoading, setFamilyLoading] = useState(false);
+    const [familyInviteLoading, setFamilyInviteLoading] = useState(false);
+    const [familyJoinCode, setFamilyJoinCode] = useState(searchParams.get("familyCode")?.toUpperCase() || "");
+    const [familyJoining, setFamilyJoining] = useState(false);
+    const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
 
-    useEffect(() => {
-        fetchStatus();
-        api.get("/referrals/my-code").then((r) => setReferralData(r.data)).catch(() => {});
-        api.get("/system-discount").then((r) => {
-            if (r.data.is_active) setSysDiscount(r.data);
-        }).catch(() => {});
-    }, []);
-
-    const fetchStatus = async () => {
+    const fetchStatus = useCallback(async () => {
         try {
             const res = await api.get("/subscription/status");
             setStatus(res.data);
@@ -146,7 +236,55 @@ const Subscription: React.FC = () => {
         } finally {
             setLoadingStatus(false);
         }
-    };
+    }, []);
+
+    const fetchFamily = useCallback(async () => {
+        setFamilyLoading(true);
+        try {
+            const res = await api.get("/family");
+            setFamilyData(res.data);
+        } catch {
+            setFamilyData(null);
+        } finally {
+            setFamilyLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchStatus();
+        fetchFamily();
+        api.get("/referrals/my-code").then((r) => setReferralData(r.data)).catch(() => {});
+        api.get("/system-discount").then((r) => {
+            if (r.data.is_active) setSysDiscount(r.data);
+        }).catch(() => {});
+    }, [fetchFamily, fetchStatus]);
+
+    useEffect(() => {
+        if (!showCheckout || !selectedPlan || selectedPlan === "free" || orderResult) return;
+
+        const timer = window.setTimeout(async () => {
+            setQuoteLoading(true);
+            setQuoteError(null);
+            try {
+                const res = await api.post("/subscription/quote", {
+                    plan_type: selectedPlan,
+                    duration_months: selectedMonths,
+                    discount_code: discountCode.trim().toUpperCase() || undefined,
+                });
+                setCheckoutQuote(res.data);
+            } catch (err) {
+                setCheckoutQuote(null);
+                setQuoteError(
+                    getApiErrorMessage(err) ||
+                    t("subscription.errorOrder"),
+                );
+            } finally {
+                setQuoteLoading(false);
+            }
+        }, 250);
+
+        return () => window.clearTimeout(timer);
+    }, [discountCode, orderResult, selectedMonths, selectedPlan, showCheckout, t]);
 
     const currentTier = (status?.tier === "pro" ? "family" : status?.tier)
         || (profile?.subscription_tier === "pro" ? "family" : profile?.subscription_tier)
@@ -157,14 +295,19 @@ const Subscription: React.FC = () => {
         setSelectedMonths(1);
         setDiscountCode("");
         setOrderResult(null);
+        setCheckoutQuote(null);
+        setQuoteError(null);
         setShowCheckout(true);
     };
 
     const getTotal = () => {
+        if (checkoutQuote) return checkoutQuote.final_amount;
         const plan = PLAN_CONFIG.find((p) => p.id === selectedPlan);
         if (!plan) return 0;
         return plan.price * selectedMonths;
     };
+
+    const formatVnd = (amount: number) => amount.toLocaleString("vi-VN") + "₫";
 
     const handleOrder = async () => {
         if (!selectedPlan || orderingRef.current) return;
@@ -178,10 +321,12 @@ const Subscription: React.FC = () => {
                 discount_code: discountCode.trim().toUpperCase() || undefined,
             });
             setOrderResult(res.data);
+            if (res.data.quote) setCheckoutQuote(res.data.quote);
             setStatus((prev) => prev
                 ? {
                     ...prev,
                     latest_transaction: {
+                        _id: res.data.transaction_id,
                         plan_type: selectedPlan,
                         status: "pending",
                         final_amount: res.data.final_amount,
@@ -190,10 +335,33 @@ const Subscription: React.FC = () => {
                   }
                 : prev,
             );
-        } catch (err: any) {
+        } catch (err) {
+            const apiError = err as ApiError;
+            const responseData = apiError.response?.data;
+            if (apiError.response?.status === 409 && responseData?.transaction_id) {
+                setOrderResult(responseData);
+                setStatus((prev) => prev
+                    ? {
+                        ...prev,
+                        latest_transaction: {
+                            _id: responseData.transaction_id,
+                            plan_type: responseData.plan_type || selectedPlan,
+                            status: "pending",
+                            final_amount: responseData.final_amount || 0,
+                            created_at: responseData.created_at || new Date().toISOString(),
+                        },
+                      }
+                    : prev,
+                );
+                toast({
+                    title: t("subscription.pendingTitle"),
+                    description: responseData.message,
+                });
+                return;
+            }
             toast({
                 title: t("subscription.errorTitle"),
-                description: err?.response?.data?.error || t("subscription.errorOrder"),
+                description: getApiErrorMessage(err) || t("subscription.errorOrder"),
                 variant: "destructive",
             });
         } finally {
@@ -201,6 +369,40 @@ const Subscription: React.FC = () => {
             setOrdering(false);
         }
     };
+
+    useEffect(() => {
+        const txId = orderResult?.transaction_id || orderResult?.tx_id;
+        if (!txId || orderResult?.status === "completed") return;
+
+        let stopped = false;
+        const poll = async () => {
+            try {
+                const res = await api.get(`/subscription/transactions/${txId}`);
+                if (stopped) return;
+                const tx = res.data.transaction;
+                if (tx) {
+                    setOrderResult((prev) => ({ ...(prev || {}), status: tx.status, payment_ref: tx.payment_ref }));
+                }
+                if (tx?.status === "completed") {
+                    await Promise.all([fetchStatus(), fetchFamily()]);
+                    toast({
+                        title: t("subscription.paymentSuccessTitle", "Thanh toán thành công"),
+                        description: t("subscription.paymentSuccessDesc", "Gói của bạn đã được kích hoạt."),
+                    });
+                    stopped = true;
+                }
+            } catch {
+                // Keep polling; transient network errors should not interrupt checkout.
+            }
+        };
+
+        void poll();
+        const interval = window.setInterval(poll, 2500);
+        return () => {
+            stopped = true;
+            window.clearInterval(interval);
+        };
+    }, [fetchFamily, fetchStatus, orderResult?.status, orderResult?.transaction_id, orderResult?.tx_id, t, toast]);
 
     const handleApplyReferral = async () => {
         if (!applyCode.trim() || applyingCode) return;
@@ -211,14 +413,74 @@ const Subscription: React.FC = () => {
             setApplyCode("");
             await fetchStatus();
             api.get("/referrals/my-code").then((r) => setReferralData(r.data)).catch(() => {});
-        } catch (err: any) {
+        } catch (err) {
             toast({
                 title: t("subscription.errorTitle"),
-                description: err?.response?.data?.error || t("subscription.errorApply"),
+                description: getApiErrorMessage(err) || t("subscription.errorApply"),
                 variant: "destructive",
             });
         } finally {
             setApplyingCode(false);
+        }
+    };
+
+    const handleCreateFamilyInvite = async () => {
+        if (familyInviteLoading) return;
+        setFamilyInviteLoading(true);
+        try {
+            const res = await api.post("/family/invites");
+            await fetchFamily();
+            if (res.data.invite_url) {
+                navigator.clipboard.writeText(res.data.invite_url);
+                toast({ title: "Đã tạo mã mời", description: "Link mời đã được sao chép." });
+            } else {
+                toast({ title: "Đã tạo mã mời" });
+            }
+        } catch (err) {
+            toast({
+                title: "Không tạo được mã mời",
+                description: getApiErrorMessage(err),
+                variant: "destructive",
+            });
+        } finally {
+            setFamilyInviteLoading(false);
+        }
+    };
+
+    const handleJoinFamily = async () => {
+        if (!familyJoinCode.trim() || familyJoining) return;
+        setFamilyJoining(true);
+        try {
+            const res = await api.post("/family/join", { code: familyJoinCode.trim().toUpperCase() });
+            toast({ title: "Đã tham gia Family", description: res.data.message });
+            setFamilyJoinCode("");
+            await Promise.all([fetchFamily(), fetchStatus()]);
+        } catch (err) {
+            toast({
+                title: "Không tham gia được Family",
+                description: getApiErrorMessage(err),
+                variant: "destructive",
+            });
+        } finally {
+            setFamilyJoining(false);
+        }
+    };
+
+    const handleRemoveFamilyMember = async (userId: string) => {
+        if (!userId || removingMemberId) return;
+        setRemovingMemberId(userId);
+        try {
+            await api.delete(`/family/members/${userId}`);
+            toast({ title: "Đã xóa thành viên" });
+            await fetchFamily();
+        } catch (err) {
+            toast({
+                title: "Không xóa được thành viên",
+                description: getApiErrorMessage(err),
+                variant: "destructive",
+            });
+        } finally {
+            setRemovingMemberId(null);
         }
     };
 
@@ -240,6 +502,9 @@ const Subscription: React.FC = () => {
             ],
         };
     });
+
+    const familyGroup = familyData?.owned_group || familyData?.member_group;
+    const isFamilyOwner = Boolean(familyData?.owned_group);
 
     // ── Render ──────────────────────────────────────────────────────────────
 
@@ -476,6 +741,119 @@ const Subscription: React.FC = () => {
                     </CardContent>
                 </Card>
 
+                {/* Family members */}
+                <Card className="border-amber-300/50 bg-gradient-to-br from-amber-50/80 to-background dark:from-amber-950/20">
+                    <CardContent className="pt-4 pb-4 space-y-3">
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                                <Users className="w-4 h-4 text-amber-600" />
+                                <p className="text-sm font-semibold text-foreground">Gói Family 5 người</p>
+                            </div>
+                            {familyLoading && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
+                        </div>
+
+                        {familyGroup ? (
+                            <div className="space-y-3">
+                                <div className="rounded-xl border bg-background/70 p-3">
+                                    <div className="flex items-center justify-between text-sm">
+                                        <span className="font-medium">
+                                            {isFamilyOwner ? "Bạn là chủ gói Family" : "Bạn là thành viên Family"}
+                                        </span>
+                                        <Badge variant="secondary">
+                                            {familyGroup.seats_used}/{familyGroup.max_members} chỗ
+                                        </Badge>
+                                    </div>
+                                    <div className="mt-3 space-y-2">
+                                        {(familyGroup.members || []).map((member: FamilyMember) => {
+                                            const memberUser = typeof member.user_id === "object" && member.user_id !== null
+                                                ? member.user_id
+                                                : {};
+                                            const userId = String(memberUser._id || member.user_id || "");
+                                            const isOwnerMember = member.role === "owner";
+                                            return (
+                                                <div key={userId} className="flex items-center justify-between gap-2 rounded-lg bg-muted/40 px-3 py-2 text-xs">
+                                                    <div className="min-w-0">
+                                                        <p className="truncate font-medium text-foreground">
+                                                            {memberUser.display_name || memberUser.email || "Thành viên"}
+                                                        </p>
+                                                        <p className="text-muted-foreground">
+                                                            {isOwnerMember ? "Chủ gói" : "Thành viên"} · tham gia {new Date(member.joined_at).toLocaleDateString("vi-VN")}
+                                                        </p>
+                                                    </div>
+                                                    {isFamilyOwner && !isOwnerMember && (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            className="h-7 px-2 text-xs text-destructive hover:text-destructive"
+                                                            disabled={removingMemberId === userId}
+                                                            onClick={() => handleRemoveFamilyMember(userId)}
+                                                        >
+                                                            {removingMemberId === userId ? <Loader2 className="w-3 h-3 animate-spin" /> : "Xóa"}
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                {isFamilyOwner && (
+                                    <div className="space-y-2">
+                                        {(familyGroup.invites || []).length > 0 && (
+                                            <div className="space-y-1">
+                                                <p className="text-xs font-medium text-muted-foreground">Mã mời đang hoạt động</p>
+                                                {(familyGroup.invites || []).map((invite: FamilyInvite) => {
+                                                    const inviteUrl = `${window.location.origin}/subscription?familyCode=${invite.code}`;
+                                                    return (
+                                                        <div key={invite.code} className="flex items-center justify-between rounded-lg border bg-background px-3 py-2 text-xs">
+                                                            <div>
+                                                                <p className="font-mono font-bold tracking-widest text-foreground">{invite.code}</p>
+                                                                <p className="text-muted-foreground">
+                                                                    Hết hạn {new Date(invite.expires_at).toLocaleDateString("vi-VN")}
+                                                                </p>
+                                                            </div>
+                                                            <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => copyText(inviteUrl)}>
+                                                                <Copy className="w-3.5 h-3.5" />
+                                                            </Button>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="w-full"
+                                            disabled={familyInviteLoading || familyGroup.seats_available <= 0}
+                                            onClick={handleCreateFamilyInvite}
+                                        >
+                                            {familyInviteLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Gift className="w-4 h-4 mr-2" />}
+                                            Tạo link mời thành viên
+                                        </Button>
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="space-y-2">
+                                <p className="text-xs text-muted-foreground">
+                                    Nếu bạn được chủ gói Family mời, nhập mã tại đây để dùng chung quyền Family và báo cáo riêng theo tài khoản của bạn.
+                                </p>
+                                <div className="flex gap-2">
+                                    <Input
+                                        value={familyJoinCode}
+                                        onChange={(e) => setFamilyJoinCode(e.target.value.toUpperCase())}
+                                        placeholder="Mã mời Family"
+                                        className="h-9 font-mono uppercase tracking-widest"
+                                    />
+                                    <Button size="sm" className="h-9 shrink-0" disabled={familyJoinCode.length < 6 || familyJoining} onClick={handleJoinFamily}>
+                                        {familyJoining ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Tham gia"}
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+
                 {/* Pending transaction notice */}
                 {status?.latest_transaction?.status === "pending" && (
                     <Card className="border-primary/30 bg-primary/5">
@@ -559,7 +937,7 @@ const Subscription: React.FC = () => {
                                 <p className="text-sm font-medium capitalize">
                                     {t("subscription.planSummary", {
                                         plan: selectedPlan,
-                                        price: PLAN_CONFIG.find(p => p.id === selectedPlan)?.price.toLocaleString("vi-VN") || "0",
+                                        price: (checkoutQuote?.price_monthly ?? PLAN_CONFIG.find(p => p.id === selectedPlan)?.price ?? 0).toLocaleString("vi-VN"),
                                     })}
                                 </p>
                             </div>
@@ -598,6 +976,9 @@ const Subscription: React.FC = () => {
                                     value={discountCode}
                                     onChange={(e) => setDiscountCode(e.target.value.toUpperCase())}
                                 />
+                                {quoteError && (
+                                    <p className="mt-1 text-xs text-destructive">{quoteError}</p>
+                                )}
                             </div>
 
                             {/* Payment method */}
@@ -622,25 +1003,69 @@ const Subscription: React.FC = () => {
                             </div>
 
                             {/* Total */}
-                            <div className="flex justify-between items-center py-2 border-t">
-                                <span className="text-sm font-medium">{t("subscription.totalAmount")}</span>
-                                <span className="text-lg font-bold text-primary">
-                                    {getTotal().toLocaleString("vi-VN")}₫
-                                </span>
+                            <div className="space-y-1.5 py-3 border-t text-sm">
+                                {quoteLoading && (
+                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                        Đang cập nhật giá...
+                                    </div>
+                                )}
+                                {checkoutQuote && (
+                                    <>
+                                        <div className="flex justify-between text-muted-foreground">
+                                            <span>Giá gốc</span>
+                                            <span>{formatVnd(checkoutQuote.amount)}</span>
+                                        </div>
+                                        {checkoutQuote.duration_discount_amount > 0 && (
+                                            <div className="flex justify-between text-green-600">
+                                                <span>Giảm thời hạn ({checkoutQuote.duration_discount_pct}%)</span>
+                                                <span>-{formatVnd(checkoutQuote.duration_discount_amount)}</span>
+                                            </div>
+                                        )}
+                                        {checkoutQuote.global_discount_amount > 0 && (
+                                            <div className="flex justify-between text-green-600">
+                                                <span>Ưu đãi hệ thống ({checkoutQuote.global_discount_pct}%)</span>
+                                                <span>-{formatVnd(checkoutQuote.global_discount_amount)}</span>
+                                            </div>
+                                        )}
+                                        {checkoutQuote.discount_code_amount > 0 && (
+                                            <div className="flex justify-between text-green-600">
+                                                <span>Mã {checkoutQuote.discount_code}</span>
+                                                <span>-{formatVnd(checkoutQuote.discount_code_amount)}</span>
+                                            </div>
+                                        )}
+                                    </>
+                                )}
+                                <div className="flex justify-between items-center border-t pt-2">
+                                    <span className="text-sm font-medium">{t("subscription.totalAmount")}</span>
+                                    <span className="text-lg font-bold text-primary">
+                                        {formatVnd(getTotal())}
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     ) : (
                         /* Payment instructions — pending state */
                         <div className="space-y-3">
                             {/* Status badge */}
-                            <div className="flex items-center gap-2 bg-primary/5 border border-primary/20 rounded-lg px-3 py-2">
-                                <Clock className="w-4 h-4 text-primary flex-shrink-0" />
+                            <div className={`flex items-center gap-2 rounded-lg px-3 py-2 ${
+                                orderResult?.status === "completed"
+                                    ? "bg-green-50 border border-green-200 text-green-700"
+                                    : "bg-primary/5 border border-primary/20"
+                            }`}>
+                                {orderResult?.status === "completed" ? (
+                                    <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
+                                ) : (
+                                    <Clock className="w-4 h-4 text-primary flex-shrink-0" />
+                                )}
                                 <div>
                                     <p className="text-xs font-semibold text-foreground">
-                                        {t("subscription.orderPending")}
+                                        {orderResult?.status === "completed" ? "Đã kích hoạt gói" : t("subscription.orderPending")}
                                     </p>
                                     <p className="text-[11px] text-muted-foreground">
-                                        {t("subscription.orderPendingDesc")}
+                                        {orderResult?.status === "completed"
+                                            ? "CaloVie đã xác nhận thanh toán và cập nhật quyền sử dụng."
+                                            : "CaloVie sẽ tự kiểm tra trạng thái thanh toán sau mỗi 2.5 giây."}
                                     </p>
                                 </div>
                             </div>
@@ -748,7 +1173,7 @@ const Subscription: React.FC = () => {
                                 <Button variant="outline" onClick={() => setShowCheckout(false)}>
                                     {t("common.cancel")}
                                 </Button>
-                                <Button onClick={handleOrder} disabled={ordering}>
+                                <Button onClick={handleOrder} disabled={ordering || quoteLoading || Boolean(quoteError)}>
                                     {ordering ? (
                                         <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> {t("subscription.processing")}</>
                                     ) : (
@@ -757,8 +1182,15 @@ const Subscription: React.FC = () => {
                                 </Button>
                             </>
                         ) : (
-                            <Button className="w-full" onClick={() => setShowCheckout(false)}>
-                                {t("subscription.transferred")}
+                            <Button
+                                className="w-full"
+                                onClick={() => {
+                                    const txId = orderResult?.transaction_id || orderResult?.tx_id;
+                                    setShowCheckout(false);
+                                    if (txId) navigate(`/subscription/status?txId=${txId}`);
+                                }}
+                            >
+                                {orderResult?.status === "completed" ? "Xem gói đã kích hoạt" : t("subscription.transferred")}
                             </Button>
                         )}
                     </DialogFooter>

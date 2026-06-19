@@ -31,19 +31,59 @@ const PRO_FEATURES = [
     { icon: Download,       label: "Export analytics CSV" },
 ];
 
-const BANKS = [
-    { name: "Vietcombank", number: "1234567890", owner: "CALOCARE COMPANY" },
-];
+interface StoreInfo {
+    _id: string;
+    subscription_tier?: "basic" | "pro";
+    subscription_expires_at?: string;
+}
+
+interface StoreQuote {
+    amount: number;
+    final_amount: number;
+    duration_discount_amount: number;
+}
+
+interface StorePaymentInstructions {
+    method?: string;
+    bank?: string;
+    account?: string;
+    owner?: string;
+    phone?: string;
+    amount?: string;
+    note?: string;
+}
+
+interface StoreOrder {
+    transaction_id?: string;
+    payment_instructions?: StorePaymentInstructions;
+    message?: string;
+}
+
+interface ApiError {
+    response?: {
+        status?: number;
+        data?: StoreOrder & {
+            error?: string;
+            message?: string;
+        };
+    };
+}
+
+const getApiErrorMessage = (error: unknown) => {
+    const apiError = error as ApiError;
+    return apiError.response?.data?.message || apiError.response?.data?.error;
+};
 
 const OwnerUpgrade = () => {
     const { toast } = useToast();
 
-    const [store, setStore]       = useState<any>(null);
+    const [store, setStore]       = useState<StoreInfo | null>(null);
     const [loading, setLoading]   = useState(true);
     const [duration, setDuration] = useState(1);
     const [method, setMethod]     = useState<"bank_transfer" | "momo">("bank_transfer");
     const [ordering, setOrdering] = useState(false);
-    const [order, setOrder]       = useState<any>(null);
+    const [order, setOrder]       = useState<StoreOrder | null>(null);
+    const [quote, setQuote]       = useState<StoreQuote | null>(null);
 
     useEffect(() => {
         api.get("/stores/mine")
@@ -55,9 +95,16 @@ const OwnerUpgrade = () => {
     const isPro = store?.subscription_tier === "pro";
 
     const selectedDuration = DURATIONS.find((d) => d.months === duration)!;
-    const baseAmount       = PRICE_PER_MONTH * duration;
-    const discountAmt      = Math.round(baseAmount * selectedDuration.discount / 100);
-    const finalAmount      = baseAmount - discountAmt;
+    const baseAmount       = quote?.amount ?? PRICE_PER_MONTH * duration;
+    const discountAmt      = quote?.duration_discount_amount ?? Math.round(baseAmount * selectedDuration.discount / 100);
+    const finalAmount      = quote?.final_amount ?? baseAmount - discountAmt;
+
+    useEffect(() => {
+        if (!store?._id) return;
+        api.post(`/stores/${store._id}/upgrade/quote`, { duration_months: duration })
+            .then(({ data }) => setQuote(data))
+            .catch(() => setQuote(null));
+    }, [duration, store?._id]);
 
     const handleOrder = async () => {
         if (!store) return;
@@ -68,8 +115,14 @@ const OwnerUpgrade = () => {
                 payment_method:  method,
             });
             setOrder(data);
-        } catch (err: any) {
-            toast({ title: "Lỗi", description: err.response?.data?.message, variant: "destructive" });
+        } catch (err) {
+            const apiError = err as ApiError;
+            if (apiError.response?.status === 409 && apiError.response.data?.transaction_id) {
+                setOrder(apiError.response.data);
+                toast({ title: "Đã có giao dịch chờ", description: apiError.response.data.message });
+                return;
+            }
+            toast({ title: "Lỗi", description: getApiErrorMessage(err), variant: "destructive" });
         } finally {
             setOrdering(false);
         }
@@ -78,6 +131,72 @@ const OwnerUpgrade = () => {
     const copyText = (text: string) => {
         navigator.clipboard.writeText(text);
         toast({ title: "Đã sao chép" });
+    };
+
+    const renderPaymentInstructions = () => {
+        if (!order?.payment_instructions) return null;
+        const info = order.payment_instructions;
+        return (
+            <div className="space-y-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                <p className="font-semibold text-green-700">Đơn hàng đã tạo! Vui lòng thanh toán:</p>
+                <div className="space-y-1.5 text-sm">
+                    <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Phương thức</span>
+                        <span className="font-medium">{info.method}</span>
+                    </div>
+                    {info.bank && (
+                        <div className="flex items-center justify-between">
+                            <span className="text-muted-foreground">Ngân hàng</span>
+                            <span className="font-medium">{info.bank}</span>
+                        </div>
+                    )}
+                    {info.account && (
+                        <div className="flex items-center justify-between">
+                            <span className="text-muted-foreground">Số TK</span>
+                            <div className="flex items-center gap-1">
+                                <span className="font-mono font-medium">{info.account}</span>
+                                <button type="button" onClick={() => copyText(info.account)}>
+                                    <Copy className="w-3.5 h-3.5 text-muted-foreground" />
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                    {info.phone && (
+                        <div className="flex items-center justify-between">
+                            <span className="text-muted-foreground">Số MoMo</span>
+                            <div className="flex items-center gap-1">
+                                <span className="font-mono font-medium">{info.phone}</span>
+                                <button type="button" onClick={() => copyText(info.phone)}>
+                                    <Copy className="w-3.5 h-3.5 text-muted-foreground" />
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                    {info.owner && (
+                        <div className="flex items-center justify-between">
+                            <span className="text-muted-foreground">Chủ tài khoản</span>
+                            <span className="font-medium">{info.owner}</span>
+                        </div>
+                    )}
+                    <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Số tiền</span>
+                        <span className="font-bold text-primary">{info.amount}₫</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Nội dung CK</span>
+                        <div className="flex items-center gap-1">
+                            <span className="font-mono font-medium text-primary">{info.note}</span>
+                            <button type="button" onClick={() => copyText(info.note)}>
+                                <Copy className="w-3.5 h-3.5 text-muted-foreground" />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                    Sau khi thanh toán, admin sẽ kích hoạt Store Pro. Giao dịch không thể được xác nhận lặp lại sau khi đã hoàn tất.
+                </p>
+            </div>
+        );
     };
 
     if (loading) {
@@ -112,6 +231,7 @@ const OwnerUpgrade = () => {
                     {ordering ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Zap className="w-4 h-4 mr-2" />}
                     Gia hạn Store Pro
                 </Button>
+                {renderPaymentInstructions()}
             </div>
         );
     }
@@ -177,7 +297,7 @@ const OwnerUpgrade = () => {
 
                     <div className="space-y-2">
                         <p className="text-sm font-medium">Phương thức thanh toán</p>
-                        <Select value={method} onValueChange={(v: any) => setMethod(v)}>
+                        <Select value={method} onValueChange={(v) => setMethod(v as "bank_transfer" | "momo")}>
                             <SelectTrigger>
                                 <SelectValue />
                             </SelectTrigger>
@@ -193,44 +313,7 @@ const OwnerUpgrade = () => {
                             {ordering ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
                             Đặt hàng — {finalAmount.toLocaleString("vi-VN")}₫
                         </Button>
-                    ) : (
-                        <div className="space-y-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-                            <p className="font-semibold text-green-700">Đơn hàng đã tạo! Vui lòng chuyển khoản:</p>
-                            {BANKS.map((b) => (
-                                <div key={b.number} className="space-y-1.5 text-sm">
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-muted-foreground">Ngân hàng</span>
-                                        <span className="font-medium">{b.name}</span>
-                                    </div>
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-muted-foreground">Số TK</span>
-                                        <div className="flex items-center gap-1">
-                                            <span className="font-mono font-medium">{b.number}</span>
-                                            <button type="button" onClick={() => copyText(b.number)}>
-                                                <Copy className="w-3.5 h-3.5 text-muted-foreground" />
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-muted-foreground">Số tiền</span>
-                                        <span className="font-bold text-primary">{order.payment_instructions.amount}₫</span>
-                                    </div>
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-muted-foreground">Nội dung CK</span>
-                                        <div className="flex items-center gap-1">
-                                            <span className="font-mono font-medium text-primary">{order.payment_instructions.note}</span>
-                                            <button type="button" onClick={() => copyText(order.payment_instructions.note)}>
-                                                <Copy className="w-3.5 h-3.5 text-muted-foreground" />
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                            <p className="text-xs text-muted-foreground">
-                                Sau khi chuyển khoản, admin sẽ kích hoạt Store Pro trong vòng 24 giờ làm việc.
-                            </p>
-                        </div>
-                    )}
+                    ) : renderPaymentInstructions()}
                 </CardContent>
             </Card>
         </div>

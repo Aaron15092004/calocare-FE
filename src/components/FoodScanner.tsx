@@ -28,6 +28,12 @@ interface FoodScannerProps {
   onSaved?: () => void;
 }
 
+interface ScanLimitInfo {
+  tier?: string;
+  used?: number;
+  limit?: number;
+}
+
 const SCAN_TIPS = [
   { ok: true,  text: "Chụp từ trên xuống, góc 45–90° so với mặt bàn" },
   { ok: true,  text: "Ánh sáng tự nhiên hoặc đèn sáng, tránh tối" },
@@ -37,12 +43,20 @@ const SCAN_TIPS = [
   { ok: false, text: "Tránh góc cạnh, ảnh mờ hoặc phần nền quá phức tạp" },
 ];
 
+const SCAN_SOURCE_LABELS: Record<string, { label: string; className: string }> = {
+  recipe: { label: "Công thức", className: "bg-emerald-500/10 text-emerald-700" },
+  food: { label: "Dữ liệu món", className: "bg-blue-500/10 text-blue-700" },
+  fatsecret: { label: "FatSecret", className: "bg-orange-500/10 text-orange-700" },
+  usda: { label: "USDA", className: "bg-purple-500/10 text-purple-700" },
+  ai_estimate: { label: "Ước tính", className: "bg-amber-500/10 text-amber-700" },
+};
+
 export const FoodScanner: React.FC<FoodScannerProps> = ({ onScanComplete, onSaved }) => {
   const navigate = useNavigate();
   const [isHovered, setIsHovered] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [scanLimitReached, setScanLimitReached] = useState(false);
-  const [scanLimitInfo, setScanLimitInfo] = useState<any>(null);
+  const [scanLimitInfo, setScanLimitInfo] = useState<ScanLimitInfo | null>(null);
   const [saving, setSaving] = useState(false);
   const [showTips, setShowTips] = useState(false);
   const [dishGrams, setDishGrams] = useState<number[]>([]);
@@ -221,7 +235,7 @@ export const FoodScanner: React.FC<FoodScannerProps> = ({ onScanComplete, onSave
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-foreground">Nâng lên Premium</p>
-                    <p className="text-xs text-muted-foreground">10 lần/ngày · Cooldown 30 phút · 79.000₫/tháng</p>
+                    <p className="text-xs text-muted-foreground">5 lần/ngày · Meal plan AI · 59.000₫/tháng</p>
                   </div>
                   <ChevronRight className="w-4 h-4 text-primary flex-shrink-0" />
                 </button>
@@ -235,7 +249,7 @@ export const FoodScanner: React.FC<FoodScannerProps> = ({ onScanComplete, onSave
                     </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-foreground">Nâng lên Family</p>
-                    <p className="text-xs text-muted-foreground">20 lần/ngày · 5 thành viên · báo cáo riêng · 199.000₫/tháng</p>
+                    <p className="text-xs text-muted-foreground">Scan không giới hạn · 5 thành viên · 199.000₫/tháng</p>
                   </div>
                   <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                 </button>
@@ -252,7 +266,7 @@ export const FoodScanner: React.FC<FoodScannerProps> = ({ onScanComplete, onSave
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-foreground">Nâng lên Family</p>
-                  <p className="text-xs text-muted-foreground">20 lần/ngày · 5 thành viên · báo cáo riêng · 199.000₫/tháng</p>
+                  <p className="text-xs text-muted-foreground">Scan không giới hạn · 5 thành viên · 199.000₫/tháng</p>
                 </div>
                 <ChevronRight className="w-4 h-4 text-primary flex-shrink-0" />
               </button>
@@ -302,9 +316,14 @@ export const FoodScanner: React.FC<FoodScannerProps> = ({ onScanComplete, onSave
                 <div key={i} className="p-3 bg-gray-50 dark:bg-muted/40 rounded-xl">
                   {/* Dish name row */}
                   <div className="flex items-start justify-between gap-2 mb-2">
-                    <p className="text-sm font-medium leading-snug flex-1 min-w-0">
-                      {dish.matched_name || dish.dish_name}
-                    </p>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium leading-snug">
+                        {dish.matched_name || dish.dish_name}
+                      </p>
+                      <span className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${SCAN_SOURCE_LABELS[dish.source]?.className ?? "bg-muted text-muted-foreground"}`}>
+                        {SCAN_SOURCE_LABELS[dish.source]?.label ?? dish.source}
+                      </span>
+                    </div>
                     <span className="text-sm font-bold text-primary whitespace-nowrap">
                       {adj.calories} kcal
                     </span>

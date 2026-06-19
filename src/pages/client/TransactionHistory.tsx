@@ -9,7 +9,7 @@ import api from "@/lib/api";
 interface Transaction {
     _id: string;
     plan_type: string;
-    status: "pending" | "completed" | "failed" | "cancelled";
+    status: "pending" | "completed" | "failed" | "refunded" | "cancelled";
     amount: number;
     final_amount: number;
     payment_method: string;
@@ -24,6 +24,7 @@ const STATUS_META: Record<string, { icon: React.ReactNode; label: string; varian
     pending:   { icon: <Clock className="w-3.5 h-3.5" />, label: "Chờ xác nhận", variant: "secondary" },
     failed:    { icon: <XCircle className="w-3.5 h-3.5" />, label: "Thất bại", variant: "destructive" },
     cancelled: { icon: <XCircle className="w-3.5 h-3.5" />, label: "Đã hủy", variant: "outline" },
+    refunded:  { icon: <XCircle className="w-3.5 h-3.5" />, label: "Đã hoàn tiền", variant: "outline" },
 };
 
 const PLAN_NAMES: Record<string, string> = { free: "Free", premium: "Premium", family: "Family", pro: "Family" };

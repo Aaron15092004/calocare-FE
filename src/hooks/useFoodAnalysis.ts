@@ -39,6 +39,7 @@ export interface DishResult {
     servings?: number;
     category?: string;
     fs_food_id?: string;
+    confidence?: number;
 }
 
 export interface AnalysisResult {
@@ -52,6 +53,33 @@ export interface AnalysisResult {
     };
     vitamins: VitaminInfo[];
     meal_type: string;
+}
+
+interface RagScanMatch {
+    source_id: string;
+    source_type: "food" | "recipe" | "usda";
+    name: string;
+    name_vi?: string;
+    score: number;
+    energy_kcal?: number;
+    protein_g?: number;
+    carbs_g?: number;
+    fat_g?: number;
+}
+
+interface RagScanResult {
+    matched: boolean;
+    match?: RagScanMatch;
+    description?: string;
+    confidence?: number;
+    serving_grams?: number;
+    ai_estimate?: {
+        calories_per_100g: number;
+        protein_per_100g: number;
+        fat_per_100g: number;
+        carbs_per_100g: number;
+    };
+    alternatives?: RagScanMatch[];
 }
 
 // Compatibility type for addEntry
@@ -76,14 +104,88 @@ export const useFoodAnalysis = () => {
     const { toast } = useToast();
     const { i18n } = useTranslation();
 
+    const imageDataUrlToFile = async (imageBase64: string): Promise<File> => {
+        const response = await fetch(imageBase64);
+        const blob = await response.blob();
+        const extension = blob.type.split("/")[1]?.replace("jpeg", "jpg") || "jpg";
+        return new File([blob], `calovie-scan.${extension}`, { type: blob.type || "image/jpeg" });
+    };
+
+    const guessMealType = (): string => {
+        const hour = new Date().getHours();
+        if (hour >= 5 && hour < 10) return "breakfast";
+        if (hour >= 10 && hour < 14) return "lunch";
+        if (hour >= 14 && hour < 17) return "snack";
+        return "dinner";
+    };
+
+    const round1 = (value: number) => Math.round(value * 10) / 10;
+
+    const mapRagScanToAnalysis = (data: RagScanResult): AnalysisResult | null => {
+        const grams = Math.max(20, Math.min(1500, data.serving_grams ?? 100));
+        const scale = grams / 100;
+        const name = data.match?.name_vi || data.match?.name || data.description || "Món ăn";
+
+        if (data.matched && data.match) {
+            const nutrition = {
+                calories: Math.round((data.match.energy_kcal ?? 0) * scale),
+                protein: round1((data.match.protein_g ?? 0) * scale),
+                carbs: round1((data.match.carbs_g ?? 0) * scale),
+                fat: round1((data.match.fat_g ?? 0) * scale),
+                fiber: 0,
+            };
+            return {
+                dishes: [{
+                    dish_name: data.description || name,
+                    source: data.match.source_type,
+                    matched_name: name,
+                    nutrition,
+                    weight_grams: grams,
+                    confidence: data.match.score ?? data.confidence,
+                }],
+                totals: nutrition,
+                vitamins: [],
+                meal_type: guessMealType(),
+            };
+        }
+
+        if (data.ai_estimate) {
+            const nutrition = {
+                calories: Math.round((data.ai_estimate.calories_per_100g ?? 0) * scale),
+                protein: round1((data.ai_estimate.protein_per_100g ?? 0) * scale),
+                carbs: round1((data.ai_estimate.carbs_per_100g ?? 0) * scale),
+                fat: round1((data.ai_estimate.fat_per_100g ?? 0) * scale),
+                fiber: 0,
+            };
+            return {
+                dishes: [{
+                    dish_name: name,
+                    source: "ai_estimate",
+                    matched_name: name,
+                    nutrition,
+                    weight_grams: grams,
+                    confidence: data.confidence,
+                }],
+                totals: nutrition,
+                vitamins: [],
+                meal_type: guessMealType(),
+            };
+        }
+
+        return null;
+    };
+
     const analyzeFood = async (imageBase64: string) => {
         setIsAnalyzing(true);
         setResult(null);
 
         try {
-            const { data } = await api.post<AnalysisResult & { error?: string; limit?: number; used?: number; tier?: string }>("/analyze-food", {
-                imageBase64,
-                language: i18n.language,
+            const imageFile = await imageDataUrlToFile(imageBase64);
+            const formData = new FormData();
+            formData.append("image", imageFile);
+
+            const { data } = await api.post<RagScanResult & { error?: string; limit?: number; used?: number; tier?: string }>("/rag/scan-food", formData, {
+                headers: { "Content-Type": "multipart/form-data", "Accept-Language": i18n.language },
             });
 
             if (data?.error === "scan_limit_reached") {
@@ -95,21 +197,34 @@ export const useFoodAnalysis = () => {
                 return { error: "scan_limit_reached", ...data };
             }
 
-            setResult(data);
+            const mapped = mapRagScanToAnalysis(data);
+            if (!mapped) {
+                toast({
+                    title: "Chưa có dữ liệu phù hợp",
+                    description: "CaloVie đã nhận diện ảnh nhưng chưa tìm thấy món đủ tin cậy trong cơ sở dữ liệu.",
+                    variant: "destructive",
+                });
+                return null;
+            }
+
+            setResult(mapped);
+            const hasEstimate = mapped.dishes.some((dish) => dish.source === "ai_estimate");
             toast({
                 title: "Phân tích hoàn tất",
-                description: `Tìm thấy ${data.dishes?.length || 0} món`,
+                description: hasEstimate
+                    ? "CaloVie đã tạo ước tính ban đầu. Bạn kiểm tra khẩu phần trước khi lưu nhé."
+                    : `Tìm thấy ${mapped.dishes?.length || 0} món từ dữ liệu đã khớp`,
             });
-            return data;
+            return mapped;
         } catch (err) {
-            const error = err as AxiosError<{ error: string; limit?: number; used?: number; tier?: string }>;
+            const error = err as AxiosError<{ error: string; message?: string; limit?: number; used?: number; tier?: string; can_watch_ad?: boolean }>;
 
             if (error.response?.status === 429) {
                 const data = error.response.data;
-                if (data.error === "scan_limit_reached") {
+                if (data.error === "scan_limit_reached" || data.error === "rate_limit_exceeded") {
                     toast({
-                        title: "Scan Limit Reached",
-                        description: `You've used ${data.used}/${data.limit} scans today. Upgrade for more.`,
+                        title: "Đã hết lượt scan hôm nay",
+                        description: data.message || `Bạn đã dùng ${data.used}/${data.limit} lượt scan hôm nay.`,
                         variant: "destructive",
                     });
                     return { error: "scan_limit_reached", ...data };
@@ -121,7 +236,7 @@ export const useFoodAnalysis = () => {
             console.error("Food analysis error:", error);
             toast({
                 title: "Analysis Failed",
-                description: error.response?.data?.error || error.message || "Please try again",
+                description: error.response?.data?.message || error.response?.data?.error || error.message || "Please try again",
                 variant: "destructive",
             });
             return null;

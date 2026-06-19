@@ -13,11 +13,12 @@ interface SubStatus {
     is_active: boolean;
     latest_transaction: {
         plan_type: string;
-        status: "pending" | "completed" | "failed" | "cancelled";
+        status: "pending" | "completed" | "failed" | "refunded" | "cancelled";
         amount: number;
         final_amount: number;
         payment_method: string;
         payment_ref?: string;
+        duration_months?: number;
         created_at: string;
     } | null;
 }
@@ -47,6 +48,12 @@ const STATUS_UI: Record<string, { icon: React.ReactNode; label: string; color: s
         color: "text-muted-foreground",
         bg: "bg-muted/40 border-border",
     },
+    refunded: {
+        icon: <XCircle className="w-8 h-8" />,
+        label: "Đã hoàn tiền",
+        color: "text-muted-foreground",
+        bg: "bg-muted/40 border-border",
+    },
 };
 
 const PLAN_NAMES: Record<string, string> = {
@@ -65,16 +72,25 @@ const METHOD_LABELS: Record<string, string> = {
 export default function PaymentStatus() {
     const navigate = useNavigate();
     const [params] = useSearchParams();
-    const highlight = params.get("txId");
+    const txId = params.get("txId");
 
     const { data, isLoading, refetch } = useQuery<SubStatus>({
-        queryKey: ["subscription-status"],
+        queryKey: ["subscription-status", txId],
         queryFn: async () => {
+            if (txId) {
+                const res = await api.get(`/subscription/transactions/${txId}`);
+                return {
+                    tier: res.data.subscription?.tier ?? "free",
+                    expires_at: res.data.subscription?.expires_at ?? null,
+                    is_active: res.data.subscription?.is_active ?? false,
+                    latest_transaction: res.data.transaction,
+                } as SubStatus;
+            }
             const res = await api.get("/subscription/status");
             return res.data as SubStatus;
         },
         refetchInterval: (query) =>
-            query.state.data?.latest_transaction?.status === "pending" ? 10_000 : false,
+            query.state.data?.latest_transaction?.status === "pending" ? 2_500 : false,
     });
 
     const tx = data?.latest_transaction;
@@ -129,7 +145,7 @@ export default function PaymentStatus() {
                                 <p className={`text-lg font-bold ${ui.color}`}>{ui.label}</p>
                                 {statusKey === "pending" && (
                                     <p className="text-xs text-muted-foreground text-center max-w-[260px]">
-                                        Trang này tự cập nhật mỗi 10 giây. Sau khi chuyển khoản, vui lòng chờ xác nhận từ hệ thống.
+                                        Trang này tự cập nhật mỗi 2.5 giây. Sau khi thanh toán, hệ thống sẽ kích hoạt gói ngay khi webhook xác nhận.
                                     </p>
                                 )}
                             </CardContent>
@@ -141,6 +157,7 @@ export default function PaymentStatus() {
                                 <h2 className="text-sm font-semibold">Chi tiết giao dịch</h2>
                                 <div className="space-y-2 text-sm">
                                     <Row label="Gói" value={<Badge variant="secondary">{PLAN_NAMES[tx.plan_type] ?? tx.plan_type}</Badge>} />
+                                    {tx.duration_months && <Row label="Thời hạn" value={`${tx.duration_months} tháng`} />}
                                     <Row label="Số tiền" value={<span className="font-semibold">{fmt(tx.final_amount ?? tx.amount)}</span>} />
                                     {tx.final_amount !== tx.amount && (
                                         <Row label="Giá gốc" value={<span className="line-through text-muted-foreground">{fmt(tx.amount)}</span>} />

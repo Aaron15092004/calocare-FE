@@ -9,8 +9,8 @@ interface AdBannerProps {
 }
 
 const PLANS = [
-    { tier: "Premium", price: "79.000₫", scans: "10 lần/ngày", color: "from-violet-500 to-purple-600" },
-    { tier: "Pro", price: "179.000₫", scans: "20 lần/ngày", color: "from-amber-500 to-orange-600" },
+    { tier: "Premium", price: "59.000₫", scans: "5 lần/ngày", color: "from-violet-500 to-purple-600" },
+    { tier: "Family", price: "199.000₫", scans: "Không giới hạn", color: "from-amber-500 to-orange-600" },
 ];
 
 export const AdBanner: React.FC<AdBannerProps> = ({
@@ -43,7 +43,7 @@ export const AdBanner: React.FC<AdBannerProps> = ({
                     {/* Text */}
                     <div className="flex-1 min-w-0">
                         <p className="text-[13px] font-bold text-white leading-tight">
-                            Mở khóa Premium — Scan không giới hạn
+                            Mở khóa Premium — AI scan mạnh hơn
                         </p>
                         <p className="text-[11px] text-white/75 mt-0.5 truncate">
                             Phân tích vitamin · Không quảng cáo · AI dinh dưỡng

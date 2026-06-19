@@ -77,7 +77,7 @@ const SOURCE_LABELS: Record<string, { label: string; color: string }> = {
     food:       { label: "Thực phẩm", color: "bg-blue-500/10 text-blue-600" },
     usda:       { label: "USDA",      color: "bg-purple-500/10 text-purple-600" },
     fatsecret:  { label: "FatSecret", color: "bg-orange-500/10 text-orange-600" },
-    ai_generated: { label: "AI",      color: "bg-muted text-muted-foreground" },
+    ai_generated: { label: "Ước tính", color: "bg-amber-500/10 text-amber-700" },
 };
 
 /* ── Meal detail modal ───────────────────────────────────────────── */

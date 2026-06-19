@@ -36,14 +36,38 @@ export interface Profile {
 const PROFILE_CACHE_KEY = import.meta.env.VITE_PROFILE_CACHE_KEY || "user_profile_cache";
 const CACHE_DURATION = Number(import.meta.env.VITE_CACHE_DURATION) || 900000;
 
+const getEffectiveProfileTier = (profile?: Profile | null): Profile["subscription_tier"] => {
+    if (!profile || profile.subscription_tier === "free") return "free";
+    if (!profile.subscription_expires_at) return "free";
+
+    const expiresAt = new Date(profile.subscription_expires_at).getTime();
+    if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) return "free";
+
+    return profile.subscription_tier;
+};
+
+const normalizeProfileSubscription = (profile: Profile): Profile => {
+    const effectiveTier = getEffectiveProfileTier(profile);
+    if (effectiveTier === profile.subscription_tier) return profile;
+    return {
+        ...profile,
+        subscription_tier: "free",
+        subscription_expires_at: null,
+    };
+};
+
 const getCachedProfile = (): { profile: Profile; timestamp: number } | null => {
     const cached = localStorage.getItem(PROFILE_CACHE_KEY);
     if (!cached) return null;
-    return JSON.parse(cached);
+    const parsed = JSON.parse(cached) as { profile: Profile; timestamp: number };
+    return { ...parsed, profile: normalizeProfileSubscription(parsed.profile) };
 };
 
 const setCachedProfile = (profile: Profile) => {
-    localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify({ profile, timestamp: Date.now() }));
+    localStorage.setItem(
+        PROFILE_CACHE_KEY,
+        JSON.stringify({ profile: normalizeProfileSubscription(profile), timestamp: Date.now() }),
+    );
 };
 
 const clearCachedProfile = () => localStorage.removeItem(PROFILE_CACHE_KEY);
@@ -58,10 +82,8 @@ export const useAuth = () => {
     const isStoreOwner = profile?.role === "store_owner";
     const isStaff      = isAdmin || isModerator;
     const isBanned     = profile?.is_banned === true;
-    const isPremium    =
-        profile?.subscription_tier === "premium"
-        || profile?.subscription_tier === "family"
-        || profile?.subscription_tier === "pro";
+    const effectiveTier = getEffectiveProfileTier(profile);
+    const isPremium    = effectiveTier === "premium" || effectiveTier === "family" || effectiveTier === "pro";
 
     const fetchProfile = useCallback(async (force = false) => {
         try {
@@ -71,8 +93,9 @@ export const useAuth = () => {
                 return;
             }
             const { data } = await api.get<Profile>("/auth/me");
-            setProfile(data);
-            setCachedProfile(data);
+            const normalized = normalizeProfileSubscription(data);
+            setProfile(normalized);
+            setCachedProfile(normalized);
         } catch {
             setProfile(null);
             clearCachedProfile();
@@ -101,8 +124,9 @@ export const useAuth = () => {
             });
 
             setTokens(data.access_token, data.refresh_token);
-            setProfile(data.user);
-            setCachedProfile(data.user);
+            const normalized = normalizeProfileSubscription(data.user);
+            setProfile(normalized);
+            setCachedProfile(normalized);
 
             toast({ title: "Account created!", description: "Welcome to CaloVie." });
             return { data, error: null };
@@ -124,8 +148,9 @@ export const useAuth = () => {
             }>("/auth/login", { email, password });
 
             setTokens(data.access_token, data.refresh_token);
-            setProfile(data.user);
-            setCachedProfile(data.user);
+            const normalized = normalizeProfileSubscription(data.user);
+            setProfile(normalized);
+            setCachedProfile(normalized);
 
             toast({ title: "Welcome back! 👋", description: "You've successfully signed in." });
             return { data, error: null };
@@ -180,8 +205,9 @@ export const useAuth = () => {
     const updateProfile = async (updates: Partial<Profile>) => {
         try {
             const { data } = await api.put<Profile>("/profile", updates);
-            setProfile(data);
-            setCachedProfile(data);
+            const normalized = normalizeProfileSubscription(data);
+            setProfile(normalized);
+            setCachedProfile(normalized);
             toast({ title: "Profile Updated", description: "Your changes have been saved." });
             return { data, error: null };
         } catch (err) {

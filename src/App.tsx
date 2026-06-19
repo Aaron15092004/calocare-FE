@@ -59,6 +59,7 @@ import OwnerProfile from "./pages/owner/Profile";
 
 import { AuthProvider } from "./contexts/AuthContext";
 import AnimatedBackground from "./components/AnimatedBackground";
+import { CaloVieFloatingAssistant } from "./components/brand/CaloVieFloatingAssistant";
 
 const queryClient = new QueryClient();
 
@@ -129,6 +130,7 @@ const App = () => (
 
             <Route path="*" element={<NotFound />} />
           </Routes>
+          <CaloVieFloatingAssistant />
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

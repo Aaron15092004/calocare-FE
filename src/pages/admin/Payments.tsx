@@ -1,5 +1,5 @@
 // src/pages/admin/Payments.tsx
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import api from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -32,24 +32,46 @@ const PLAN_LABELS: Record<string, string> = {
 const METHOD_LABELS: Record<string, string> = {
     momo: "MoMo",
     bank_transfer: "Ngân hàng",
+    payos: "PayOS",
 };
+
+interface PendingTransaction {
+    _id: string;
+    user_id?: {
+        display_name?: string;
+        email?: string;
+    };
+    store_id?: string;
+    target_type?: "user" | "store";
+    plan_type: string;
+    payment_method?: string;
+    duration_months?: number;
+    amount: number;
+    final_amount?: number;
+    created_at: string;
+}
+
+interface ApiError {
+    response?: {
+        data?: {
+            error?: string;
+            message?: string;
+        };
+    };
+}
 
 const Payments = () => {
     const { toast } = useToast();
-    const [transactions, setTransactions] = useState<any[]>([]);
+    const [transactions, setTransactions] = useState<PendingTransaction[]>([]);
     const [loading, setLoading] = useState(true);
-    const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; tx: any | null }>({
+    const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; tx: PendingTransaction | null }>({
         open: false,
         tx: null,
     });
     const [paymentRef, setPaymentRef] = useState("");
     const [submitting, setSubmitting] = useState(false);
 
-    useEffect(() => {
-        fetchPending();
-    }, []);
-
-    const fetchPending = async () => {
+    const fetchPending = useCallback(async () => {
         setLoading(true);
         try {
             const { data } = await api.get("/subscription/admin/pending");
@@ -60,9 +82,13 @@ const Payments = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [toast]);
 
-    const openConfirm = (tx: any) => {
+    useEffect(() => {
+        fetchPending();
+    }, [fetchPending]);
+
+    const openConfirm = (tx: PendingTransaction) => {
         setConfirmDialog({ open: true, tx });
         setPaymentRef("");
     };
@@ -71,16 +97,24 @@ const Payments = () => {
         if (!confirmDialog.tx) return;
         setSubmitting(true);
         try {
-            await api.post(`/subscription/confirm/${confirmDialog.tx._id}`, {
-                payment_ref: paymentRef || undefined,
-            });
+            if (confirmDialog.tx.target_type === "store") {
+                await api.post(`/stores/${confirmDialog.tx.store_id}/confirm-upgrade`, {
+                    tx_id: confirmDialog.tx._id,
+                    payment_ref: paymentRef || undefined,
+                });
+            } else {
+                await api.post(`/subscription/confirm/${confirmDialog.tx._id}`, {
+                    payment_ref: paymentRef || undefined,
+                });
+            }
             toast({ title: "Xác nhận thành công", description: "Gói đã được kích hoạt cho người dùng." });
             setConfirmDialog({ open: false, tx: null });
             fetchPending();
-        } catch (err: any) {
+        } catch (err: unknown) {
+            const apiError = err as ApiError;
             toast({
                 title: "Lỗi xác nhận",
-                description: err?.response?.data?.error || "Vui lòng thử lại.",
+                description: apiError.response?.data?.message || apiError.response?.data?.error || "Vui lòng thử lại.",
                 variant: "destructive",
             });
         } finally {

@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { X, ArrowRight, Camera, BookOpen, Calendar, Heart, ScanLine, ChevronRight } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { ArrowRight, Camera, BookOpen, Calendar, Heart, ScanLine, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CaloVieGuideMascot } from "@/components/brand/CaloVieMascot";
 
-const TOUR_KEY = "calocare_tour_v1_done";
+const TOUR_DONE_KEY = "calovie_tour_v1_done";
+const TOUR_PENDING_KEY = "calovie_tour_pending";
 
 interface TourStep {
     icon: React.ReactNode;
@@ -16,7 +18,7 @@ interface TourStep {
 const steps: TourStep[] = [
     {
         icon: <Camera className="w-10 h-10 text-white" />,
-        title: "AI Food Scanner",
+        title: "Scan món bằng AI",
         description:
             "Chụp ảnh bữa ăn của bạn và AI sẽ tự động nhận diện món ăn, tính toán calories và dinh dưỡng chỉ trong vài giây.",
         color: "from-primary to-emerald-400",
@@ -38,7 +40,7 @@ const steps: TourStep[] = [
     },
     {
         icon: <Calendar className="w-10 h-10 text-white" />,
-        title: "Kế hoạch ăn uống",
+        title: "Kế hoạch bữa ăn",
         description:
             "Khám phá và áp dụng các thực đơn được chuyên gia dinh dưỡng thiết kế, hoặc tạo thực đơn cá nhân cho riêng bạn.",
         color: "from-purple-500 to-violet-400",
@@ -60,20 +62,24 @@ interface OnboardingTourProps {
 
 export const OnboardingTour: React.FC<OnboardingTourProps> = ({ onDone }) => {
     const navigate = useNavigate();
+    const location = useLocation();
     const [step, setStep] = useState(0);
     const [visible, setVisible] = useState(false);
 
     useEffect(() => {
-        const done = localStorage.getItem(TOUR_KEY);
-        if (!done) {
-            // Small delay so the app has loaded before showing tour
+        const state = location.state as { startTour?: boolean } | null;
+        const pending = localStorage.getItem(TOUR_PENDING_KEY) === "1";
+        const done = localStorage.getItem(TOUR_DONE_KEY) === "1";
+        const shouldStart = pending || (state?.startTour && !done);
+        if (shouldStart) {
             const t = setTimeout(() => setVisible(true), 800);
             return () => clearTimeout(t);
         }
-    }, []);
+    }, [location.state]);
 
     const handleDone = () => {
-        localStorage.setItem(TOUR_KEY, "1");
+        localStorage.setItem(TOUR_DONE_KEY, "1");
+        localStorage.removeItem(TOUR_PENDING_KEY);
         setVisible(false);
         onDone?.();
     };
@@ -113,8 +119,13 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({ onDone }) => {
                 className="relative w-full max-w-lg mx-auto bg-card rounded-t-3xl shadow-2xl overflow-hidden"
                 style={{ maxHeight: "85vh" }}
             >
+                <div className="absolute left-5 top-7 z-20 max-w-[12rem] rounded-3xl bg-white/95 px-3 py-2 text-xs font-extrabold text-primary shadow-lg">
+                        Mình chỉ bạn nhanh thôi.
+                </div>
+                <CaloVieGuideMascot mood="celebrate" className="absolute -right-2 top-1 z-20 h-36 w-32 drop-shadow-2xl" motion="bob" />
+
                 {/* Gradient header */}
-                <div className={`bg-gradient-to-br ${current.color} p-8 flex flex-col items-center`}>
+                <div className={`bg-gradient-to-br ${current.color} p-8 pt-36 flex flex-col items-center`}>
                     <div className="w-20 h-20 rounded-2xl bg-white/20 flex items-center justify-center mb-4">
                         {current.icon}
                     </div>
@@ -178,7 +189,10 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({ onDone }) => {
 
 // Hook to manually trigger the tour (e.g., from a settings button)
 export function useOnboardingTour() {
-    const reset = () => localStorage.removeItem(TOUR_KEY);
-    const isDone = () => !!localStorage.getItem(TOUR_KEY);
+    const reset = () => {
+        localStorage.removeItem(TOUR_DONE_KEY);
+        localStorage.setItem(TOUR_PENDING_KEY, "1");
+    };
+    const isDone = () => !!localStorage.getItem(TOUR_DONE_KEY);
     return { reset, isDone };
 }

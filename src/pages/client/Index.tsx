@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { BottomNav } from "@/components/BottomNav";
@@ -32,6 +32,54 @@ import { HomeBannerCarousel } from "@/components/HomeBannerCarousel";
 import { AdSenseUnit } from "@/components/AdSenseUnit";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Crown, Zap, X, Sparkles, ChevronRight } from "lucide-react";
+
+type MealType = "breakfast" | "lunch" | "dinner" | "snack";
+
+interface HomeMealPlanItem {
+    day: number;
+    mealType: MealType;
+    title: string;
+    calories: number;
+    time: string;
+    image?: string;
+    isToday: boolean;
+    planId?: string;
+}
+
+interface UserMealPlan {
+    _id: string;
+    start_date?: string;
+    created_at: string;
+    meal_plan_id?: {
+        total_days?: number;
+    };
+}
+
+interface MealPlanApiItem {
+    day_number: number;
+    meal_type: string;
+    user_meal_plan_id?: string;
+    meal_plan_id?: string;
+    serving_size?: number;
+    calories?: number;
+    recipe_id?: {
+        name_vi?: string;
+        calories?: number;
+        image_url?: string;
+    };
+    food_id?: {
+        name_vi?: string;
+        energy_kcal?: number;
+        image_url?: string;
+    };
+    custom_food?: {
+        name?: string;
+        calories_kcal?: number;
+    };
+}
+
+const isMealType = (value: string): value is MealType =>
+    ["breakfast", "lunch", "dinner", "snack"].includes(value);
 
 // Quick action items shown on the home page
 const QuickActions = ({ onBarcode }: { onBarcode: () => void }) => {
@@ -129,8 +177,10 @@ const Index = () => {
     const GreetingIcon = greeting.icon;
     const { getTodaysTotals, refetchSummary } = useFoodDiary(user?.id);
     const todaysTotals = getTodaysTotals();
+    const location = useLocation();
+    const locationState = location.state as { openBarcode?: boolean } | null;
 
-    const [planItems, setPlanItems] = useState<any[]>([]);
+    const [planItems, setPlanItems] = useState<HomeMealPlanItem[]>([]);
     const [showBarcode, setShowBarcode] = useState(false);
     const [showPostScanAd, setShowPostScanAd] = useState(false);
 
@@ -140,29 +190,15 @@ const Index = () => {
         }
     };
 
-    useEffect(() => {
-        if (profile?.id) {
-            fetchActivePlan();
-        }
-    }, [profile?.id]);
-
-    const location = useLocation();
-    useEffect(() => {
-        if ((location.state as any)?.openBarcode) {
-            setShowBarcode(true);
-            navigate("/", { replace: true, state: {} });
-        }
-    }, []);
-
-    const fetchActivePlan = async () => {
-        const mealTime: Record<string, string> = {
+    const fetchActivePlan = useCallback(async () => {
+        const mealTime: Record<MealType, string> = {
             breakfast: "7:00",
             lunch: "12:30",
             dinner: "19:00",
             snack: "15:30",
         };
         try {
-            const { data: plans } = await api.get("/user-meal-plans", {
+            const { data: plans } = await api.get<UserMealPlan[]>("/user-meal-plans", {
                 params: { is_active: true },
             });
             const userPlan = plans?.[0];
@@ -177,37 +213,53 @@ const Index = () => {
             const totalDays = userPlan.meal_plan_id?.total_days || 7;
             const currentDay = Math.max(1, Math.min(diffDays, totalDays));
 
-            const { data: items } = await api.get(`/user-meal-plans/${userPlan._id}/items`);
+            const { data: items } = await api.get<MealPlanApiItem[]>(`/user-meal-plans/${userPlan._id}/items`);
             setPlanItems(
                 (items || [])
-                    .filter((item: any) => item.day_number === currentDay)
-                    .map((item: any) => ({
-                        day: item.day_number,
-                        mealType: item.meal_type,
-                        title:
-                            item.recipe_id?.name_vi ||
-                            item.custom_food?.name ||
-                            item.food_id?.name_vi ||
-                            "Unknown",
-                        calories: Math.round(
+                    .filter((item) => item.day_number === currentDay)
+                    .map((item) => {
+                        const mealType = isMealType(item.meal_type) ? item.meal_type : "snack";
+                        const servingSize = item.serving_size || 1;
+                        const calculatedCalories = item.recipe_id
+                            ? (item.recipe_id.calories || 0) * servingSize
+                            : item.food_id
+                            ? ((item.food_id.energy_kcal || 0) / 100) * (item.serving_size || 100)
+                            : (item.custom_food?.calories_kcal || 0) * servingSize;
+
+                        return {
+                            day: item.day_number,
+                            mealType,
+                            title:
+                                item.recipe_id?.name_vi ||
+                                item.custom_food?.name ||
+                                item.food_id?.name_vi ||
+                                "Unknown",
                             // Use stored AI-calculated calories when available (most accurate)
-                            item.calories ??
-                            (item.recipe_id
-                                ? (item.recipe_id.calories || 0) * (item.serving_size || 1)
-                                : item.food_id
-                                ? ((item.food_id.energy_kcal || 0) / 100) * (item.serving_size || 100)
-                                : (item.custom_food?.calories_kcal || 0) * (item.serving_size || 1))
-                        ),
-                        time: mealTime[item.meal_type] || "—",
-                        image: item.recipe_id?.image_url || item.food_id?.image_url,
-                        isToday: true,
-                        planId: item.user_meal_plan_id || item.meal_plan_id,
-                    })),
+                            calories: Math.round(item.calories ?? calculatedCalories),
+                            time: mealTime[mealType],
+                            image: item.recipe_id?.image_url || item.food_id?.image_url,
+                            isToday: true,
+                            planId: item.user_meal_plan_id || item.meal_plan_id,
+                        };
+                    }),
             );
         } catch (err) {
             console.error("fetchActivePlan error:", err);
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        if (profile?.id) {
+            fetchActivePlan();
+        }
+    }, [fetchActivePlan, profile?.id]);
+
+    useEffect(() => {
+        if (locationState?.openBarcode) {
+            setShowBarcode(true);
+            navigate("/", { replace: true, state: {} });
+        }
+    }, [locationState?.openBarcode, navigate]);
 
     const goals = profile?.daily_nutrition_goals;
     const calorieGoal = goals?.calories || 2000;
@@ -501,7 +553,7 @@ const Index = () => {
                             <p className="text-xs font-semibold text-white/60 uppercase tracking-wide mb-1">Scan thành công!</p>
                             <h3 className="text-xl font-bold leading-snug">Nâng cấp để scan<br />không giới hạn</h3>
                             <p className="text-sm text-white/75 mt-2">
-                                Gói Free: <strong className="text-white">2 lần/ngày</strong> · Premium: <strong className="text-white">10 lần</strong> · Family: <strong className="text-white">20 lần</strong>
+                                Gói Free: <strong className="text-white">2 lần/ngày</strong> · Premium: <strong className="text-white">5 lần</strong> · Family: <strong className="text-white">không giới hạn</strong>
                             </p>
                         </div>
                     </div>
@@ -519,8 +571,8 @@ const Index = () => {
                         >
                             <Zap className="w-6 h-6 text-primary shrink-0" />
                             <div className="flex-1">
-                                <p className="text-sm font-bold text-violet-900">Premium · 79.000₫/tháng</p>
-                                <p className="text-xs text-violet-600 mt-0.5">10 scan/ngày · Phân tích vitamin · Không quảng cáo</p>
+                                <p className="text-sm font-bold text-violet-900">Premium · 59.000₫/tháng</p>
+                                <p className="text-xs text-violet-600 mt-0.5">5 scan/ngày · Meal plan AI · Không quảng cáo</p>
                             </div>
                             <span className="text-violet-400 text-lg">›</span>
                         </button>
@@ -537,7 +589,7 @@ const Index = () => {
                             <Crown className="w-6 h-6 text-muted-foreground shrink-0" />
                             <div className="flex-1">
                                 <p className="text-sm font-bold text-amber-900">Family · 199.000₫/tháng</p>
-                                <p className="text-xs text-amber-700 mt-0.5">20 scan/ngày · 5 thành viên · báo cáo riêng · tư vấn chuyên gia</p>
+                                <p className="text-xs text-amber-700 mt-0.5">Scan không giới hạn · 5 thành viên · tư vấn chuyên gia</p>
                             </div>
                             <span className="text-amber-400 text-lg">›</span>
                         </button>

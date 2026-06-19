@@ -12,10 +12,11 @@ import {
     Settings,
     StopCircle,
     Trash2,
+    Utensils,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BottomNav } from "@/components/BottomNav";
-import { useSSEChat, type ChatSearchResults, type MealScheduleProposal, type ProfileUpdateProposal } from "@/hooks/useSSEChat";
+import { useSSEChat, type ChatSearchResults, type DiaryProposal, type MealScheduleProposal, type ProfileUpdateProposal } from "@/hooks/useSSEChat";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { MEAL_ORDER } from "@/types/mealPlan";
@@ -195,6 +196,76 @@ const ActionProposalCard: React.FC<{
     );
 };
 
+const DiaryProposalCard: React.FC<{
+    proposal: DiaryProposal;
+    onApprove: () => void;
+    onDismiss: () => void;
+}> = ({ proposal, onApprove, onDismiss }) => {
+    const [saving, setSaving] = useState(false);
+    const isEstimate = proposal.source_type === "ai_estimate";
+
+    const handleApprove = async () => {
+        setSaving(true);
+        try {
+            await onApprove();
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    return (
+        <div className="my-2 rounded-3xl border border-emerald-400/25 bg-emerald-500/10 p-4 text-sm shadow-sm">
+            <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-emerald-700">
+                <Utensils className="h-3.5 w-3.5" />
+                Kiểm tra trước khi lưu
+                {isEstimate && (
+                    <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold text-amber-700">
+                        Ước tính
+                    </span>
+                )}
+            </div>
+            <div className="mb-3 space-y-2">
+                <div className="flex items-start justify-between gap-3">
+                    <div>
+                        <p className="text-sm font-semibold text-foreground">{proposal.food_name}</p>
+                        <p className="text-[11px] text-muted-foreground">
+                            {MEAL_LABELS[proposal.meal_type]} · {proposal.weight_grams}g
+                        </p>
+                    </div>
+                    <span className="rounded-full bg-orange-500/12 px-2 py-1 text-xs font-bold text-orange-600">
+                        {proposal.nutrition.calories} kcal
+                    </span>
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-center text-[11px] text-muted-foreground">
+                    <span className="rounded-full bg-card px-2 py-1 ring-1 ring-border/50">P {proposal.nutrition.protein}g</span>
+                    <span className="rounded-full bg-card px-2 py-1 ring-1 ring-border/50">C {proposal.nutrition.carbs}g</span>
+                    <span className="rounded-full bg-card px-2 py-1 ring-1 ring-border/50">F {proposal.nutrition.fat}g</span>
+                </div>
+                {proposal.reason && <p className="text-[11px] italic text-muted-foreground">{proposal.reason}</p>}
+            </div>
+            <div className="flex gap-2">
+                <button
+                    type="button"
+                    onClick={handleApprove}
+                    disabled={saving}
+                    className="flex flex-1 items-center justify-center gap-1 rounded-full bg-emerald-600 py-2 text-xs font-semibold text-white disabled:opacity-60"
+                >
+                    <Check className="h-3 w-3" />
+                    {saving ? "Đang lưu..." : "Lưu vào nhật ký"}
+                </button>
+                <button
+                    type="button"
+                    onClick={onDismiss}
+                    className="flex flex-1 items-center justify-center gap-1 rounded-full border border-border py-2 text-xs font-semibold text-muted-foreground"
+                >
+                    <Ban className="h-3 w-3" />
+                    Bỏ qua
+                </button>
+            </div>
+        </div>
+    );
+};
+
 const SearchResultsCard: React.FC<{
     results: ChatSearchResults;
     onDismiss: () => void;
@@ -284,6 +355,9 @@ const AIAssistant: React.FC = () => {
         actionProposal,
         approveActionProposal,
         dismissActionProposal,
+        diaryProposal,
+        approveDiaryProposal,
+        dismissDiaryProposal,
         searchResults,
         dismissSearchResults,
     } = useSSEChat();
@@ -327,7 +401,7 @@ const AIAssistant: React.FC = () => {
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, [messages, proposal, actionProposal, searchResults, isLoading]);
+    }, [messages, proposal, actionProposal, diaryProposal, searchResults, isLoading]);
 
     useEffect(() => {
         inputRef.current?.focus();
@@ -513,6 +587,16 @@ const AIAssistant: React.FC = () => {
                                                 toast({ title: "Đã cập nhật hồ sơ", description: actionProposal.label });
                                             }}
                                             onDismiss={dismissActionProposal}
+                                        />
+                                    )}
+                                    {diaryProposal && (
+                                        <DiaryProposalCard
+                                            proposal={diaryProposal}
+                                            onApprove={async () => {
+                                                await approveDiaryProposal(diaryProposal);
+                                                toast({ title: "Đã lưu vào nhật ký", description: diaryProposal.label });
+                                            }}
+                                            onDismiss={dismissDiaryProposal}
                                         />
                                     )}
                                     {searchResults && <SearchResultsCard results={searchResults} onDismiss={dismissSearchResults} />}

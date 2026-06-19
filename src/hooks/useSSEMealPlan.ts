@@ -8,7 +8,7 @@ export interface MealItem {
     meal_type: "breakfast" | "lunch" | "dinner" | "snack" | "morning_snack" | "afternoon_snack";
     food_name: string;
     food_id?: string;
-    source_type?: "food" | "recipe" | "usda";
+    source_type?: "food" | "recipe" | "usda" | "ai_generated";
     weight_grams: number;
     calories: number;
     protein: number;
