@@ -87,7 +87,7 @@ const AdminLayout = () => {
                 {/* Logo */}
                 <div className="p-4 border-b flex items-center justify-between flex-shrink-0">
                     <div className="flex items-center">
-                        <img src="/logo.png" className="h-10 w-auto max-w-[132px] object-contain" alt="CaloVie" />
+                        <img src="/logo.png" className="h-16 w-auto max-w-[190px] object-contain" alt="CaloVie" />
                     </div>
                     <Button
                         variant="ghost"
