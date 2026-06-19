@@ -271,6 +271,7 @@ export const useFoodAnalysis = () => {
             const { data } = await api.post<RagScanResult & { error?: string; limit?: number; used?: number; tier?: string }>("/rag/scan-food", formData, {
                 headers: { "Content-Type": "multipart/form-data", "Accept-Language": i18n.language },
                 signal: options.signal,
+                timeout: 90_000,
             });
 
             if (data?.error === "scan_limit_reached") {
