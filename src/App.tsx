@@ -18,6 +18,7 @@ import MyRecipes from "./pages/client/MyRecipes";
 import Subscription from "./pages/client/Subscription";
 import StoreRegistration from "./pages/client/StoreRegistration";
 import NearbyRestaurants from "./pages/client/NearbyRestaurants";
+import StoreDetail from "./pages/client/StoreDetail";
 import Auth from "./pages/client/Auth";
 import AuthCallback from "./pages/client/AuthCallback";
 import NotFound from "./pages/client/NotFound";
@@ -89,6 +90,7 @@ const App = () => (
             <Route path="/subscription" element={<ProtectedRoute><Subscription /></ProtectedRoute>} />
             <Route path="/store-registration" element={<ProtectedRoute><StoreRegistration /></ProtectedRoute>} />
             <Route path="/nearby" element={<ProtectedRoute><NearbyRestaurants /></ProtectedRoute>} />
+            <Route path="/nearby/:storeId" element={<ProtectedRoute><StoreDetail /></ProtectedRoute>} />
             <Route path="/favorites" element={<ProtectedRoute><Favorites /></ProtectedRoute>} />
             <Route path="/generate-meal-plan" element={<ProtectedRoute><GenerateMealPlan /></ProtectedRoute>} />
             <Route path="/assistant" element={<ProtectedRoute><AIAssistant /></ProtectedRoute>} />

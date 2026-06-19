@@ -6,17 +6,21 @@ import {
     Check,
     ChevronRight,
     Clock,
+    ExternalLink,
+    MapPin,
     Plus,
     Search,
     Send,
     Settings,
+    ShoppingBag,
+    Star,
     StopCircle,
     Trash2,
     Utensils,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BottomNav } from "@/components/BottomNav";
-import { useSSEChat, type ChatSearchResults, type DiaryProposal, type MealScheduleProposal, type ProfileUpdateProposal } from "@/hooks/useSSEChat";
+import { useSSEChat, type ChatSearchResults, type DiaryProposal, type MealScheduleProposal, type ProfileUpdateProposal, type StoreRecommendationResults } from "@/hooks/useSSEChat";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { MEAL_ORDER } from "@/types/mealPlan";
@@ -63,6 +67,15 @@ const PROFILE_FIELD_LABELS: Record<string, string> = {
     activity_level: "Mức độ vận động",
     weight_kg: "Cân nặng",
     height_cm: "Chiều cao",
+};
+
+const formatVnd = (amount?: number) =>
+    amount ? `${Math.round(amount).toLocaleString("vi-VN")}₫` : "Hỏi quán";
+
+const normalizeExternalUrl = (url?: string) => {
+    if (!url?.trim()) return "";
+    const trimmed = url.trim();
+    return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
 };
 
 const getChatMascotMood = ({
@@ -302,6 +315,112 @@ const SearchResultsCard: React.FC<{
     </div>
 );
 
+const StoreRecommendationsCard: React.FC<{
+    results: StoreRecommendationResults;
+    onDismiss: () => void;
+    onOpenStore: (storeId: string) => void;
+}> = ({ results, onDismiss, onOpenStore }) => (
+    <div className="my-2 rounded-3xl border border-emerald-400/25 bg-emerald-500/10 p-4 text-sm shadow-sm">
+        <div className="mb-3 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-xs font-semibold text-emerald-700">
+                <MapPin className="h-3.5 w-3.5" />
+                {results.has_location ? "Gợi ý gần bạn" : "Gợi ý hợp hôm nay"}
+            </div>
+            <button type="button" onClick={onDismiss} className="text-xs font-medium text-emerald-700">
+                Ẩn
+            </button>
+        </div>
+
+        {results.results.length === 0 ? (
+            <p className="py-1 text-center text-xs text-muted-foreground">Mình chưa thấy quán phù hợp lúc này.</p>
+        ) : (
+            <div className="space-y-2.5">
+                {results.results.slice(0, 4).map((store) => {
+                    const orderUrl = normalizeExternalUrl(store.website);
+                    return (
+                        <div key={store.store_id} className="rounded-3xl border border-border/60 bg-card p-3">
+                            <div className="flex gap-3">
+                                {store.image_url ? (
+                                    <img src={store.image_url} alt={store.name} className="h-16 w-16 shrink-0 rounded-2xl object-cover" />
+                                ) : (
+                                    <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-primary/10">
+                                        <Utensils className="h-6 w-6 text-primary" />
+                                    </div>
+                                )}
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex items-start justify-between gap-2">
+                                        <p className="truncate text-sm font-bold text-foreground">{store.name}</p>
+                                        {store.distance_km != null && (
+                                            <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold text-muted-foreground">
+                                                {store.distance_km}km
+                                            </span>
+                                        )}
+                                    </div>
+                                    <p className="mt-0.5 line-clamp-1 text-[11px] text-muted-foreground">{store.address}</p>
+                                    <div className="mt-1 flex items-center gap-2 text-[11px] text-muted-foreground">
+                                        <span className="inline-flex items-center gap-0.5">
+                                            <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                                            {store.average_rating > 0 ? store.average_rating.toFixed(1) : "Mới"}
+                                        </span>
+                                        <span>{store.rating_count || 0} đánh giá</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <p className="mt-2 text-xs font-medium leading-5 text-foreground">{store.reason}</p>
+
+                            {store.menu_items.length > 0 && (
+                                <div className="mt-2 space-y-1.5">
+                                    {store.menu_items.slice(0, 2).map((item) => (
+                                        <div key={item.item_id} className="flex items-center justify-between gap-2 rounded-2xl bg-muted/60 px-3 py-2 text-xs">
+                                            <div className="min-w-0">
+                                                <p className="truncate font-semibold text-foreground">{item.name}</p>
+                                                <p className="text-[10px] text-muted-foreground">
+                                                    {item.energy_kcal ? `${Math.round(item.energy_kcal)} kcal` : "Menu quán"}{item.protein ? ` · P ${item.protein}g` : ""}
+                                                </p>
+                                            </div>
+                                            <span className="shrink-0 font-bold text-primary">{formatVnd(item.price)}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            <div className="mt-3 grid grid-cols-2 gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => onOpenStore(store.store_id)}
+                                    className="rounded-full bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground"
+                                >
+                                    Xem menu
+                                </button>
+                                {orderUrl ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => window.open(orderUrl, "_blank", "noopener,noreferrer")}
+                                        className="inline-flex items-center justify-center gap-1 rounded-full border border-border px-3 py-2 text-xs font-semibold text-foreground"
+                                    >
+                                        <ShoppingBag className="h-3 w-3" />
+                                        Đặt ngay
+                                    </button>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        onClick={() => onOpenStore(store.store_id)}
+                                        className="inline-flex items-center justify-center gap-1 rounded-full border border-border px-3 py-2 text-xs font-semibold text-foreground"
+                                    >
+                                        <ExternalLink className="h-3 w-3" />
+                                        Chi tiết
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        )}
+    </div>
+);
+
 const MessageBubble: React.FC<{
     role: "user" | "assistant";
     content: string;
@@ -360,6 +479,8 @@ const AIAssistant: React.FC = () => {
         dismissDiaryProposal,
         searchResults,
         dismissSearchResults,
+        storeRecommendations,
+        dismissStoreRecommendations,
     } = useSSEChat();
 
     const userName = useMemo(() => {
@@ -401,7 +522,7 @@ const AIAssistant: React.FC = () => {
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, [messages, proposal, actionProposal, diaryProposal, searchResults, isLoading]);
+    }, [messages, proposal, actionProposal, diaryProposal, searchResults, storeRecommendations, isLoading]);
 
     useEffect(() => {
         inputRef.current?.focus();
@@ -600,6 +721,13 @@ const AIAssistant: React.FC = () => {
                                         />
                                     )}
                                     {searchResults && <SearchResultsCard results={searchResults} onDismiss={dismissSearchResults} />}
+                                    {storeRecommendations && (
+                                        <StoreRecommendationsCard
+                                            results={storeRecommendations}
+                                            onDismiss={dismissStoreRecommendations}
+                                            onOpenStore={(storeId) => navigate(`/nearby/${storeId}`)}
+                                        />
+                                    )}
                                 </div>
                                 {error && <p className="py-1 text-center text-xs text-destructive">{error}</p>}
                                 <div ref={messagesEndRef} />

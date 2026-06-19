@@ -54,6 +54,68 @@ export interface ChatSearchResults {
     results: FoodSearchResult[];
 }
 
+export interface StoreRecommendation {
+    store_id: string;
+    name: string;
+    address: string;
+    website?: string;
+    google_maps_url?: string;
+    image_url?: string;
+    average_rating: number;
+    rating_count: number;
+    distance_km?: number;
+    reason: string;
+    menu_items: Array<{
+        item_id: string;
+        name: string;
+        price?: number;
+        energy_kcal?: number;
+        protein?: number;
+        carbs?: number;
+        fat?: number;
+        image_url?: string;
+    }>;
+}
+
+export interface StoreRecommendationResults {
+    query: string;
+    meal_type: "breakfast" | "lunch" | "dinner" | "snack";
+    has_location: boolean;
+    results: StoreRecommendation[];
+}
+
+const isRestaurantIntent = (message: string) =>
+    /(quán|nhà hàng|restaurant|nearby|gần tôi|gần đây|đặt món|order|healthy shop|eat clean)/i.test(message);
+
+async function getLocationForRestaurantIntent(message: string): Promise<{ lat: number; lng: number } | undefined> {
+    if (!isRestaurantIntent(message) || !navigator.geolocation) return undefined;
+
+    return new Promise((resolve) => {
+        let settled = false;
+        const finish = (location?: { lat: number; lng: number }) => {
+            if (settled) return;
+            settled = true;
+            resolve(location);
+        };
+
+        const timer = window.setTimeout(() => finish(), 1200);
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                window.clearTimeout(timer);
+                finish({
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude,
+                });
+            },
+            () => {
+                window.clearTimeout(timer);
+                finish();
+            },
+            { enableHighAccuracy: false, maximumAge: 5 * 60 * 1000, timeout: 1000 },
+        );
+    });
+}
+
 export function useSSEChat() {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -63,6 +125,7 @@ export function useSSEChat() {
     const [actionProposal, setActionProposal] = useState<ProfileUpdateProposal | null>(null);
     const [diaryProposal, setDiaryProposal] = useState<DiaryProposal | null>(null);
     const [searchResults, setSearchResults] = useState<ChatSearchResults | null>(null);
+    const [storeRecommendations, setStoreRecommendations] = useState<StoreRecommendationResults | null>(null);
     const abortRef = useRef<AbortController | null>(null);
 
     // Load persisted history from the active session on mount
@@ -94,6 +157,7 @@ export function useSSEChat() {
         setActionProposal(null);
         setDiaryProposal(null);
         setSearchResults(null);
+        setStoreRecommendations(null);
 
         abortRef.current?.abort();
         const controller = new AbortController();
@@ -106,13 +170,14 @@ export function useSSEChat() {
         let assistantStarted = false;
 
         try {
+            const location = await getLocationForRestaurantIntent(content);
             const res = await fetch(`${API_URL}/api/rag/chat`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${token}`,
                 },
-                body: JSON.stringify({ message: content }),
+                body: JSON.stringify({ message: content, ...(location ? { location } : {}) }),
                 signal: controller.signal,
             });
 
@@ -174,6 +239,8 @@ export function useSSEChat() {
                         setDiaryProposal(parsed as DiaryProposal);
                     } else if (lastEvent === "search_results") {
                         setSearchResults(parsed as ChatSearchResults);
+                    } else if (lastEvent === "store_recommendations") {
+                        setStoreRecommendations(parsed as StoreRecommendationResults);
                     } else if (lastEvent === "done") {
                         break;
                     } else if (lastEvent === "error") {
@@ -203,6 +270,7 @@ export function useSSEChat() {
         setActionProposal(null);
         setDiaryProposal(null);
         setSearchResults(null);
+        setStoreRecommendations(null);
     }, []);
 
     const stop = useCallback(() => {
@@ -274,6 +342,7 @@ export function useSSEChat() {
     }, []);
     const dismissDiaryProposal = useCallback(() => setDiaryProposal(null), []);
     const dismissSearchResults = useCallback(() => setSearchResults(null), []);
+    const dismissStoreRecommendations = useCallback(() => setStoreRecommendations(null), []);
 
     return {
         messages, sendMessage, isLoading, error, clearMessages, stop,
@@ -282,5 +351,6 @@ export function useSSEChat() {
         actionProposal, approveActionProposal, dismissActionProposal,
         diaryProposal, approveDiaryProposal, dismissDiaryProposal,
         searchResults, dismissSearchResults,
+        storeRecommendations, dismissStoreRecommendations,
     };
 }

@@ -91,17 +91,20 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({ onDone }) => {
         }
 
         const shouldStart = hasRecentPendingTour() || state?.startTour === true;
-        if (shouldStart) {
+        const shouldStartOnHome = location.pathname === "/";
+        if (shouldStart || shouldStartOnHome) {
             localStorage.removeItem(TOUR_PENDING_KEY);
             setStep(0);
             const t = setTimeout(() => setVisible(true), 800);
             return () => clearTimeout(t);
         }
-    }, [location.state]);
+    }, [location.pathname, location.state]);
 
     const handleDone = () => {
         localStorage.setItem(TOUR_DONE_KEY, "1");
         localStorage.removeItem(TOUR_PENDING_KEY);
+        localStorage.setItem("calovie_assistant_nudge", "Nếu bạn cần gì, mình sẽ ở đây nhé.");
+        window.dispatchEvent(new CustomEvent("calovie-assistant-nudge"));
         setVisible(false);
         onDone?.();
     };

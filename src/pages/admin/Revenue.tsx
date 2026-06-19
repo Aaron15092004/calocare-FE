@@ -2,11 +2,14 @@ import { useCallback, useEffect, useState } from "react";
 import {
     ArrowUpRight,
     Banknote,
+    Bot,
     Clock,
     CreditCard,
+    ReceiptText,
     RefreshCw,
     ShieldCheck,
     TrendingUp,
+    Wallet,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -36,6 +39,10 @@ interface RevenueSummary {
     };
     totals: {
         completed_revenue: number;
+        estimated_ai_cost_vnd: number;
+        estimated_ai_cost_usd: number;
+        estimated_net_profit_vnd: number;
+        gross_margin_pct: number | null;
         completed_count: number;
         pending_amount: number;
         pending_count: number;
@@ -60,6 +67,27 @@ interface RevenueSummary {
             completed_count: number;
         }>;
         by_target: Array<{ target_type: string; revenue: number; count: number }>;
+        ai_cost_by_service: Array<{
+            service: string;
+            label: string;
+            usage_count: number;
+            total_days?: number;
+            cost_usd: number;
+            cost_vnd: number;
+        }>;
+    };
+    accounting: {
+        currency: "VND";
+        usd_to_vnd: number;
+        revenue_vnd: number;
+        direct_ai_cost_vnd: number;
+        estimated_net_profit_vnd: number;
+        gross_margin_pct: number | null;
+        formulas: {
+            revenue: string;
+            ai_cost: string;
+            net_profit: string;
+        };
     };
     automation: {
         payos_configured: boolean;
@@ -117,6 +145,7 @@ const STATUS_BADGE_CLASS: Record<string, string> = {
 };
 
 const formatVnd = (amount: number) => `${Math.round(amount || 0).toLocaleString("vi-VN")}₫`;
+const formatUsd = (amount: number) => `$${Number(amount || 0).toFixed(4)}`;
 
 const compactVnd = (amount: number) => {
     if (amount >= 1_000_000_000) return `${(amount / 1_000_000_000).toFixed(1)}B`;
@@ -248,7 +277,7 @@ const Revenue = () => {
                 </div>
             ) : summary ? (
                 <>
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-6">
                         <MetricCard
                             icon={Banknote}
                             label={`Doanh thu ${summary.range.days} ngày`}
@@ -266,6 +295,20 @@ const Revenue = () => {
                             value={formatVnd(summary.totals.pending_amount)}
                             helper={`${summary.totals.pending_count} giao dịch chờ`}
                             tone="amber"
+                        />
+                        <MetricCard
+                            icon={Bot}
+                            label="Chi phí AI ước tính"
+                            value={formatVnd(summary.totals.estimated_ai_cost_vnd)}
+                            helper={`~$${summary.totals.estimated_ai_cost_usd.toFixed(4)} trong kỳ`}
+                            tone="violet"
+                        />
+                        <MetricCard
+                            icon={Wallet}
+                            label="Lợi nhuận sau AI"
+                            value={formatVnd(summary.totals.estimated_net_profit_vnd)}
+                            helper={summary.totals.gross_margin_pct == null ? "Chưa có doanh thu" : `${summary.totals.gross_margin_pct}% biên gộp`}
+                            tone="slate"
                         />
                         <MetricCard
                             icon={TrendingUp}
@@ -319,6 +362,62 @@ const Revenue = () => {
                                     <ShieldCheck className="mr-2 h-4 w-4" />
                                     {confirmingWebhook ? "Đang xác nhận..." : "Xác nhận PayOS webhook"}
                                 </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-base">
+                                <ReceiptText className="h-4 w-4 text-primary" />
+                                Luồng kế toán sau chi phí AI
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="grid gap-3 md:grid-cols-3">
+                                <div className="rounded-2xl border bg-muted/30 p-4">
+                                    <p className="text-xs font-medium text-muted-foreground">Doanh thu ghi nhận</p>
+                                    <p className="mt-1 text-xl font-bold">{formatVnd(summary.accounting.revenue_vnd)}</p>
+                                    <p className="mt-1 text-[11px] text-muted-foreground">{summary.accounting.formulas.revenue}</p>
+                                </div>
+                                <div className="rounded-2xl border bg-violet-50/60 p-4">
+                                    <p className="text-xs font-medium text-violet-700">Chi phí AI trực tiếp</p>
+                                    <p className="mt-1 text-xl font-bold text-violet-800">{formatVnd(summary.accounting.direct_ai_cost_vnd)}</p>
+                                    <p className="mt-1 text-[11px] text-violet-700">
+                                        {summary.accounting.formulas.ai_cost} · tỷ giá {summary.accounting.usd_to_vnd.toLocaleString("vi-VN")} VND/USD
+                                    </p>
+                                </div>
+                                <div className="rounded-2xl border bg-emerald-50/60 p-4">
+                                    <p className="text-xs font-medium text-emerald-700">Lợi nhuận ước tính</p>
+                                    <p className="mt-1 text-xl font-bold text-emerald-800">{formatVnd(summary.accounting.estimated_net_profit_vnd)}</p>
+                                    <p className="mt-1 text-[11px] text-emerald-700">{summary.accounting.formulas.net_profit}</p>
+                                </div>
+                            </div>
+
+                            <div className="overflow-x-auto rounded-2xl border">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-muted/40 text-left text-muted-foreground">
+                                        <tr>
+                                            <th className="px-4 py-3 font-medium">Dịch vụ</th>
+                                            <th className="px-4 py-3 font-medium">Lượt dùng</th>
+                                            <th className="px-4 py-3 font-medium">USD</th>
+                                            <th className="px-4 py-3 font-medium">Quy đổi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {summary.charts.ai_cost_by_service.map((item) => (
+                                            <tr key={item.service} className="border-t">
+                                                <td className="px-4 py-3 font-medium">{item.label}</td>
+                                                <td className="px-4 py-3 text-muted-foreground">
+                                                    {item.usage_count.toLocaleString("vi-VN")}
+                                                    {item.total_days ? ` · ${item.total_days} ngày plan` : ""}
+                                                </td>
+                                                <td className="px-4 py-3 text-muted-foreground">{formatUsd(item.cost_usd)}</td>
+                                                <td className="px-4 py-3 font-semibold">{formatVnd(item.cost_vnd)}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
                             </div>
                         </CardContent>
                     </Card>
@@ -516,6 +615,8 @@ const toneClass: Record<string, string> = {
     amber: "bg-amber-100 text-amber-700",
     cyan: "bg-cyan-100 text-cyan-700",
     blue: "bg-blue-100 text-blue-700",
+    violet: "bg-violet-100 text-violet-700",
+    slate: "bg-slate-100 text-slate-700",
 };
 
 function MetricCard({

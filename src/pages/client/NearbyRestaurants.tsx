@@ -66,6 +66,12 @@ const CATEGORY_ICON: Record<string, React.ReactNode> = {
     other:      <Store className="w-5 h-5 text-primary" />,
 };
 
+const normalizeExternalUrl = (url?: string) => {
+    if (!url?.trim()) return "";
+    const trimmed = url.trim();
+    return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+};
+
 // ── Image Carousel ────────────────────────────────────────────────────────────
 
 const ImageCarousel: React.FC<{ images: string[]; name: string }> = ({ images, name }) => {
@@ -190,12 +196,23 @@ const MapView: React.FC<{ stores: StoreAPI[] }> = ({ stores }) => {
 // ── Store card ────────────────────────────────────────────────────────────────
 
 const StoreCard: React.FC<{ store: StoreAPI }> = ({ store }) => {
+    const navigate = useNavigate();
     const [expanded, setExpanded] = useState(false);
     const [showReviews, setShowReviews] = useState(false);
     const availableMenu = store.menu_items?.filter((m) => m.is_available) || [];
+    const orderUrl = normalizeExternalUrl(store.website);
+
+    const openDetail = () => navigate(`/nearby/${store._id}`);
+    const openOrder = (event: React.MouseEvent) => {
+        event.stopPropagation();
+        if (orderUrl) window.open(orderUrl, "_blank", "noopener,noreferrer");
+    };
 
     return (
-        <Card className={`overflow-hidden transition-shadow hover:shadow-md ${store.subscription_tier === "pro" ? "border-l-4 border-l-primary" : ""}`}>
+        <Card
+            onClick={openDetail}
+            className={`cursor-pointer overflow-hidden transition-all hover:-translate-y-0.5 hover:shadow-md ${store.subscription_tier === "pro" ? "border-l-4 border-l-primary" : ""}`}
+        >
             <CardContent className="p-0">
                 {/* Hero image carousel */}
                 {store.images?.length > 0 && <ImageCarousel images={store.images} name={store.name} />}
@@ -236,6 +253,7 @@ const StoreCard: React.FC<{ store: StoreAPI }> = ({ store }) => {
                         <span className="text-xs text-muted-foreground leading-relaxed">{store.address}</span>
                         {store.google_maps_url && (
                             <a href={store.google_maps_url} target="_blank" rel="noreferrer"
+                                onClick={(e) => e.stopPropagation()}
                                 title="Xem trên Google Maps"
                                 className="ml-1 flex-shrink-0 text-primary">
                                 <ExternalLink className="w-3 h-3" />
@@ -267,17 +285,17 @@ const StoreCard: React.FC<{ store: StoreAPI }> = ({ store }) => {
                     {/* Contact */}
                     <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3">
                         {store.phone && (
-                            <a href={`tel:${store.phone}`} className="flex items-center gap-1 hover:text-primary">
+                            <a href={`tel:${store.phone}`} onClick={(e) => e.stopPropagation()} className="flex items-center gap-1 hover:text-primary">
                                 <Phone className="w-3 h-3" /> {store.phone}
                             </a>
                         )}
                         {store.website && (
-                            <a href={store.website} target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-primary">
+                            <a href={orderUrl} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="flex items-center gap-1 hover:text-primary">
                                 <Globe className="w-3 h-3" /> Website
                             </a>
                         )}
                         {store.google_maps_url && (
-                            <a href={store.google_maps_url} target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-primary">
+                            <a href={store.google_maps_url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="flex items-center gap-1 hover:text-primary">
                                 <MapPin className="w-3 h-3" /> Bản đồ
                             </a>
                         )}
@@ -303,17 +321,35 @@ const StoreCard: React.FC<{ store: StoreAPI }> = ({ store }) => {
                             ))}
                             {availableMenu.length > 3 && (
                                 <button type="button" className="w-full text-xs text-primary flex items-center justify-center gap-1 py-1"
-                                    onClick={() => setExpanded(!expanded)}>
+                                    onClick={(event) => { event.stopPropagation(); setExpanded(!expanded); }}>
                                     {expanded ? <><ChevronUp className="w-3 h-3" /> Thu gọn</> : <><ChevronDown className="w-3 h-3" /> Xem thêm {availableMenu.length - 3} món</>}
                                 </button>
                             )}
                         </div>
                     )}
 
+                    <div className="mb-2 grid grid-cols-2 gap-2">
+                        <Button type="button" size="sm" className="gap-1.5" onClick={(event) => { event.stopPropagation(); openDetail(); }}>
+                            <UtensilsCrossed className="h-3.5 w-3.5" />
+                            Xem menu
+                        </Button>
+                        {orderUrl ? (
+                            <Button type="button" size="sm" variant="outline" className="gap-1.5" onClick={openOrder}>
+                                <ShoppingBag className="h-3.5 w-3.5" />
+                                Đặt ngay
+                            </Button>
+                        ) : (
+                            <Button type="button" size="sm" variant="outline" className="gap-1.5" disabled onClick={(event) => event.stopPropagation()}>
+                                <ShoppingBag className="h-3.5 w-3.5" />
+                                Chưa có link
+                            </Button>
+                        )}
+                    </div>
+
                     {/* Reviews toggle */}
                     <button
                         type="button"
-                        onClick={() => setShowReviews(!showReviews)}
+                        onClick={(event) => { event.stopPropagation(); setShowReviews(!showReviews); }}
                         className="w-full flex items-center justify-between py-2 border-t border-border/50 text-sm font-medium text-foreground hover:text-primary transition-colors"
                     >
                         <span className="flex items-center gap-2">
@@ -329,7 +365,7 @@ const StoreCard: React.FC<{ store: StoreAPI }> = ({ store }) => {
                     </button>
 
                     {showReviews && (
-                        <div className="pt-3">
+                        <div className="pt-3" onClick={(event) => event.stopPropagation()}>
                             <ReviewSection
                                 targetType="store"
                                 targetId={store._id}

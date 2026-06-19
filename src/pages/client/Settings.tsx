@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
@@ -36,7 +36,8 @@ import { BottomNav } from "@/components/BottomNav";
 import { DietaryPreferences } from "@/components/DietaryPreferences";
 import api from "@/lib/api";
 import { useTheme } from "@/hooks/useTheme";
-import { CaloVieGuideMascot } from "@/components/brand/CaloVieMascot";
+import { uploadFile } from "@/utils/cloudinary";
+import { useToast } from "@/hooks/use-toast";
 
 type Screen = null | "profile" | "physical" | "nutrition" | "dietary" | "language" | "store";
 
@@ -94,9 +95,13 @@ const Settings: React.FC = () => {
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
   const { user, profile, loading, isAuthenticated, updateProfile, signOut, deleteAccount } = useAuthContext();
+  const { toast } = useToast();
 
   const [screen, setScreen] = useState<Screen>(null);
   const [displayName, setDisplayName] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
   const [nutritionGoals, setNutritionGoals] = useState<NutritionGoals>({
     calories: 2000,
     protein: 120,
@@ -124,6 +129,7 @@ const Settings: React.FC = () => {
   useEffect(() => {
     if (profile) {
       setDisplayName(profile.display_name || "");
+      setAvatarUrl(profile.avatar_url || "");
       setNutritionGoals({
         calories: profile.daily_nutrition_goals?.calories || 2000,
         protein: profile.daily_nutrition_goals?.protein || 120,
@@ -168,6 +174,7 @@ const Settings: React.FC = () => {
     try {
       await updateProfile({
         display_name: displayName || null,
+        avatar_url: avatarUrl || null,
         preferences: {
           age: physicalStats.age,
           gender: physicalStats.gender,
@@ -181,6 +188,54 @@ const Settings: React.FC = () => {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const userInitial = (profile?.display_name || user?.email || "C").trim().slice(0, 1).toUpperCase();
+
+  const handleAvatarFile = async (file?: File) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Ảnh chưa hợp lệ", description: "Bạn chọn một file ảnh giúp mình nhé.", variant: "destructive" });
+      return;
+    }
+
+    setIsUploadingAvatar(true);
+    try {
+      const uploaded = await uploadFile(file, "calovie/avatars");
+      setAvatarUrl(uploaded.url);
+      await updateProfile({ avatar_url: uploaded.url });
+    } catch {
+      toast({ title: "Không đổi được ảnh", description: "Upload ảnh đang lỗi, bạn thử lại sau nhé.", variant: "destructive" });
+    } finally {
+      setIsUploadingAvatar(false);
+      if (avatarInputRef.current) avatarInputRef.current.value = "";
+    }
+  };
+
+  const AvatarView: React.FC<{ size?: "lg" | "xl"; editable?: boolean }> = ({ size = "lg", editable = false }) => {
+    const sizeClass = size === "xl" ? "h-24 w-24 text-3xl" : "h-20 w-20 text-2xl";
+    return (
+      <div className="relative shrink-0">
+        <div className={`${sizeClass} grid place-items-center overflow-hidden rounded-full bg-primary/10 font-extrabold text-primary ring-2 ring-primary/15`}>
+          {avatarUrl ? (
+            <img src={avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
+          ) : (
+            <span>{userInitial}</span>
+          )}
+        </div>
+        {editable && (
+          <button
+            type="button"
+            onClick={() => avatarInputRef.current?.click()}
+            disabled={isUploadingAvatar}
+            className="absolute -bottom-1 -right-1 grid h-9 w-9 place-items-center rounded-full bg-primary text-primary-foreground shadow-lg ring-2 ring-background disabled:opacity-60"
+            title="Đổi ảnh đại diện"
+          >
+            {isUploadingAvatar ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+          </button>
+        )}
+      </div>
+    );
   };
 
   const handleAutoCalculate = () => {
@@ -249,6 +304,33 @@ const Settings: React.FC = () => {
       <div className="calovie-ios-surface min-h-screen pb-nav-safe">
         <SubHeader title={t("settings.menu.profile")} showSave />
         <main className="container isolate px-5 py-6 space-y-5 max-w-lg mx-auto">
+          <input
+            ref={avatarInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => handleAvatarFile(e.target.files?.[0])}
+          />
+          <div className="flex items-center gap-4 rounded-[1.75rem] bg-card p-4 shadow-ios-sm ring-1 ring-border/60">
+            <AvatarView size="xl" editable />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold text-foreground">Ảnh đại diện</p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                CaloVie sẽ dùng ảnh Google nếu có. Bạn cũng có thể đổi ảnh riêng tại đây.
+              </p>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="mt-3"
+                onClick={() => avatarInputRef.current?.click()}
+                disabled={isUploadingAvatar}
+              >
+                {isUploadingAvatar ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Camera className="mr-2 h-4 w-4" />}
+                Đổi ảnh
+              </Button>
+            </div>
+          </div>
           <div className="space-y-2">
             <Label htmlFor="email">{t("settings.profile.email")}</Label>
             <Input id="email" value={user?.email || ""} disabled className="bg-muted" />
@@ -795,12 +877,19 @@ const Settings: React.FC = () => {
       </header>
 
       <main className="container isolate px-5 py-6 space-y-4 max-w-lg mx-auto">
+        <input
+          ref={avatarInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => handleAvatarFile(e.target.files?.[0])}
+        />
 
         {/* User hero */}
         <div className="relative overflow-hidden rounded-[2rem] bg-card p-5 shadow-ios-sm ring-1 ring-border/60">
           <div className="absolute -right-4 -top-3 h-32 w-32 rounded-full bg-primary/10 blur-2xl" />
           <div className="relative flex items-center gap-4">
-            <CaloVieGuideMascot mood="hello" className="h-28 w-24 shrink-0" motion="breathe" />
+            <AvatarView editable />
             <div className="min-w-0 flex-1">
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Hồ sơ CaloVie</p>
               <p className="mt-1 truncate text-xl font-extrabold text-foreground">
