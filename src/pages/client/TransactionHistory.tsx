@@ -31,7 +31,7 @@ const PLAN_NAMES: Record<string, string> = { free: "Free", premium: "Premium", f
 const METHOD_LABELS: Record<string, string> = {
     bank_transfer: "Chuyển khoản",
     momo: "MoMo",
-    payos: "PayOS",
+    payos: "Thanh toán tự động",
 };
 
 export default function TransactionHistory() {

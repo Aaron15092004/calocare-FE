@@ -13,8 +13,6 @@ import {
     ChevronUp,
     Clock,
     Copy,
-    Smartphone,
-    Landmark,
     CreditCard,
     Gift,
     Users,
@@ -40,7 +38,7 @@ import api from "@/lib/api";
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type PlanId = "free" | "premium" | "family";
-type PaymentMethod = "momo" | "bank_transfer" | "payos";
+type PaymentMethod = "payos";
 
 interface SubscriptionQuote {
     plan_type: "premium" | "family";
@@ -206,7 +204,7 @@ const Subscription: React.FC = () => {
     // Checkout state
     const [selectedPlan, setSelectedPlan] = useState<PlanId | null>(null);
     const [selectedMonths, setSelectedMonths] = useState(1);
-    const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("bank_transfer");
+    const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("payos");
     const [discountCode, setDiscountCode] = useState("");
     const [showCheckout, setShowCheckout] = useState(false);
     const [ordering, setOrdering] = useState(false);
@@ -326,19 +324,27 @@ const Subscription: React.FC = () => {
             });
             setOrderResult(res.data);
             if (res.data.quote) setCheckoutQuote(res.data.quote);
+            const nextStatus = res.data.status || "pending";
             setStatus((prev) => prev
                 ? {
                     ...prev,
                     latest_transaction: {
-                        _id: res.data.transaction_id,
+                        _id: res.data.transaction_id || res.data.tx_id,
                         plan_type: selectedPlan,
-                        status: "pending",
-                        final_amount: res.data.final_amount,
-                        created_at: new Date().toISOString(),
+                        status: nextStatus,
+                        final_amount: res.data.final_amount || getTotal(),
+                        created_at: res.data.created_at || new Date().toISOString(),
                     },
                   }
                 : prev,
             );
+            if (nextStatus === "completed") {
+                await Promise.all([fetchStatus(), fetchFamily(), refreshProfile()]);
+                toast({
+                    title: t("subscription.paymentSuccessTitle", "Thanh toán thành công"),
+                    description: t("subscription.paymentSuccessDesc", "Gói của bạn đã được kích hoạt."),
+                });
+            }
         } catch (err) {
             const apiError = err as ApiError;
             const responseData = apiError.response?.data;
@@ -350,7 +356,7 @@ const Subscription: React.FC = () => {
                         latest_transaction: {
                             _id: responseData.transaction_id,
                             plan_type: responseData.plan_type || selectedPlan,
-                            status: "pending",
+                            status: responseData.status || "pending",
                             final_amount: responseData.final_amount || 0,
                             created_at: responseData.created_at || new Date().toISOString(),
                         },
@@ -990,9 +996,7 @@ const Subscription: React.FC = () => {
                                 <Label className="text-xs">{t("subscription.paymentMethod")}</Label>
                                 <div className="flex gap-2 mt-1">
                                     {[
-                                        { id: "payos" as PaymentMethod, label: "PayOS", Icon: CreditCard, hint: "Tự động" },
-                                        { id: "momo" as PaymentMethod, label: "MoMo", Icon: Smartphone },
-                                        { id: "bank_transfer" as PaymentMethod, label: t("subscription.bankTransfer"), Icon: Landmark },
+                                        { id: "payos" as PaymentMethod, label: "Thanh toán tự động", Icon: CreditCard, hint: "Duyệt ngay khi thanh toán" },
                                     ].map((m) => (
                                         <button
                                             type="button"
@@ -1084,10 +1088,10 @@ const Subscription: React.FC = () => {
                                         <CreditCard className="mt-0.5 h-4 w-4 text-green-700" />
                                         <div>
                                             <p className="text-sm font-semibold text-green-800">
-                                                Thanh toán tự động qua PayOS
+                                                Thanh toán tự động
                                             </p>
                                             <p className="text-xs text-green-700/80">
-                                                Sau khi PayOS xác nhận tiền về, CaloVie sẽ tự kích hoạt gói. Không cần admin duyệt.
+                                                Sau khi thanh toán thành công, CaloVie sẽ tự kích hoạt gói. Không cần admin duyệt.
                                             </p>
                                         </div>
                                     </div>
@@ -1112,12 +1116,12 @@ const Subscription: React.FC = () => {
                                                 className="w-full"
                                                 onClick={() => window.location.assign(orderResult.checkout_url!)}
                                             >
-                                                Mở cổng thanh toán PayOS
+                                                Mở trang thanh toán an toàn
                                             </Button>
                                         </>
                                     ) : (
                                         <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                                            Bạn đang có một đơn PayOS chờ thanh toán. Nếu chưa mở được cổng thanh toán, hãy kiểm tra trang trạng thái hoặc thử tạo đơn mới sau khi đơn cũ hết hạn.
+                                            Bạn đang có một đơn thanh toán tự động đang chờ. Nếu đã thanh toán, hãy kiểm tra trang trạng thái trong vài giây nữa.
                                         </div>
                                     )}
                                     <p className="text-center text-[11px] text-green-700/80">
@@ -1125,102 +1129,9 @@ const Subscription: React.FC = () => {
                                     </p>
                                 </div>
                             ) : (
-                                <>
-                                    {/* Payment details */}
-                                    <div className="bg-muted/50 rounded-lg p-3 space-y-2.5">
-                                        <p className="text-xs font-semibold text-foreground">
-                                            {orderResult.payment_instructions?.method}
-                                        </p>
-
-                                        {/* Bank account */}
-                                        {orderResult.payment_instructions?.account && (
-                                            <div className="flex items-center justify-between bg-background rounded-md px-3 py-2 border">
-                                                <div>
-                                                    <p className="text-[10px] text-muted-foreground">
-                                                        {orderResult.payment_instructions.bank} · {orderResult.payment_instructions.owner}
-                                                    </p>
-                                                    <p className="text-sm font-mono font-bold">
-                                                        {orderResult.payment_instructions.account}
-                                                    </p>
-                                                </div>
-                                                <Button
-                                                    type="button"
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    className="h-7 w-7 p-0"
-                                                    onClick={() => copyText(orderResult.payment_instructions?.account || "")}
-                                                >
-                                                    <Copy className="w-3.5 h-3.5" />
-                                                </Button>
-                                            </div>
-                                        )}
-
-                                        {/* MoMo phone */}
-                                        {orderResult.payment_instructions?.phone && (
-                                            <div className="flex items-center justify-between bg-background rounded-md px-3 py-2 border">
-                                                <div>
-                                                    <p className="text-[10px] text-muted-foreground">{t("subscription.momoPhone")}</p>
-                                                    <p className="text-sm font-mono font-bold">
-                                                        {orderResult.payment_instructions.phone}
-                                                    </p>
-                                                </div>
-                                                <Button
-                                                    type="button"
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    className="h-7 w-7 p-0"
-                                                    onClick={() => copyText(orderResult.payment_instructions?.phone || "")}
-                                                >
-                                                    <Copy className="w-3.5 h-3.5" />
-                                                </Button>
-                                            </div>
-                                        )}
-
-                                        {/* Amount */}
-                                        <div className="flex items-center justify-between bg-background rounded-md px-3 py-2 border">
-                                            <div>
-                                                <p className="text-[10px] text-muted-foreground">{t("subscription.amount")}</p>
-                                                <p className="text-sm font-bold text-primary">
-                                                    {orderResult.payment_instructions?.amount}₫
-                                                </p>
-                                            </div>
-                                            <Button
-                                                type="button"
-                                                size="sm"
-                                                variant="ghost"
-                                                className="h-7 w-7 p-0"
-                                                onClick={() => copyText(orderResult.payment_instructions?.amount || "")}
-                                            >
-                                                <Copy className="w-3.5 h-3.5" />
-                                            </Button>
-                                        </div>
-
-                                        {/* Reference code — most important */}
-                                        <div className="flex items-center justify-between bg-primary/5 border border-primary/30 rounded-md px-3 py-2">
-                                            <div>
-                                                <p className="text-[10px] text-primary font-medium">
-                                                    {t("subscription.transferRequired")}
-                                                </p>
-                                                <p className="text-sm font-mono font-bold text-primary tracking-wider">
-                                                    {orderResult.payment_ref_code}
-                                                </p>
-                                            </div>
-                                            <Button
-                                                type="button"
-                                                size="sm"
-                                                variant="ghost"
-                                                className="h-7 w-7 p-0 text-primary"
-                                                onClick={() => copyText(orderResult.payment_ref_code || "")}
-                                            >
-                                                <Copy className="w-3.5 h-3.5" />
-                                            </Button>
-                                        </div>
-                                    </div>
-
-                                    <p className="text-[11px] text-muted-foreground text-center leading-relaxed">
-                                        {t("subscription.transferNote")}
-                                    </p>
-                                </>
+                                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                                    Phương thức thanh toán cũ đã tạm khóa. Vui lòng tạo lại đơn bằng thanh toán tự động để CaloVie kích hoạt gói ngay sau khi thanh toán thành công.
+                                </div>
                             )}
                         </div>
                     )}

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
     Zap, Check, BarChart2, MessageSquare, QrCode, Upload,
-    Sparkles, BadgeCheck, Download, Store, Loader2, Copy,
+    Sparkles, BadgeCheck, Download, Store, Loader2,
     CreditCard, ExternalLink,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,16 +45,6 @@ interface StoreQuote {
     duration_discount_amount: number;
 }
 
-interface StorePaymentInstructions {
-    method?: string;
-    bank?: string;
-    account?: string;
-    owner?: string;
-    phone?: string;
-    amount?: string;
-    note?: string;
-}
-
 interface StoreOrder {
     transaction_id?: string;
     status?: string;
@@ -62,11 +52,10 @@ interface StoreOrder {
     payment_ref?: string;
     checkout_url?: string;
     final_amount?: number;
-    payment_instructions?: StorePaymentInstructions;
     message?: string;
 }
 
-type StorePaymentMethod = "bank_transfer" | "momo" | "payos";
+type StorePaymentMethod = "payos";
 
 interface ApiError {
     response?: {
@@ -177,11 +166,6 @@ const OwnerUpgrade = () => {
         }
     };
 
-    const copyText = (text: string) => {
-        navigator.clipboard.writeText(text);
-        toast({ title: "Đã sao chép" });
-    };
-
     const renderPaymentInstructions = () => {
         if (order?.payment_method === "payos" || order?.checkout_url) {
             const amount = order.final_amount ?? finalAmount;
@@ -193,12 +177,12 @@ const OwnerUpgrade = () => {
                         </div>
                         <div>
                             <p className="font-semibold text-green-800">
-                                {order.status === "completed" ? "Store Pro đã kích hoạt" : "Thanh toán tự động qua PayOS"}
+                                {order.status === "completed" ? "Store Pro đã kích hoạt" : "Thanh toán tự động"}
                             </p>
                             <p className="text-sm text-green-700/80">
                                 {order.status === "completed"
                                     ? "CaloVie đã xác nhận thanh toán và nâng cấp quán."
-                                    : "Sau khi PayOS xác nhận tiền về, Store Pro sẽ tự bật mà không cần admin duyệt."}
+                                    : "Sau khi thanh toán thành công, Store Pro sẽ tự bật mà không cần admin duyệt."}
                             </p>
                         </div>
                     </div>
@@ -219,11 +203,11 @@ const OwnerUpgrade = () => {
                     {order.checkout_url ? (
                         <Button className="w-full gap-2" onClick={() => window.location.assign(order.checkout_url!)}>
                             <ExternalLink className="h-4 w-4" />
-                            Mở cổng thanh toán PayOS
+                            Mở trang thanh toán an toàn
                         </Button>
                     ) : order.status !== "completed" ? (
                         <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                            Đơn PayOS đang chờ thanh toán. Nếu chưa mở được cổng, hãy thử tạo lại sau khi đơn cũ hết hạn hoặc liên hệ admin.
+                            Đơn thanh toán tự động đang chờ. Nếu đã thanh toán, màn này sẽ tự cập nhật trong vài giây.
                         </p>
                     ) : null}
 
@@ -236,67 +220,10 @@ const OwnerUpgrade = () => {
             );
         }
 
-        if (!order?.payment_instructions) return null;
-        const info = order.payment_instructions;
+        if (!order) return null;
         return (
-            <div className="space-y-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-                <p className="font-semibold text-green-700">Đơn hàng đã tạo! Vui lòng thanh toán:</p>
-                <div className="space-y-1.5 text-sm">
-                    <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">Phương thức</span>
-                        <span className="font-medium">{info.method}</span>
-                    </div>
-                    {info.bank && (
-                        <div className="flex items-center justify-between">
-                            <span className="text-muted-foreground">Ngân hàng</span>
-                            <span className="font-medium">{info.bank}</span>
-                        </div>
-                    )}
-                    {info.account && (
-                        <div className="flex items-center justify-between">
-                            <span className="text-muted-foreground">Số TK</span>
-                            <div className="flex items-center gap-1">
-                                <span className="font-mono font-medium">{info.account}</span>
-                                <button type="button" onClick={() => copyText(info.account)}>
-                                    <Copy className="w-3.5 h-3.5 text-muted-foreground" />
-                                </button>
-                            </div>
-                        </div>
-                    )}
-                    {info.phone && (
-                        <div className="flex items-center justify-between">
-                            <span className="text-muted-foreground">Số MoMo</span>
-                            <div className="flex items-center gap-1">
-                                <span className="font-mono font-medium">{info.phone}</span>
-                                <button type="button" onClick={() => copyText(info.phone)}>
-                                    <Copy className="w-3.5 h-3.5 text-muted-foreground" />
-                                </button>
-                            </div>
-                        </div>
-                    )}
-                    {info.owner && (
-                        <div className="flex items-center justify-between">
-                            <span className="text-muted-foreground">Chủ tài khoản</span>
-                            <span className="font-medium">{info.owner}</span>
-                        </div>
-                    )}
-                    <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">Số tiền</span>
-                        <span className="font-bold text-primary">{info.amount}₫</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">Nội dung CK</span>
-                        <div className="flex items-center gap-1">
-                            <span className="font-mono font-medium text-primary">{info.note}</span>
-                            <button type="button" onClick={() => copyText(info.note)}>
-                                <Copy className="w-3.5 h-3.5 text-muted-foreground" />
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                    Sau khi thanh toán, admin sẽ kích hoạt Store Pro. Giao dịch không thể được xác nhận lặp lại sau khi đã hoàn tất.
-                </p>
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                Phương thức thanh toán cũ đã tạm khóa. Hãy tạo lại đơn bằng thanh toán tự động để Store Pro được kích hoạt ngay sau khi thanh toán thành công.
             </div>
         );
     };
@@ -404,13 +331,11 @@ const OwnerUpgrade = () => {
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="payos">PayOS tự động</SelectItem>
-                                <SelectItem value="bank_transfer">Chuyển khoản ngân hàng</SelectItem>
-                                <SelectItem value="momo">MoMo</SelectItem>
+                                <SelectItem value="payos">Thanh toán tự động</SelectItem>
                             </SelectContent>
                         </Select>
                         <p className="text-xs text-muted-foreground">
-                            PayOS tự kích hoạt Store Pro sau khi nhận webhook. Ngân hàng/MoMo là fallback khi cần xử lý thủ công.
+                            Store Pro sẽ tự kích hoạt sau khi thanh toán thành công. Không cần admin duyệt.
                         </p>
                     </div>
 

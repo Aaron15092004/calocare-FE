@@ -13,7 +13,8 @@ import {
     ChevronUp,
     X,
     Check,
-    Copy,
+    CreditCard,
+    ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -138,9 +139,25 @@ const CATEGORIES = [
 ];
 
 const PAYMENT_METHODS = [
-    { id: "momo", label: "MoMo" },
-    { id: "bank_transfer", label: "Chuyển khoản" },
+    { id: "payos", label: "Thanh toán tự động" },
 ];
+
+interface StoreUpgradeResult {
+    transaction_id?: string;
+    payment_method?: string;
+    payment_ref?: string;
+    checkout_url?: string;
+    final_amount?: number;
+}
+
+interface ApiError {
+    response?: {
+        data?: {
+            error?: string;
+            message?: string;
+        };
+    };
+}
 
 type ViewMode = "list" | "store_form" | "menu_manage";
 
@@ -174,9 +191,9 @@ const StoreRegistration: React.FC = () => {
     const [showUpgrade, setShowUpgrade] = useState(false);
     const [upgradeStore, setUpgradeStore] = useState<StoreAPI | null>(null);
     const [upgradeMonths, setUpgradeMonths] = useState(1);
-    const [upgradeMethod, setUpgradeMethod] = useState("bank_transfer");
+    const [upgradeMethod, setUpgradeMethod] = useState("payos");
     const [upgrading, setUpgrading] = useState(false);
-    const [upgradeResult, setUpgradeResult] = useState<any>(null);
+    const [upgradeResult, setUpgradeResult] = useState<StoreUpgradeResult | null>(null);
 
     // ── Data ────────────────────────────────────────────────────────────────
 
@@ -315,19 +332,20 @@ const StoreRegistration: React.FC = () => {
             };
 
             if (editingMenuItem?._id) {
-                const res = await api.put(`/stores/${activeStore._id}/menu/${editingMenuItem._id}`, payload);
+                const res = await api.put<StoreAPI>(`/stores/${activeStore._id}/menu/${editingMenuItem._id}`, payload);
                 setActiveStore(res.data);
             } else {
-                const res = await api.post(`/stores/${activeStore._id}/menu`, payload);
+                const res = await api.post<StoreAPI>(`/stores/${activeStore._id}/menu`, payload);
                 setActiveStore(res.data);
             }
             setShowMenuForm(false);
             await fetchStores();
-        } catch (err: any) {
-            if (err?.response?.data?.error === "menu_limit_reached") {
+        } catch (err: unknown) {
+            const apiError = err as ApiError;
+            if (apiError.response?.data?.error === "menu_limit_reached") {
                 toast({
                     title: "Đã đạt giới hạn menu",
-                    description: err.response.data.message,
+                    description: apiError.response.data.message,
                     variant: "destructive",
                 });
             } else {
@@ -342,8 +360,8 @@ const StoreRegistration: React.FC = () => {
         if (!deleteTarget || deleteTarget.type !== "menu" || !activeStore) return;
         setDeleting(true);
         try {
-            const res = await api.delete(`/stores/${activeStore._id}/menu/${deleteTarget.id}`);
-            setActiveStore(res.data as any);
+            const res = await api.delete<{ message?: string } | StoreAPI>(`/stores/${activeStore._id}/menu/${deleteTarget.id}`);
+            if ("_id" in res.data) setActiveStore(res.data);
             setDeleteTarget(null);
             await fetchStores();
             toast({ title: "Đã xóa", description: "Món ăn đã được xóa." });
@@ -359,7 +377,7 @@ const StoreRegistration: React.FC = () => {
     const openUpgrade = (store: StoreAPI) => {
         setUpgradeStore(store);
         setUpgradeMonths(1);
-        setUpgradeMethod("bank_transfer");
+        setUpgradeMethod("payos");
         setUpgradeResult(null);
         setShowUpgrade(true);
     };
@@ -378,11 +396,6 @@ const StoreRegistration: React.FC = () => {
         } finally {
             setUpgrading(false);
         }
-    };
-
-    const copyText = (text: string) => {
-        navigator.clipboard.writeText(text);
-        toast({ title: "Đã sao chép" });
     };
 
     // ── Render: Menu manage view ─────────────────────────────────────────────
@@ -795,7 +808,7 @@ const StoreRegistration: React.FC = () => {
             <Dialog open={showUpgrade} onOpenChange={setShowUpgrade}>
                 <DialogContent className="max-w-sm">
                     <DialogHeader>
-                        <DialogTitle>{upgradeResult ? "Hướng dẫn thanh toán" : "Nâng cấp Store Pro"}</DialogTitle>
+                        <DialogTitle>{upgradeResult ? "Thanh toán tự động" : "Nâng cấp Store Pro"}</DialogTitle>
                     </DialogHeader>
 
                     {!upgradeResult ? (
@@ -842,26 +855,34 @@ const StoreRegistration: React.FC = () => {
                     ) : (
                         <div className="space-y-3">
                             <div className="bg-green-50 rounded-lg p-3 text-center">
-                                <p className="text-sm font-semibold text-green-700">Đơn hàng đã được tạo!</p>
-                                <p className="text-xs text-green-600 mt-1 font-mono font-bold">{upgradeResult.payment_instructions?.note}</p>
+                                <CreditCard className="mx-auto mb-2 h-6 w-6 text-green-700" />
+                                <p className="text-sm font-semibold text-green-700">Đơn thanh toán đã sẵn sàng</p>
+                                <p className="mt-1 text-xs text-green-700/80">
+                                    Store Pro sẽ tự kích hoạt sau khi thanh toán thành công.
+                                </p>
                             </div>
                             <div className="bg-muted/60 rounded-lg p-3 space-y-2">
-                                <p className="text-xs text-muted-foreground leading-relaxed">{upgradeResult.payment_instructions?.message}</p>
-                                <div className="flex items-center justify-between">
-                                    <p className="text-xs text-muted-foreground">Nội dung CK</p>
-                                    <div className="flex items-center gap-1">
-                                        <p className="text-xs font-mono font-bold">{upgradeResult.payment_instructions?.note}</p>
-                                        <Button size="sm" variant="ghost" className="h-5 w-5 p-0" onClick={() => copyText(upgradeResult.payment_instructions?.note || "")}>
-                                            <Copy className="w-3 h-3" />
-                                        </Button>
-                                    </div>
-                                </div>
                                 <div className="flex items-center justify-between">
                                     <p className="text-xs text-muted-foreground">Số tiền</p>
                                     <p className="text-sm font-bold text-primary">{upgradeResult.final_amount?.toLocaleString("vi-VN")}₫</p>
                                 </div>
+                                {upgradeResult.payment_ref && (
+                                    <div className="flex items-center justify-between">
+                                        <p className="text-xs text-muted-foreground">Mã đơn</p>
+                                        <p className="text-xs font-mono font-bold">{upgradeResult.payment_ref}</p>
+                                    </div>
+                                )}
                             </div>
-                            <p className="text-xs text-muted-foreground text-center">Admin sẽ kích hoạt trong 1–4 giờ sau khi xác nhận.</p>
+                            {upgradeResult.checkout_url ? (
+                                <Button className="w-full gap-2" onClick={() => window.location.assign(upgradeResult.checkout_url!)}>
+                                    <ExternalLink className="h-4 w-4" />
+                                    Mở trang thanh toán an toàn
+                                </Button>
+                            ) : (
+                                <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                                    Đơn thanh toán tự động đang chờ. Nếu đã thanh toán, hệ thống sẽ tự cập nhật trong vài giây.
+                                </p>
+                            )}
                         </div>
                     )}
 

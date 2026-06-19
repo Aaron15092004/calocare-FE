@@ -67,7 +67,7 @@ const PLAN_NAMES: Record<string, string> = {
 const METHOD_LABELS: Record<string, string> = {
     bank_transfer: "Chuyển khoản ngân hàng",
     momo: "MoMo",
-    payos: "PayOS",
+    payos: "Thanh toán tự động",
 };
 
 export default function PaymentStatus() {

@@ -98,7 +98,7 @@ const PLAN_LABELS: Record<string, string> = {
 };
 
 const METHOD_LABELS: Record<string, string> = {
-    payos: "PayOS",
+    payos: "Thanh toán tự động",
     bank_transfer: "Ngân hàng",
     momo: "MoMo",
     unknown: "Chưa rõ",
@@ -307,8 +307,8 @@ const Revenue = () => {
                                 <Badge className={summary.automation.payos_configured ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}>
                                     PayOS {summary.automation.payos_configured ? "đã cấu hình" : "chưa có env"}
                                 </Badge>
-                                <Badge className={summary.automation.bank_webhook_configured ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-700"}>
-                                    Bank/MoMo {summary.automation.bank_webhook_configured ? "có webhook secret" : "fallback admin"}
+                                <Badge className="bg-slate-100 text-slate-700">
+                                    Bank/MoMo đã khóa
                                 </Badge>
                                 <Button
                                     size="sm"
