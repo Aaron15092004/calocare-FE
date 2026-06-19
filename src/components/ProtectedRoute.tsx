@@ -3,6 +3,7 @@ import React from "react";
 import { Navigate } from "react-router-dom";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
+import { isOnboardingComplete } from "@/utils/onboarding";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -52,14 +53,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   if (!skipOnboardingCheck) {
-    const isOnboardingComplete =
-      profile.daily_nutrition_goals?.calories &&
-      profile.daily_nutrition_goals.calories > 0 &&
-      profile.preferences?.age &&
-      profile.preferences.weight_kg &&
-      profile.preferences.height_cm;
-
-    if (!isOnboardingComplete) {
+    if (!isOnboardingComplete(profile)) {
       return <Navigate to="/onboarding" replace />;
     }
   }

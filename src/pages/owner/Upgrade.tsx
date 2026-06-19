@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
     Zap, Check, BarChart2, MessageSquare, QrCode, Upload,
     Sparkles, BadgeCheck, Download, Store, Loader2, Copy,
+    CreditCard, ExternalLink,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -55,9 +57,16 @@ interface StorePaymentInstructions {
 
 interface StoreOrder {
     transaction_id?: string;
+    status?: string;
+    payment_method?: StorePaymentMethod;
+    payment_ref?: string;
+    checkout_url?: string;
+    final_amount?: number;
     payment_instructions?: StorePaymentInstructions;
     message?: string;
 }
+
+type StorePaymentMethod = "bank_transfer" | "momo" | "payos";
 
 interface ApiError {
     response?: {
@@ -76,11 +85,12 @@ const getApiErrorMessage = (error: unknown) => {
 
 const OwnerUpgrade = () => {
     const { toast } = useToast();
+    const [searchParams] = useSearchParams();
 
     const [store, setStore]       = useState<StoreInfo | null>(null);
     const [loading, setLoading]   = useState(true);
     const [duration, setDuration] = useState(1);
-    const [method, setMethod]     = useState<"bank_transfer" | "momo">("bank_transfer");
+    const [method, setMethod]     = useState<StorePaymentMethod>("payos");
     const [ordering, setOrdering] = useState(false);
     const [order, setOrder]       = useState<StoreOrder | null>(null);
     const [quote, setQuote]       = useState<StoreQuote | null>(null);
@@ -105,6 +115,45 @@ const OwnerUpgrade = () => {
             .then(({ data }) => setQuote(data))
             .catch(() => setQuote(null));
     }, [duration, store?._id]);
+
+    useEffect(() => {
+        const txId = searchParams.get("txId") || order?.transaction_id;
+        if (!store?._id || !txId || order?.status === "completed") return;
+
+        let stopped = false;
+        const poll = async () => {
+            if (stopped) return;
+            try {
+                const { data } = await api.get(`/stores/${store._id}/upgrade/transactions/${txId}`);
+                if (stopped) return;
+                setOrder((prev) => ({
+                    ...(prev || {}),
+                    transaction_id: txId,
+                    status: data.transaction?.status,
+                    payment_method: data.transaction?.payment_method,
+                    payment_ref: data.transaction?.payment_ref,
+                    final_amount: data.transaction?.final_amount,
+                }));
+                if (data.store) setStore(data.store);
+                if (data.transaction?.status === "completed") {
+                    stopped = true;
+                    toast({
+                        title: "Store Pro đã được kích hoạt",
+                        description: "Thanh toán đã được xác nhận tự động.",
+                    });
+                }
+            } catch {
+                // Keep polling through transient network/provider delays.
+            }
+        };
+
+        void poll();
+        const interval = window.setInterval(poll, 2500);
+        return () => {
+            stopped = true;
+            window.clearInterval(interval);
+        };
+    }, [order?.status, order?.transaction_id, searchParams, store?._id, toast]);
 
     const handleOrder = async () => {
         if (!store) return;
@@ -134,6 +183,59 @@ const OwnerUpgrade = () => {
     };
 
     const renderPaymentInstructions = () => {
+        if (order?.payment_method === "payos" || order?.checkout_url) {
+            const amount = order.final_amount ?? finalAmount;
+            return (
+                <div className="space-y-4 rounded-lg border border-green-200 bg-green-50 p-4">
+                    <div className="flex items-start gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-green-100 text-green-700">
+                            <CreditCard className="h-5 w-5" />
+                        </div>
+                        <div>
+                            <p className="font-semibold text-green-800">
+                                {order.status === "completed" ? "Store Pro đã kích hoạt" : "Thanh toán tự động qua PayOS"}
+                            </p>
+                            <p className="text-sm text-green-700/80">
+                                {order.status === "completed"
+                                    ? "CaloVie đã xác nhận thanh toán và nâng cấp quán."
+                                    : "Sau khi PayOS xác nhận tiền về, Store Pro sẽ tự bật mà không cần admin duyệt."}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="rounded-md border bg-background px-3 py-2 text-sm">
+                        <div className="flex items-center justify-between">
+                            <span className="text-muted-foreground">Số tiền</span>
+                            <span className="font-bold text-primary">{amount.toLocaleString("vi-VN")}₫</span>
+                        </div>
+                        {order.payment_ref && (
+                            <div className="mt-1 flex items-center justify-between">
+                                <span className="text-muted-foreground">Mã đơn</span>
+                                <code className="rounded bg-muted px-1 py-0.5 text-xs">{order.payment_ref}</code>
+                            </div>
+                        )}
+                    </div>
+
+                    {order.checkout_url ? (
+                        <Button className="w-full gap-2" onClick={() => window.location.assign(order.checkout_url!)}>
+                            <ExternalLink className="h-4 w-4" />
+                            Mở cổng thanh toán PayOS
+                        </Button>
+                    ) : order.status !== "completed" ? (
+                        <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                            Đơn PayOS đang chờ thanh toán. Nếu chưa mở được cổng, hãy thử tạo lại sau khi đơn cũ hết hạn hoặc liên hệ admin.
+                        </p>
+                    ) : null}
+
+                    {order.status !== "completed" && (
+                        <p className="text-center text-xs text-green-700/80">
+                            Màn này tự kiểm tra trạng thái mỗi 2.5 giây.
+                        </p>
+                    )}
+                </div>
+            );
+        }
+
         if (!order?.payment_instructions) return null;
         const info = order.payment_instructions;
         return (
@@ -297,15 +399,19 @@ const OwnerUpgrade = () => {
 
                     <div className="space-y-2">
                         <p className="text-sm font-medium">Phương thức thanh toán</p>
-                        <Select value={method} onValueChange={(v) => setMethod(v as "bank_transfer" | "momo")}>
+                        <Select value={method} onValueChange={(v) => setMethod(v as StorePaymentMethod)}>
                             <SelectTrigger>
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
+                                <SelectItem value="payos">PayOS tự động</SelectItem>
                                 <SelectItem value="bank_transfer">Chuyển khoản ngân hàng</SelectItem>
                                 <SelectItem value="momo">MoMo</SelectItem>
                             </SelectContent>
                         </Select>
+                        <p className="text-xs text-muted-foreground">
+                            PayOS tự kích hoạt Store Pro sau khi nhận webhook. Ngân hàng/MoMo là fallback khi cần xử lý thủ công.
+                        </p>
                     </div>
 
                     {!order ? (

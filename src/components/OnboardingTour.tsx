@@ -6,6 +6,7 @@ import { CaloVieGuideMascot } from "@/components/brand/CaloVieMascot";
 
 const TOUR_DONE_KEY = "calovie_tour_v1_done";
 const TOUR_PENDING_KEY = "calovie_tour_pending";
+const TOUR_PENDING_TTL_MS = 10 * 60 * 1000;
 
 interface TourStep {
     icon: React.ReactNode;
@@ -60,6 +61,21 @@ interface OnboardingTourProps {
     onDone?: () => void;
 }
 
+function hasRecentPendingTour(): boolean {
+    const raw = localStorage.getItem(TOUR_PENDING_KEY);
+    if (!raw) return false;
+
+    const timestamp = Number(raw);
+    if (!Number.isFinite(timestamp)) {
+        localStorage.removeItem(TOUR_PENDING_KEY);
+        return false;
+    }
+
+    const isRecent = Date.now() - timestamp <= TOUR_PENDING_TTL_MS;
+    if (!isRecent) localStorage.removeItem(TOUR_PENDING_KEY);
+    return isRecent;
+}
+
 export const OnboardingTour: React.FC<OnboardingTourProps> = ({ onDone }) => {
     const navigate = useNavigate();
     const location = useLocation();
@@ -68,10 +84,16 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({ onDone }) => {
 
     useEffect(() => {
         const state = location.state as { startTour?: boolean } | null;
-        const pending = localStorage.getItem(TOUR_PENDING_KEY) === "1";
         const done = localStorage.getItem(TOUR_DONE_KEY) === "1";
-        const shouldStart = pending || (state?.startTour && !done);
+        if (done) {
+            localStorage.removeItem(TOUR_PENDING_KEY);
+            return;
+        }
+
+        const shouldStart = hasRecentPendingTour() || state?.startTour === true;
         if (shouldStart) {
+            localStorage.removeItem(TOUR_PENDING_KEY);
+            setStep(0);
             const t = setTimeout(() => setVisible(true), 800);
             return () => clearTimeout(t);
         }
@@ -191,7 +213,7 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({ onDone }) => {
 export function useOnboardingTour() {
     const reset = () => {
         localStorage.removeItem(TOUR_DONE_KEY);
-        localStorage.setItem(TOUR_PENDING_KEY, "1");
+        localStorage.setItem(TOUR_PENDING_KEY, String(Date.now()));
     };
     const isDone = () => !!localStorage.getItem(TOUR_DONE_KEY);
     return { reset, isDone };

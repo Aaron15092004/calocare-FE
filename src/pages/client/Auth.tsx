@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useTranslation } from "react-i18next";
 import { z } from "zod";
+import { isOnboardingComplete } from "@/utils/onboarding";
 
 const emailSchema = z.string().email("Please enter a valid email address");
 const passwordSchema = z
@@ -56,8 +57,7 @@ const Auth: React.FC = () => {
         console.log(">>> Redirecting to /admin");
         navigate("/admin", { replace: true });
       } else {
-        const prefs = profile.preferences;
-        if (!prefs?.age || !prefs?.height_cm || !prefs?.weight_kg) {
+        if (!isOnboardingComplete(profile)) {
           navigate("/onboarding", { replace: true });
         } else {
           navigate("/", { replace: true });
@@ -114,10 +114,9 @@ const Auth: React.FC = () => {
       <main className="flex-1 flex flex-col items-center justify-center px-4 pb-8">
         {/* Logo */}
         <div className="mb-8 text-center">
-          <div className="w-16 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-2xl">
-            <img src="/logo.png" alt="logo" className="w-16 rounded-2xl" />
+          <div className="flex items-center justify-center mx-auto mb-4">
+            <img src="/logo.png" alt="CaloVie" className="h-14 w-auto object-contain" />
           </div>
-          <h1 className="text-2xl font-bold text-foreground">CaloVie</h1>
           <p className="text-sm text-muted-foreground">
             Personalized nutrition for real life
           </p>

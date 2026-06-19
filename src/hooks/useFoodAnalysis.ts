@@ -82,6 +82,10 @@ interface RagScanResult {
     alternatives?: RagScanMatch[];
 }
 
+interface AnalyzeFoodOptions {
+    signal?: AbortSignal;
+}
+
 // Compatibility type for addEntry
 export interface NutritionAnalysis {
     foods: FoodItem[];
@@ -104,11 +108,91 @@ export const useFoodAnalysis = () => {
     const { toast } = useToast();
     const { i18n } = useTranslation();
 
-    const imageDataUrlToFile = async (imageBase64: string): Promise<File> => {
-        const response = await fetch(imageBase64);
+    const MAX_SCAN_IMAGE_DIMENSION = 1280;
+    const SCAN_IMAGE_QUALITY = 0.82;
+    const SKIP_CANVAS_TYPES = new Set(["image/gif", "image/heic", "image/heif"]);
+
+    const throwIfAborted = (signal?: AbortSignal) => {
+        if (signal?.aborted) {
+            throw new DOMException("Scan cancelled", "AbortError");
+        }
+    };
+
+    const loadImage = (src: string, signal?: AbortSignal): Promise<HTMLImageElement> =>
+        new Promise((resolve, reject) => {
+            const img = new Image();
+            const cleanup = () => {
+                img.onload = null;
+                img.onerror = null;
+                signal?.removeEventListener("abort", onAbort);
+            };
+            const onAbort = () => {
+                cleanup();
+                reject(new DOMException("Scan cancelled", "AbortError"));
+            };
+            img.onload = () => {
+                cleanup();
+                resolve(img);
+            };
+            img.onerror = () => {
+                cleanup();
+                reject(new Error("Could not read image"));
+            };
+            signal?.addEventListener("abort", onAbort, { once: true });
+            img.src = src;
+        });
+
+    const canvasToBlob = (canvas: HTMLCanvasElement, type: string, quality: number): Promise<Blob> =>
+        new Promise((resolve, reject) => {
+            canvas.toBlob((blob) => {
+                if (!blob) reject(new Error("Could not compress image"));
+                else resolve(blob);
+            }, type, quality);
+        });
+
+    const imageDataUrlToFile = async (imageBase64: string, signal?: AbortSignal): Promise<File> => {
+        throwIfAborted(signal);
+        const response = await fetch(imageBase64, { signal });
         const blob = await response.blob();
-        const extension = blob.type.split("/")[1]?.replace("jpeg", "jpg") || "jpg";
-        return new File([blob], `calovie-scan.${extension}`, { type: blob.type || "image/jpeg" });
+        throwIfAborted(signal);
+
+        const originalType = blob.type || "image/jpeg";
+        const originalExtension = originalType.split("/")[1]?.replace("jpeg", "jpg") || "jpg";
+
+        if (!originalType.startsWith("image/") || SKIP_CANVAS_TYPES.has(originalType)) {
+            return new File([blob], `calovie-scan.${originalExtension}`, { type: originalType });
+        }
+
+        try {
+            const img = await loadImage(imageBase64, signal);
+            throwIfAborted(signal);
+
+            const largestSide = Math.max(img.naturalWidth, img.naturalHeight);
+            const scale = largestSide > MAX_SCAN_IMAGE_DIMENSION
+                ? MAX_SCAN_IMAGE_DIMENSION / largestSide
+                : 1;
+            const width = Math.max(1, Math.round(img.naturalWidth * scale));
+            const height = Math.max(1, Math.round(img.naturalHeight * scale));
+
+            const canvas = document.createElement("canvas");
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext("2d");
+            if (!ctx) throw new Error("Canvas not supported");
+            ctx.drawImage(img, 0, 0, width, height);
+
+            const compressedBlob = await canvasToBlob(canvas, "image/jpeg", SCAN_IMAGE_QUALITY);
+            throwIfAborted(signal);
+
+            if (compressedBlob.size >= blob.size && largestSide <= MAX_SCAN_IMAGE_DIMENSION) {
+                return new File([blob], `calovie-scan.${originalExtension}`, { type: originalType });
+            }
+
+            return new File([compressedBlob], "calovie-scan.jpg", { type: "image/jpeg" });
+        } catch (error) {
+            if ((error as DOMException).name === "AbortError") throw error;
+            return new File([blob], `calovie-scan.${originalExtension}`, { type: originalType });
+        }
     };
 
     const guessMealType = (): string => {
@@ -175,17 +259,18 @@ export const useFoodAnalysis = () => {
         return null;
     };
 
-    const analyzeFood = async (imageBase64: string) => {
+    const analyzeFood = async (imageBase64: string, options: AnalyzeFoodOptions = {}) => {
         setIsAnalyzing(true);
         setResult(null);
 
         try {
-            const imageFile = await imageDataUrlToFile(imageBase64);
+            const imageFile = await imageDataUrlToFile(imageBase64, options.signal);
             const formData = new FormData();
             formData.append("image", imageFile);
 
             const { data } = await api.post<RagScanResult & { error?: string; limit?: number; used?: number; tier?: string }>("/rag/scan-food", formData, {
                 headers: { "Content-Type": "multipart/form-data", "Accept-Language": i18n.language },
+                signal: options.signal,
             });
 
             if (data?.error === "scan_limit_reached") {
@@ -219,6 +304,10 @@ export const useFoodAnalysis = () => {
         } catch (err) {
             const error = err as AxiosError<{ error: string; message?: string; limit?: number; used?: number; tier?: string; can_watch_ad?: boolean }>;
 
+            if (options.signal?.aborted || error.code === "ERR_CANCELED" || (err as DOMException).name === "AbortError") {
+                return null;
+            }
+
             if (error.response?.status === 429) {
                 const data = error.response.data;
                 if (data.error === "scan_limit_reached" || data.error === "rate_limit_exceeded") {
@@ -230,6 +319,15 @@ export const useFoodAnalysis = () => {
                     return { error: "scan_limit_reached", ...data };
                 }
                 toast({ title: "Too many requests", description: "Please try again later.", variant: "destructive" });
+                return null;
+            }
+
+            if (error.response?.status === 503 || error.response?.status === 504) {
+                toast({
+                    title: error.response.status === 504 ? "Scan hơi lâu" : "AI đang bận",
+                    description: error.response.data?.message || "Bạn thử lại sau vài giây nhé.",
+                    variant: "destructive",
+                });
                 return null;
             }
 

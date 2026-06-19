@@ -61,6 +61,7 @@ export const FoodScanner: React.FC<FoodScannerProps> = ({ onScanComplete, onSave
   const [showTips, setShowTips] = useState(false);
   const [dishGrams, setDishGrams] = useState<number[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   const { analyzeFood, isAnalyzing, result, clearResult, toNutritionAnalysis } = useFoodAnalysis();
   const { user, profile } = useAuthContext();
@@ -117,27 +118,40 @@ export const FoodScanner: React.FC<FoodScannerProps> = ({ onScanComplete, onSave
   // ── event handlers ───────────────────────────────────────────────────────
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (isAnalyzing) return;
     const file = event.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = async (e) => {
       const base64 = e.target?.result as string;
       setPreviewImage(base64);
-      const response = await analyzeFood(base64);
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+      const response = await analyzeFood(base64, { signal: controller.signal });
+      if (abortRef.current === controller) abortRef.current = null;
+      if (controller.signal.aborted) return;
       if (response?.error === "scan_limit_reached") {
         setScanLimitReached(true);
         setScanLimitInfo(response);
         setPreviewImage(null);
       } else if (response && profile?.subscription_tier === "free") {
         onScanComplete?.();
+      } else if (!response) {
+        setPreviewImage(null);
       }
     };
     reader.readAsDataURL(file);
   };
 
-  const handleCameraClick = () => fileInputRef.current?.click();
+  const handleCameraClick = () => {
+    if (isAnalyzing || saving) return;
+    fileInputRef.current?.click();
+  };
 
   const handleClear = () => {
+    abortRef.current?.abort();
+    abortRef.current = null;
     setPreviewImage(null);
     clearResult();
     setDishGrams([]);
@@ -411,6 +425,7 @@ export const FoodScanner: React.FC<FoodScannerProps> = ({ onScanComplete, onSave
           accept="image/*"
           capture="environment"
           aria-label="Chon anh thuc an"
+          disabled={isAnalyzing || saving}
           onChange={handleFileSelect}
           className="hidden"
         />
@@ -453,10 +468,11 @@ export const FoodScanner: React.FC<FoodScannerProps> = ({ onScanComplete, onSave
             </div>
 
             <div className="flex gap-3 w-full">
-              <Button variant="scan" size="lg" className="flex-1" onClick={handleCameraClick}>
-                <Camera className="w-5 h-5" /> Scan món ăn
+              <Button variant="scan" size="lg" className="flex-1" onClick={handleCameraClick} disabled={isAnalyzing || saving}>
+                {isAnalyzing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Camera className="w-5 h-5" />}
+                {isAnalyzing ? "Đang scan..." : "Scan món ăn"}
               </Button>
-              <Button variant="outline" size="lg" className="px-4" onClick={handleCameraClick}>
+              <Button variant="outline" size="lg" className="px-4" onClick={handleCameraClick} disabled={isAnalyzing || saving}>
                 <Upload className="w-5 h-5" />
               </Button>
             </div>

@@ -55,12 +55,9 @@ const StoreOwnerLayout = () => {
             >
                 {/* Logo */}
                 <div className="p-4 border-b flex items-center justify-between flex-shrink-0">
-                    <div className="flex items-center gap-2">
-                        <img src="/logo.png" className="w-8 h-8 rounded-lg" alt="Logo" />
-                        <div>
-                            <span className="font-bold text-sm block">CaloVie</span>
-                            <span className="text-xs text-muted-foreground">Quản lý quán</span>
-                        </div>
+                    <div className="flex min-w-0 items-center gap-3">
+                        <img src="/logo.png" className="h-10 w-auto max-w-[132px] object-contain" alt="CaloVie" />
+                        <span className="text-xs font-medium text-muted-foreground">Quản lý quán</span>
                     </div>
                     <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setSidebarOpen(false)}>
                         <X className="w-4 h-4" />

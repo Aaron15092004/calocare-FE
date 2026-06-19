@@ -234,7 +234,7 @@ const DayPreview: React.FC<{ day: SSEDayPlan; defaultOpen?: boolean; onMealClick
 /* ── Main page ──────────────────────────────────────────────────── */
 const GenerateMealPlan: React.FC = () => {
     const navigate = useNavigate();
-    const { profile } = useAuthContext();
+    const { profile, refreshProfile } = useAuthContext();
     const { toast } = useToast();
 
     const tier      = profile?.subscription_tier === "pro" ? "family" : (profile?.subscription_tier ?? "free");
@@ -264,6 +264,10 @@ const GenerateMealPlan: React.FC = () => {
     const [activating, setActivating] = useState(false);
     const [selectedMeal, setSelectedMeal] = useState<SSEMealItem | null>(null);
     const { isGenerating, progress, days, substitutions, result, error: genError, generate, reset } = useSSEMealPlan();
+
+    useEffect(() => {
+        void refreshProfile();
+    }, [refreshProfile]);
 
     const prefs    = (profile?.preferences as Record<string, unknown>) ?? {};
     const age      = (prefs.age as number) || null;

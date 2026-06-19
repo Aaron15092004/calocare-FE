@@ -15,6 +15,7 @@ import {
     ChevronLeft,
     Layers,
     CreditCard,
+    WalletCards,
     Store,
     Tag,
     BookMarked,
@@ -31,6 +32,7 @@ const navItems = [
     { to: "/admin", icon: LayoutDashboard, label: "Dashboard", end: true },
     { to: "/admin/users", icon: Users, label: "Users" },
     { to: "/admin/payments", icon: CreditCard, label: "Payments" },
+    { to: "/admin/revenue", icon: WalletCards, label: "Revenue" },
     { to: "/admin/stores", icon: Store, label: "Stores" },
     { to: "/admin/banners", icon: Image, label: "Banners" },
     { to: "/admin/discount-codes", icon: Tag, label: "Discount Codes" },
@@ -84,9 +86,8 @@ const AdminLayout = () => {
             >
                 {/* Logo */}
                 <div className="p-4 border-b flex items-center justify-between flex-shrink-0">
-                    <div className="flex items-center gap-2">
-                        <img src="/logo.png" className="w-8 h-8 rounded-lg" alt="Logo" />
-                        <span className="font-bold">CaloVie</span>
+                    <div className="flex items-center">
+                        <img src="/logo.png" className="h-10 w-auto max-w-[132px] object-contain" alt="CaloVie" />
                     </div>
                     <Button
                         variant="ghost"

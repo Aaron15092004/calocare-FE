@@ -33,7 +33,7 @@ export function invalidateMealPlanCache() {
 
 const MealPlan: React.FC = () => {
     const navigate = useNavigate();
-    const { user, profile } = useAuthContext();
+    const { user, profile, refreshProfile } = useAuthContext();
 
     const [activePlan, setActivePlan] = useState<UserMealPlanAPI | null>(null);
     const [dayPlans, setDayPlans] = useState<DayPlanFromAPI[]>([]);
@@ -58,6 +58,10 @@ const MealPlan: React.FC = () => {
         toggleMealComplete,
         getOverallProgress,
     } = useMealProgress(user?.id, totalDays, activePlan?._id, dayItemCounts);
+
+    useEffect(() => {
+        void refreshProfile();
+    }, [refreshProfile]);
 
     useEffect(() => {
         fetchActivePlan();

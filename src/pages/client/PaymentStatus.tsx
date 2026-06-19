@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Clock, CheckCircle2, XCircle, Loader2, ReceiptText } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import api from "@/lib/api";
+import { useAuthContext } from "@/contexts/AuthContext";
 
 interface SubStatus {
     tier: string;
@@ -72,7 +73,9 @@ const METHOD_LABELS: Record<string, string> = {
 export default function PaymentStatus() {
     const navigate = useNavigate();
     const [params] = useSearchParams();
+    const { refreshProfile } = useAuthContext();
     const txId = params.get("txId");
+    const refreshedCompletedTxRef = useRef<string | null>(null);
 
     const { data, isLoading, refetch } = useQuery<SubStatus>({
         queryKey: ["subscription-status", txId],
@@ -96,6 +99,14 @@ export default function PaymentStatus() {
     const tx = data?.latest_transaction;
     const statusKey = tx?.status ?? "pending";
     const ui = STATUS_UI[statusKey] ?? STATUS_UI.pending;
+
+    useEffect(() => {
+        if (tx?.status !== "completed") return;
+        const key = txId || tx.created_at;
+        if (refreshedCompletedTxRef.current === key) return;
+        refreshedCompletedTxRef.current = key;
+        void refreshProfile();
+    }, [refreshProfile, tx?.created_at, tx?.status, txId]);
 
     const fmt = (n: number) =>
         n.toLocaleString("vi-VN") + "₫";

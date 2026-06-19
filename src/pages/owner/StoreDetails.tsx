@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
-    Save, Plus, Trash2, Clock, CheckCircle2, XCircle, AlertCircle, MapPin, Phone, Globe, Map,
+    Save, Plus, Clock, CheckCircle2, XCircle, AlertCircle, MapPin, Phone, Globe, Map,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { GooglePlacesInput, PlaceResult } from "@/components/GooglePlacesInput";
 import { MapLocationPicker, PickedLocation } from "@/components/MapLocationPicker";
+import { MultiImageUpload } from "@/components/MultiImageUpload";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
 import api from "@/lib/api";
@@ -29,6 +30,20 @@ interface StoreForm {
     google_maps_url?: string;
 }
 
+interface StoreRecord extends StoreForm {
+    _id: string;
+    is_active?: boolean;
+    reject_reason?: string;
+}
+
+interface ApiError {
+    response?: {
+        data?: {
+            message?: string;
+        };
+    };
+}
+
 const CATEGORIES = [
     { value: "restaurant", label: "Nhà hàng" },
     { value: "cafe",       label: "Cà phê" },
@@ -43,7 +58,7 @@ const StoreDetails = () => {
     const { toast }      = useToast();
     const { t }          = useTranslation();
 
-    const [stores, setStores]     = useState<any[]>([]);
+    const [stores, setStores]     = useState<StoreRecord[]>([]);
     const [storeId, setStoreId]   = useState<string | null>(null);
     const [form, setForm]         = useState<StoreForm>({
         name: "", description: "", address: "", city: "", phone: "",
@@ -52,14 +67,14 @@ const StoreDetails = () => {
     const [imageInput, setImageInput] = useState("");
     const [loading, setLoading]   = useState(true);
     const [saving, setSaving]     = useState(false);
-    const [storeData, setStoreData] = useState<any>(null);
+    const [storeData, setStoreData] = useState<StoreRecord | null>(null);
     const [isNew, setIsNew]       = useState(false);
     const [showMapPicker, setShowMapPicker] = useState(false);
 
     useEffect(() => {
         const load = async () => {
             try {
-                const { data } = await api.get("/stores/mine");
+                const { data } = await api.get<{ data: StoreRecord[] }>("/stores/mine");
                 const list = data.data || [];
                 setStores(list);
 
@@ -68,7 +83,7 @@ const StoreDetails = () => {
                 setStoreId(targetId);
 
                 if (targetId && list.length > 0) {
-                    const s = list.find((x: any) => x._id === targetId) || list[0];
+                    const s = list.find((x) => x._id === targetId) || list[0];
                     setStoreData(s);
                     setForm({
                         name:        s.name || "",
@@ -127,8 +142,9 @@ const StoreDetails = () => {
                 toast({ title: "Đã lưu", description: "Thông tin quán đang chờ admin duyệt lại." });
                 navigate("/owner");
             }
-        } catch (err: any) {
-            toast({ title: "Lỗi", description: err.response?.data?.message || "Không thể lưu.", variant: "destructive" });
+        } catch (err: unknown) {
+            const apiError = err as ApiError;
+            toast({ title: "Lỗi", description: apiError.response?.data?.message || "Không thể lưu.", variant: "destructive" });
         } finally {
             setSaving(false);
         }
@@ -266,30 +282,27 @@ const StoreDetails = () => {
 
             <Card>
                 <CardHeader><CardTitle className="text-base">{t("owner.storeDetails.images")}</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
-                    <div className="flex gap-2">
-                        <Input value={imageInput} onChange={(e) => setImageInput(e.target.value)}
-                            placeholder={t("owner.storeDetails.imageUrlPlaceholder")}
-                            onKeyDown={(e) => e.key === "Enter" && addImage()} />
-                        <Button type="button" variant="outline" onClick={addImage}>
-                            <Plus className="w-4 h-4" />
-                        </Button>
-                    </div>
-                    {form.images.length > 0 && (
-                        <div className="grid grid-cols-3 gap-2">
-                            {form.images.map((img, i) => (
-                                <div key={i} className="relative group">
-                                    <img src={img} alt="" className="w-full aspect-video object-cover rounded-lg" />
-                                    <button type="button"
-                                        aria-label="Remove image"
-                                        className="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                                        onClick={() => setForm((f) => ({ ...f, images: f.images.filter((_, j) => j !== i) }))}>
-                                        <Trash2 className="w-3 h-3" />
-                                    </button>
-                                </div>
-                            ))}
+                <CardContent className="space-y-4">
+                    <MultiImageUpload
+                        value={form.images}
+                        onChange={(urls) => setForm((f) => ({ ...f, images: urls }))}
+                        folder="calovie/stores"
+                        maxImages={6}
+                    />
+
+                    <div className="space-y-2 rounded-xl border border-dashed bg-muted/30 p-3">
+                        <p className="text-xs font-medium text-muted-foreground">
+                            Hoặc thêm ảnh bằng URL
+                        </p>
+                        <div className="flex gap-2">
+                            <Input value={imageInput} onChange={(e) => setImageInput(e.target.value)}
+                                placeholder={t("owner.storeDetails.imageUrlPlaceholder")}
+                                onKeyDown={(e) => e.key === "Enter" && addImage()} />
+                            <Button type="button" variant="outline" onClick={addImage}>
+                                <Plus className="w-4 h-4" />
+                            </Button>
                         </div>
-                    )}
+                    </div>
                 </CardContent>
             </Card>
 

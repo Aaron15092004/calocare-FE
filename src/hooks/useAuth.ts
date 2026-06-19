@@ -23,12 +23,14 @@ export interface Profile {
         minerals?: Record<string, number>;
     };
     preferences: {
+        [key: string]: unknown;
         age?: number;
         gender?: "male" | "female" | "other";
         height_cm?: number;
         weight_kg?: number;
         activity_level?: "sedentary" | "light" | "moderate" | "active" | "very_active";
         dietary_restrictions?: string[];
+        onboarding_completed?: boolean;
     };
     created_at: string;
 }

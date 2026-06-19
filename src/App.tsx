@@ -36,6 +36,7 @@ import Dashboard from "./pages/admin/Dashboard";
 import AdminBanners from "./pages/admin/Banners";
 import Users from "./pages/admin/Users";
 import Payments from "./pages/admin/Payments";
+import Revenue from "./pages/admin/Revenue";
 import AdminStores from "./pages/admin/Stores";
 import DiscountCodes from "./pages/admin/DiscountCodes";
 import Recipes from "./pages/admin/Recipes";
@@ -92,6 +93,8 @@ const App = () => (
             <Route path="/generate-meal-plan" element={<ProtectedRoute><GenerateMealPlan /></ProtectedRoute>} />
             <Route path="/assistant" element={<ProtectedRoute><AIAssistant /></ProtectedRoute>} />
             <Route path="/subscription/status" element={<ProtectedRoute><PaymentStatus /></ProtectedRoute>} />
+            <Route path="/subscription/success" element={<ProtectedRoute><PaymentStatus /></ProtectedRoute>} />
+            <Route path="/subscription/cancel" element={<ProtectedRoute><PaymentStatus /></ProtectedRoute>} />
             <Route path="/subscription/history" element={<ProtectedRoute><TransactionHistory /></ProtectedRoute>} />
             <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
 
@@ -114,6 +117,7 @@ const App = () => (
               <Route index element={<Dashboard />} />
               <Route path="users" element={<Users />} />
               <Route path="payments" element={<Payments />} />
+              <Route path="revenue" element={<Revenue />} />
               <Route path="stores" element={<AdminStores />} />
               <Route path="banners" element={<AdminBanners />} />
               <Route path="discount-codes" element={<DiscountCodes />} />
