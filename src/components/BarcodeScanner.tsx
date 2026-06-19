@@ -30,8 +30,30 @@ interface ProductInfo {
     name: string;
     brand?: string;
     image_url?: string;
+    source?: string;
+    nutriscore_grade?: string;
+    nova_group?: number;
     per100g: { calories: number; protein: number; carbs: number; fat: number; fiber: number };
     dbFoodId?: string;
+}
+
+interface BarcodeLookupResponse {
+    source?: string;
+    barcode?: string;
+    name: string;
+    brand?: string;
+    image_url?: string;
+    db_food_id?: string;
+    nutriscore_grade?: string;
+    nova_group?: number;
+    serving_size?: number;
+    per_100g: {
+        calories?: number;
+        protein?: number;
+        carbs?: number;
+        fat?: number;
+        fiber?: number;
+    };
 }
 
 // All 17 formats supported by html5-qrcode
@@ -56,6 +78,12 @@ const ALL_FORMATS = [
 ];
 
 const SCANNER_DIV_ID = "barcode-scanner-viewport";
+
+const SOURCE_LABELS: Record<string, string> = {
+    local: "CaloVie",
+    open_food_facts: "Open Food Facts",
+    fatsecret: "FatSecret",
+};
 
 export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onClose }) => {
     const { user } = useAuthContext();
@@ -109,8 +137,8 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onClose }) => {
                 () => {}, // suppress per-frame "no barcode" errors
             );
             isScanningRef.current = true;
-        } catch (err: any) {
-            const msg: string = err?.message ?? "";
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : "";
             if (msg.includes("ermission") || msg.includes("ermitted")) {
                 setCameraError("Cần cấp quyền camera. Nhấn vào ô địa chỉ trình duyệt → cho phép camera.");
             } else if (msg.includes("ndefined") || msg.includes("element")) {
@@ -123,7 +151,11 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onClose }) => {
 
     const stopScanner = async () => {
         if (scannerRef.current && isScanningRef.current) {
-            try { await scannerRef.current.stop(); } catch (_) {}
+            try {
+                await scannerRef.current.stop();
+            } catch (err) {
+                void err;
+            }
             isScanningRef.current = false;
         }
     };
@@ -140,61 +172,29 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onClose }) => {
         setCameraError(null);
 
         try {
-            // 1. Our own DB
-            let dbFood: any = null;
-            try {
-                const { data } = await api.get("/foods", { params: { q: barcode.trim(), limit: 1 } });
-                if (data?.data?.length > 0) dbFood = data.data[0];
-            } catch (_) {}
-
-            if (dbFood) {
-                setProduct({
-                    barcode,
-                    name: dbFood.name_vi || dbFood.name_en || "Sản phẩm",
-                    per100g: {
-                        calories: dbFood.energy_kcal || 0,
-                        protein: dbFood.protein_g || 0,
-                        carbs: dbFood.carbohydrate_g || 0,
-                        fat: dbFood.total_fat_g || 0,
-                        fiber: dbFood.dietary_fiber_g || 0,
-                    },
-                    dbFoodId: String(dbFood._id),
-                });
-                return;
-            }
-
-            // 2. Open Food Facts
-            const resp = await fetch(
-                `https://world.openfoodfacts.org/api/v0/product/${barcode.trim()}.json`,
-            );
-            const json = await resp.json();
-
-            if (json.status !== 1 || !json.product) {
-                setCameraError(`Không tìm thấy sản phẩm cho mã: ${barcode}`);
-                return;
-            }
-
-            const p = json.product;
-            const n = p.nutriments || {};
-            const kcal =
-                n["energy-kcal_100g"] ??
-                (n["energy_100g"] ? Math.round(n["energy_100g"] / 4.184) : 0);
+            const { data } = await api.get<BarcodeLookupResponse>(`/ai/barcode/${barcode.trim()}`);
 
             setProduct({
-                barcode,
-                name: p.product_name_vi || p.product_name_en || p.product_name || "Sản phẩm",
-                brand: p.brands,
-                image_url: p.image_front_url || p.image_url,
+                barcode: data.barcode || barcode.trim(),
+                name: data.name || "Sản phẩm",
+                brand: data.brand,
+                image_url: data.image_url,
+                source: data.source,
+                dbFoodId: data.db_food_id,
+                nutriscore_grade: data.nutriscore_grade,
+                nova_group: data.nova_group,
                 per100g: {
-                    calories: Math.round(kcal),
-                    protein: Math.round((n.proteins_100g || 0) * 10) / 10,
-                    carbs: Math.round((n.carbohydrates_100g || 0) * 10) / 10,
-                    fat: Math.round((n.fat_100g || 0) * 10) / 10,
-                    fiber: Math.round((n.fiber_100g || 0) * 10) / 10,
+                    calories: Math.round(data.per_100g?.calories || 0),
+                    protein: Math.round((data.per_100g?.protein || 0) * 10) / 10,
+                    carbs: Math.round((data.per_100g?.carbs || 0) * 10) / 10,
+                    fat: Math.round((data.per_100g?.fat || 0) * 10) / 10,
+                    fiber: Math.round((data.per_100g?.fiber || 0) * 10) / 10,
                 },
             });
-        } catch {
-            setCameraError("Lỗi kết nối. Kiểm tra internet và thử lại.");
+            setServingSize(Math.max(1, Math.min(2000, Math.round(data.serving_size || 100))));
+        } catch (error) {
+            const status = (error as { response?: { status?: number } }).response?.status;
+            setCameraError(status === 404 ? `Không tìm thấy sản phẩm cho mã: ${barcode}` : "Lỗi kết nối. Kiểm tra internet và thử lại.");
         } finally {
             setLoading(false);
         }
@@ -349,7 +349,24 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onClose }) => {
                             <div className="p-4">
                                 <h3 className="font-bold text-base leading-tight">{product.name}</h3>
                                 {product.brand && <p className="text-sm text-muted-foreground mt-0.5">{product.brand}</p>}
-                                <p className="text-xs text-muted-foreground/50 mt-1">{product.barcode}</p>
+                                <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                                    {product.source && (
+                                        <span className="rounded-full bg-primary/10 px-2 py-0.5 font-medium text-primary">
+                                            {SOURCE_LABELS[product.source] || product.source}
+                                        </span>
+                                    )}
+                                    {product.nutriscore_grade && (
+                                        <span className="rounded-full bg-emerald-50 px-2 py-0.5 font-medium uppercase text-emerald-700">
+                                            Nutri {product.nutriscore_grade}
+                                        </span>
+                                    )}
+                                    {product.nova_group && (
+                                        <span className="rounded-full bg-amber-50 px-2 py-0.5 font-medium text-amber-700">
+                                            NOVA {product.nova_group}
+                                        </span>
+                                    )}
+                                </div>
+                                <p className="text-xs text-muted-foreground/50 mt-2">{product.barcode}</p>
                             </div>
                         </CardContent>
                     </Card>
@@ -381,6 +398,11 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onClose }) => {
                                             <p className="text-[10px] text-muted-foreground">{u}</p>
                                         </div>
                                     ))}
+                                </div>
+                            )}
+                            {scaled && scaled.fiber > 0 && (
+                                <div className="rounded-lg bg-emerald-50 px-3 py-2 text-center text-xs text-emerald-700">
+                                    Chất xơ: <span className="font-semibold">{scaled.fiber}g</span>
                                 </div>
                             )}
                         </CardContent>

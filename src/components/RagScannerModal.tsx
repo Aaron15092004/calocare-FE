@@ -13,7 +13,7 @@ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:1509";
 
 interface ScanMatch {
     source_id: string;
-    source_type: "food" | "recipe" | "usda";
+    source_type: "food" | "recipe" | "usda" | "fatsecret" | "ai_estimate";
     name: string;
     name_vi?: string;
     score: number;
@@ -21,6 +21,7 @@ interface ScanMatch {
     protein_g?: number;
     carbs_g?: number;
     fat_g?: number;
+    fiber_g?: number;
     diet_tags?: string[];
 }
 
@@ -45,7 +46,9 @@ interface RagScannerModalProps {
 const SOURCE_LABEL: Record<string, string> = {
     food: "Thực phẩm",
     recipe: "Công thức",
+    fatsecret: "FatSecret",
     usda: "USDA",
+    ai_estimate: "Ước tính",
 };
 
 export const RagScannerModal: React.FC<RagScannerModalProps> = ({ open, onClose }) => {
@@ -112,10 +115,11 @@ export const RagScannerModal: React.FC<RagScannerModalProps> = ({ open, onClose 
             const prot   = parseFloat(((result.matched ? result.match?.protein_g : result.ai_estimate?.protein_per_100g) ?? 0) * scale + "").valueOf();
             const carb   = parseFloat(((result.matched ? result.match?.carbs_g   : result.ai_estimate?.carbs_per_100g)   ?? 0) * scale + "").valueOf();
             const fat    = parseFloat(((result.matched ? result.match?.fat_g     : result.ai_estimate?.fat_per_100g)     ?? 0) * scale + "").valueOf();
+            const fiber  = parseFloat(((result.matched ? result.match?.fiber_g   : 0) ?? 0) * scale + "").valueOf();
 
             const analysis: NutritionAnalysis = {
-                foods: [{ name, portion: `${grams}g`, calories: kcal, protein: prot, carbs: carb, fat, fiber: 0 }],
-                totals: { calories: kcal, protein: prot, carbs: carb, fat, fiber: 0 },
+                foods: [{ name, portion: `${grams}g`, calories: kcal, protein: prot, carbs: carb, fat, fiber }],
+                totals: { calories: kcal, protein: prot, carbs: carb, fat, fiber },
                 mealType: "snack",
                 healthScore: result.matched ? 80 : 60,
                 vitamins: [],

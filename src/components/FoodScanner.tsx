@@ -337,6 +337,16 @@ export const FoodScanner: React.FC<FoodScannerProps> = ({ onScanComplete, onSave
                       <span className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${SCAN_SOURCE_LABELS[dish.source]?.className ?? "bg-muted text-muted-foreground"}`}>
                         {SCAN_SOURCE_LABELS[dish.source]?.label ?? dish.source}
                       </span>
+                      {dish.ingredients && dish.ingredients.length > 0 && (
+                        <p className="mt-1 text-[11px] text-muted-foreground line-clamp-2">
+                          Nguyên liệu: {dish.ingredients.slice(0, 5).map((ing) => ing.name).join(", ")}
+                        </p>
+                      )}
+                      {dish.source_note && (
+                        <p className="mt-1 text-[11px] text-amber-700 dark:text-amber-300">
+                          {dish.source_note}
+                        </p>
+                      )}
                     </div>
                     <span className="text-sm font-bold text-primary whitespace-nowrap">
                       {adj.calories} kcal
@@ -390,6 +400,27 @@ export const FoodScanner: React.FC<FoodScannerProps> = ({ onScanComplete, onSave
               <p className="text-[10px] text-muted-foreground">Fat</p>
             </div>
           </div>
+          {adjustedTotals.fiber > 0 && (
+            <div className="mb-4 rounded-lg bg-emerald-50 px-3 py-2 text-center text-xs text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">
+              Chất xơ ước tính: <span className="font-semibold">{adjustedTotals.fiber}g</span>
+            </div>
+          )}
+
+          {result.vitamins.length > 0 && (
+            <div className="mb-4 rounded-xl border border-border bg-background/70 p-3">
+              <p className="mb-2 text-xs font-semibold text-foreground">Vitamin & khoáng chất từ dữ liệu món</p>
+              <div className="flex flex-wrap gap-1.5">
+                {result.vitamins.slice(0, 8).map((vitamin) => (
+                  <span
+                    key={`${vitamin.name}-${vitamin.unit}`}
+                    className="rounded-full bg-vitamins/10 px-2 py-1 text-[11px] font-medium text-vitamins"
+                  >
+                    {vitamin.name}: {vitamin.amount}{vitamin.unit}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Actions */}
           <div className="flex gap-2">

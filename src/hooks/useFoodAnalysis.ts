@@ -40,6 +40,9 @@ export interface DishResult {
     category?: string;
     fs_food_id?: string;
     confidence?: number;
+    ingredients?: { name: string; amount?: number; unit?: string }[];
+    vitamins?: VitaminInfo[];
+    source_note?: string;
 }
 
 export interface AnalysisResult {
@@ -57,7 +60,7 @@ export interface AnalysisResult {
 
 interface RagScanMatch {
     source_id: string;
-    source_type: "food" | "recipe" | "usda";
+    source_type: "food" | "recipe" | "usda" | "fatsecret" | "ai_estimate";
     name: string;
     name_vi?: string;
     score: number;
@@ -65,9 +68,14 @@ interface RagScanMatch {
     protein_g?: number;
     carbs_g?: number;
     fat_g?: number;
+    fiber_g?: number;
 }
 
 interface RagScanResult {
+    dishes?: DishResult[];
+    totals?: AnalysisResult["totals"];
+    vitamins?: VitaminInfo[];
+    meal_type?: string;
     matched: boolean;
     match?: RagScanMatch;
     description?: string;
@@ -206,6 +214,32 @@ export const useFoodAnalysis = () => {
     const round1 = (value: number) => Math.round(value * 10) / 10;
 
     const mapRagScanToAnalysis = (data: RagScanResult): AnalysisResult | null => {
+        if (Array.isArray(data.dishes) && data.dishes.length > 0 && data.totals) {
+            return {
+                dishes: data.dishes.map((dish) => ({
+                    ...dish,
+                    nutrition: {
+                        calories: dish.nutrition?.calories ?? 0,
+                        protein: dish.nutrition?.protein ?? 0,
+                        carbs: dish.nutrition?.carbs ?? 0,
+                        fat: dish.nutrition?.fat ?? 0,
+                        fiber: dish.nutrition?.fiber ?? 0,
+                    },
+                    weight_grams: dish.weight_grams ?? 100,
+                    confidence: dish.confidence ?? data.confidence,
+                })),
+                totals: {
+                    calories: data.totals.calories ?? 0,
+                    protein: data.totals.protein ?? 0,
+                    carbs: data.totals.carbs ?? 0,
+                    fat: data.totals.fat ?? 0,
+                    fiber: data.totals.fiber ?? 0,
+                },
+                vitamins: data.vitamins ?? [],
+                meal_type: data.meal_type ?? guessMealType(),
+            };
+        }
+
         const grams = Math.max(20, Math.min(1500, data.serving_grams ?? 100));
         const scale = grams / 100;
         const name = data.match?.name_vi || data.match?.name || data.description || "Món ăn";
@@ -216,7 +250,7 @@ export const useFoodAnalysis = () => {
                 protein: round1((data.match.protein_g ?? 0) * scale),
                 carbs: round1((data.match.carbs_g ?? 0) * scale),
                 fat: round1((data.match.fat_g ?? 0) * scale),
-                fiber: 0,
+                fiber: round1((data.match.fiber_g ?? 0) * scale),
             };
             return {
                 dishes: [{
