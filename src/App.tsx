@@ -31,6 +31,8 @@ import PaymentStatus from "./pages/client/PaymentStatus";
 import TransactionHistory from "./pages/client/TransactionHistory";
 import Reports from "./pages/client/Reports";
 import AIAssistant from "./pages/client/AIAssistant";
+import DeleteAccount from "./pages/client/DeleteAccount";
+import PublicInfo from "./pages/client/PublicInfo";
 
 // Admin pages
 import Dashboard from "./pages/admin/Dashboard";
@@ -78,6 +80,10 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/onboarding" element={<Onboarding />} />
+            <Route path="/delete-account" element={<DeleteAccount />} />
+            <Route path="/privacy" element={<PublicInfo />} />
+            <Route path="/terms" element={<PublicInfo />} />
+            <Route path="/support" element={<PublicInfo />} />
 
             {/* Protected client routes */}
             <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
