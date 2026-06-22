@@ -33,6 +33,7 @@ import Reports from "./pages/client/Reports";
 import AIAssistant from "./pages/client/AIAssistant";
 import DeleteAccount from "./pages/client/DeleteAccount";
 import PublicInfo from "./pages/client/PublicInfo";
+import PrivacyPolicy from "./pages/client/PrivacyPolicy";
 
 // Admin pages
 import Dashboard from "./pages/admin/Dashboard";
@@ -81,7 +82,7 @@ const App = () => (
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/delete-account" element={<DeleteAccount />} />
-            <Route path="/privacy" element={<PublicInfo />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/terms" element={<PublicInfo />} />
             <Route path="/support" element={<PublicInfo />} />
 
