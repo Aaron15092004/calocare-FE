@@ -8,7 +8,7 @@ import {
   Clock, XCircle, Pencil, MapPin, Plus, TrendingUp,
   Scale, TrendingDown, Dumbbell, Salad, LogOut,
   Sun, Moon, Monitor, Camera, MessageSquare, CalendarDays, Lock, TriangleAlert,
-  Heart, ChefHat, Users,
+  Heart, ChefHat, Users, ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1075,15 +1075,20 @@ const Settings: React.FC = () => {
           <div className="px-4 pt-3.5 pb-1.5">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tài khoản & quyền riêng tư</p>
           </div>
-          <div className="flex items-start gap-4 px-4 py-3.5">
-            <Info className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+          <button
+            type="button"
+            onClick={() => navigate("/privacy")}
+            className="flex w-full items-start gap-4 px-4 py-3.5 text-left transition-colors hover:bg-muted/40"
+          >
+            <ShieldCheck className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-foreground">Dữ liệu cá nhân</p>
+              <p className="text-sm font-medium text-foreground">Chính sách quyền riêng tư</p>
               <p className="text-xs text-muted-foreground">
-                CaloVie dùng hồ sơ, mục tiêu và nhật ký để cá nhân hóa gợi ý trong app.
+                Xem cách CaloVie xử lý và bảo vệ dữ liệu của bạn.
               </p>
             </div>
-          </div>
+            <ChevronRight className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground" />
+          </button>
           <div className="flex items-start gap-4 px-4 py-3.5">
             <TriangleAlert className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
             <div className="min-w-0 flex-1">
