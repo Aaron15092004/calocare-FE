@@ -456,7 +456,7 @@ function IntroScreen({ onNext }: { onNext: () => void }) {
         <img src="/welcome-bg-2.png" alt="" className="h-full w-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-black/10 to-white" />
         <div className="absolute left-5 top-12 flex items-center">
-          <img src="/logo.png" alt="CaloVie" className="h-20 w-auto max-w-[230px] object-contain drop-shadow-lg" />
+          <img src="/logo.png" alt="CaloVie" className="h-14 w-auto max-w-[230px] object-contain drop-shadow-lg" />
         </div>
         <div className="absolute bottom-6 left-1/2 grid h-20 w-20 -translate-x-1/2 place-items-center rounded-full bg-white/80 shadow-2xl backdrop-blur">
           <Camera className="h-9 w-9 text-primary" />

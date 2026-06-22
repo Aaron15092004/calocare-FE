@@ -567,7 +567,7 @@ const AIAssistant: React.FC = () => {
 
                     <div className="relative flex min-w-0 flex-1 flex-col items-center justify-center">
                         <CaloVieFaceMascot mood={mascotMood} className="-mb-5 h-[6.2rem] w-[6.2rem]" motion={isLoading ? "bob" : "breathe"} />
-                        <img src="/logo.png" alt="CaloVie" className="h-11 w-auto object-contain" />
+                        <img src="/logo.png" alt="CaloVie" className="h-9 w-auto object-contain" />
                     </div>
 
                     {messages.length > 0 ? (

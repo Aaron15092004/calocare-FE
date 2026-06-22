@@ -65,7 +65,10 @@ const AdminLayout = () => {
                 <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)}>
                     <Menu className="w-5 h-5" />
                 </Button>
-                <span className="font-bold text-lg">CaloVie Admin</span>
+                <div className="flex min-w-0 items-center gap-2">
+                    <img src="/logo.png" className="h-8 w-auto max-w-[7.5rem] object-contain" alt="CaloVie" />
+                    <span className="text-xs font-semibold text-muted-foreground">Quản trị</span>
+                </div>
                 <div className="w-10" />
             </header>
 
@@ -87,7 +90,7 @@ const AdminLayout = () => {
                 {/* Logo */}
                 <div className="p-4 border-b flex items-center justify-between flex-shrink-0">
                     <div className="flex items-center">
-                        <img src="/logo.png" className="h-16 w-auto max-w-[190px] object-contain" alt="CaloVie" />
+                        <img src="/logo.png" className="h-10 w-auto max-w-[190px] object-contain" alt="CaloVie" />
                     </div>
                     <Button
                         variant="ghost"

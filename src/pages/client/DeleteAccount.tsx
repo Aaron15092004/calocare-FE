@@ -8,7 +8,7 @@ export default function DeleteAccount() {
         <div className="mb-6 grid h-14 w-14 place-items-center rounded-2xl bg-destructive/10 text-destructive">
           <Trash2 className="h-7 w-7" />
         </div>
-        <p className="text-sm font-semibold text-primary">CaloVie</p>
+        <img src="/logo.png" alt="CaloVie" className="h-7 w-auto object-contain" />
         <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-foreground">Xóa tài khoản</h1>
         <p className="mt-3 leading-6 text-muted-foreground">
           Bạn có thể xóa tài khoản CaloVie và dữ liệu liên quan bất cứ lúc nào. Đây là thao tác vĩnh viễn.

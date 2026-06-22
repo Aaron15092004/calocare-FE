@@ -38,7 +38,7 @@ export const Header: React.FC = () => {
               <img
                 src="/logo.png"
                 alt="CaloVie"
-                className="h-28 w-auto object-contain origin-left"
+                className="h-12 w-auto max-w-[15rem] object-contain origin-left"
               />
             </div>
           ) : (
