@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import api from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
@@ -13,14 +13,10 @@ export interface MealProgress {
     notes: string | null;
 }
 
-interface DiaryData {
-    name: string;
-    calories: number;
-    protein?: number;
-    carbs?: number;
-    fat?: number;
-    fiber?: number;
-    notes?: string;
+export const FOOD_DIARY_UPDATED_EVENT = "calovie:food-diary-updated";
+
+function notifyDiaryUpdated() {
+    window.dispatchEvent(new Event(FOOD_DIARY_UPDATED_EVENT));
 }
 
 export const useMealProgress = (
@@ -33,16 +29,7 @@ export const useMealProgress = (
     const [loading, setLoading] = useState(true);
     const { toast } = useToast();
 
-    useEffect(() => {
-        if (userId) {
-            fetchProgress();
-        } else {
-            setProgress([]);
-            setLoading(false);
-        }
-    }, [userId, planId]);
-
-    const fetchProgress = async () => {
+    const fetchProgress = useCallback(async () => {
         if (!userId) return;
         try {
             const params: Record<string, string> = {};
@@ -54,13 +41,21 @@ export const useMealProgress = (
         } finally {
             setLoading(false);
         }
-    };
+    }, [userId, planId]);
+
+    useEffect(() => {
+        if (userId) {
+            void fetchProgress();
+        } else {
+            setProgress([]);
+            setLoading(false);
+        }
+    }, [userId, fetchProgress]);
 
     const toggleMealComplete = async (
         dayNumber: number,
         mealType: string,
-        recipeId: string,
-        diaryData?: DiaryData,
+        notes?: string,
     ) => {
         if (!userId) {
             toast({
@@ -78,50 +73,35 @@ export const useMealProgress = (
 
         if (existing) {
             try {
-                await api.delete(`/meal-progress/${existing.id}`);
+                const progressId = existing.id || (existing as MealProgress & { _id?: string })._id;
+                await api.delete(`/meal-progress/${progressId}`);
                 setProgress(progress.filter((p) => p.id !== existing.id));
-                toast({ title: "Đã bỏ đánh dấu", description: "Xoá khỏi bữa ăn đã hoàn thành." });
+                notifyDiaryUpdated();
+                toast({ title: "Đã bỏ đánh dấu", description: "Đã xóa bữa ăn này khỏi nhật ký." });
             } catch {
                 toast({ title: "Lỗi", description: "Không thể cập nhật tiến độ.", variant: "destructive" });
                 return { error: new Error("Failed") };
             }
         } else {
+            if (!planId) {
+                toast({
+                    title: "Không tìm thấy kế hoạch",
+                    description: "Vui lòng tải lại kế hoạch trước khi đánh dấu bữa ăn.",
+                    variant: "destructive",
+                });
+                return { error: new Error("Missing meal plan") };
+            }
             try {
                 const { data } = await api.post<MealProgress>("/meal-progress", {
                     day_number: dayNumber,
                     meal_type: mealType,
-                    recipe_id: recipeId,
-                    ...(planId ? { user_meal_plan_id: planId } : {}),
-                    ...(diaryData?.notes ? { notes: diaryData.notes } : {}),
+                    user_meal_plan_id: planId,
+                    ...(notes ? { notes } : {}),
                 });
                 const newProgress = [...progress, data];
                 setProgress(newProgress);
-
-                // Save to food diary
-                if (diaryData) {
-                    try {
-                        await api.post("/food-diary", {
-                            meal_type: mealType,
-                            source: "meal_plan",
-                            foods: [{
-                                dish_name: diaryData.name,
-                                nutrition: {
-                                    calories: Math.round(diaryData.calories),
-                                    protein:  Math.round(diaryData.protein  ?? 0),
-                                    carbs:    Math.round(diaryData.carbs    ?? 0),
-                                    fat:      Math.round(diaryData.fat      ?? 0),
-                                    fiber:    Math.round(diaryData.fiber    ?? 0),
-                                },
-                                notes: diaryData.notes,
-                            }],
-                        });
-                        toast({ title: "Đã lưu vào nhật ký", description: `${diaryData.name} · ${Math.round(diaryData.calories)} kcal` });
-                    } catch {
-                        toast({ title: "Hoàn thành bữa ăn", description: "Tiếp tục duy trì nhé!" });
-                    }
-                } else {
-                    toast({ title: "Hoàn thành bữa ăn", description: "Tiếp tục duy trì nhé!" });
-                }
+                notifyDiaryUpdated();
+                toast({ title: "Đã lưu vào nhật ký", description: "Calories và macros của cả bữa đã được cập nhật." });
 
                 // Day completion notification
                 if (dayItemCounts) {
@@ -155,7 +135,7 @@ export const useMealProgress = (
             && (!planId || p.user_meal_plan_id === planId));
 
     const getDayProgress = (dayNumber: number) => {
-        const dayMeals = progress.filter((p) => p.day_number === dayNumber);
+        const dayMeals = progress.filter((p) => p.day_number === dayNumber && (!planId || p.user_meal_plan_id === planId));
         const total = dayItemCounts?.get(dayNumber) ?? 4;
         return {
             completed: dayMeals.length,

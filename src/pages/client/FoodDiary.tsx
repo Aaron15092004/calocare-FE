@@ -127,7 +127,8 @@ const FoodDiary: React.FC = () => {
         return "dinner";
     };
 
-    // Search via RAG (includes local DB + USDA + FatSecret)
+    // Search both the shared nutrition catalog and active restaurant menus.
+    // Menu dishes remain tied to their store instead of being copied into admin foods.
     const handleLogSearch = async (query: string) => {
         setLogSearch(query);
         if (query.length < 2) {
@@ -136,8 +137,11 @@ const FoodDiary: React.FC = () => {
         }
         setLogSearching(true);
         try {
-            const { data } = await api.post("/rag/search-food", { query, top_k: 10 });
-            const results = (data.results || [])
+            const [ragResponse, storeResponse] = await Promise.allSettled([
+                api.post("/rag/search-food", { query, top_k: 10 }),
+                api.get("/stores/menu-search", { params: { q: query, limit: 8 } }),
+            ]);
+            const catalogResults = (ragResponse.status === "fulfilled" ? ragResponse.value.data.results : [])
                 .filter((r: any) => r.energy_kcal)
                 .map((r: any) => ({
                     id: r.source_id,
@@ -152,7 +156,16 @@ const FoodDiary: React.FC = () => {
                     servings: 1,
                     isOwn: false,
                 }));
-            setLogSearchResults(results);
+            const storeResults = (storeResponse.status === "fulfilled" ? storeResponse.value.data.data : []).map((item: any) => ({
+                ...item,
+                type: "food" as const,
+                calories: item.energy_kcal || 0,
+                carbs: item.glucid || 0,
+                fat: item.lipid || 0,
+                fiber: item.fiber || 0,
+                isStoreMenu: true,
+            }));
+            setLogSearchResults([...storeResults, ...catalogResults]);
         } catch {
             setLogSearchResults([]);
         }
@@ -186,9 +199,15 @@ const FoodDiary: React.FC = () => {
         setLoadingIngredients(false);
     };
 
-    // Chọn food → add thẳng vào list (weight_grams default 100g)
+    // Catalog foods are per 100g; restaurant menu nutrition is entered per serving.
     const addFoodItem = (item: any) => {
-        setLogItems([...logItems, { ...item, weight_grams: 100 }]);
+        setLogItems([
+            ...logItems,
+            {
+                ...item,
+                weight_grams: item.nutrition_basis === "per_serving" ? undefined : 100,
+            },
+        ]);
         setLogSearch("");
         setLogSearchResults([]);
     };
@@ -276,13 +295,15 @@ const FoodDiary: React.FC = () => {
     const getLogTotals = () => {
         return logItems.reduce(
             (sum, item) => {
-                const w = item.weight_grams ?? 100;
+                const scale = item.nutrition_basis === "per_serving"
+                    ? 1
+                    : (item.weight_grams ?? 100) / 100;
                 return {
-                    calories: sum.calories + Math.round(item.calories * w / 100),
-                    protein: sum.protein + Math.round(item.protein * w / 100),
-                    carbs: sum.carbs + Math.round(item.carbs * w / 100),
-                    fat: sum.fat + Math.round(item.fat * w / 100),
-                    fiber: sum.fiber + Math.round(item.fiber * w / 100),
+                    calories: sum.calories + Math.round(item.calories * scale),
+                    protein: sum.protein + Math.round(item.protein * scale),
+                    carbs: sum.carbs + Math.round(item.carbs * scale),
+                    fat: sum.fat + Math.round(item.fat * scale),
+                    fiber: sum.fiber + Math.round(item.fiber * scale),
                 };
             },
             { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 },
@@ -313,22 +334,38 @@ const FoodDiary: React.FC = () => {
         const foods: any[] = [];
 
         // Recipe ingredients
-        if (selectedRecipe && recipeIngredients.length > 0) {
-            recipeIngredients.forEach((ing) => {
-                const ratio = ing.amount / 100;
-                foods.push({
-                    name: ing.name,
-                    portion: `${ing.amount}${ing.unit}`,
-                    calories: Math.round(ing.calories * ratio),
-                    protein: Math.round(ing.protein * ratio),
-                    carbs: Math.round(ing.carbs * ratio),
-                    fat: Math.round(ing.fat * ratio),
-                    fiber: Math.round(ing.fiber * ratio),
+        if (selectedRecipe) {
+            if (recipeIngredients.length > 0) {
+                recipeIngredients.forEach((ing) => {
+                    const ratio = ing.amount / 100;
+                    foods.push({
+                        name: ing.name,
+                        portion: `${ing.amount}${ing.unit}`,
+                        calories: Math.round(ing.calories * ratio),
+                        protein: Math.round(ing.protein * ratio),
+                        carbs: Math.round(ing.carbs * ratio),
+                        fat: Math.round(ing.fat * ratio),
+                        fiber: Math.round(ing.fiber * ratio),
+                        source: "food",
+                        food_id: ing.food_id,
+                    });
                 });
-            });
+            } else {
+                foods.push({
+                    name: recipeName || selectedRecipe.name,
+                    portion: "1 khẩu phần",
+                    calories: selectedRecipe.calories || 0,
+                    protein: selectedRecipe.protein || 0,
+                    carbs: selectedRecipe.carbs || 0,
+                    fat: selectedRecipe.fat || 0,
+                    fiber: selectedRecipe.fiber || 0,
+                    source: "recipe",
+                    recipe_id: selectedRecipe.id,
+                });
+            }
 
             // Save as My Recipe if edited
-            if (editedIngredients && profile?.id) {
+            if (editedIngredients && recipeIngredients.length > 0 && profile?.id) {
                 await api.post("/recipes", {
                     name_vi: recipeName || selectedRecipe.name,
                     calories: totals.calories,
@@ -350,15 +387,23 @@ const FoodDiary: React.FC = () => {
 
         // Food items
         logItems.forEach((item) => {
-            const w = item.weight_grams ?? 100;
+            const isStoreMenu = item.nutrition_basis === "per_serving";
+            const weight = item.weight_grams ?? 100;
+            const scale = isStoreMenu ? 1 : weight / 100;
             foods.push({
                 name: item.name,
-                portion: `${w}g`,
-                calories: Math.round(item.calories * w / 100),
-                protein: Math.round(item.protein * w / 100),
-                carbs: Math.round(item.carbs * w / 100),
-                fat: Math.round(item.fat * w / 100),
-                fiber: Math.round(item.fiber * w / 100),
+                portion: isStoreMenu ? "1 khẩu phần" : `${weight}g`,
+                calories: Math.round(item.calories * scale),
+                protein: Math.round(item.protein * scale),
+                carbs: Math.round(item.carbs * scale),
+                fat: Math.round(item.fat * scale),
+                fiber: Math.round(item.fiber * scale),
+                source: isStoreMenu ? "store_menu" : "food",
+                ...(isStoreMenu ? {
+                    store_id: item.store_id,
+                    store_name: item.store_name,
+                    menu_item_id: item.menu_item_id,
+                } : { food_id: item.source_type === "food" ? item.id : undefined }),
             });
         });
 
@@ -1419,6 +1464,9 @@ const FoodDiary: React.FC = () => {
                                                             {food.weight_grams && (
                                                                 <p className="text-xs text-muted-foreground">{food.weight_grams}g</p>
                                                             )}
+                                                            {food.store_name && (
+                                                                <p className="text-xs font-medium text-primary truncate">Từ quán {food.store_name}</p>
+                                                            )}
                                                         </div>
                                                         <div className="text-right shrink-0">
                                                             <p className="text-sm font-semibold text-orange-600 dark:text-orange-300">{food.nutrition.calories} kcal</p>
@@ -1548,7 +1596,7 @@ const FoodDiary: React.FC = () => {
                         {!selectedRecipe && (
                             <div>
                                 <Label className="text-xs text-muted-foreground">
-                                    Search Recipes & Foods
+                                    Tìm món, công thức hoặc menu quán
                                 </Label>
                                 <div className="relative mt-1">
                                     <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -1568,7 +1616,8 @@ const FoodDiary: React.FC = () => {
                                         {logSearchResults.map((r) => (
                                             <button
                                                 key={`${r.type}-${r.id}`}
-                                                className="w-full text-left px-3 py-2.5 hover:bg-muted text-sm flex justify-between border-b last:border-0"
+                                                disabled={r.isStoreMenu && !r.nutrition_available}
+                                                className="w-full text-left px-3 py-2.5 hover:bg-muted disabled:cursor-not-allowed disabled:opacity-55 text-sm flex justify-between border-b last:border-0"
                                                 onClick={() =>
                                                     r.type === "recipe"
                                                         ? selectRecipe(r)
@@ -1580,6 +1629,8 @@ const FoodDiary: React.FC = () => {
                                                         className={`px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${
                                                             r.type === "recipe"
                                                                 ? "bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300"
+                                                                : r.source_type === "store_menu"
+                                                                ? "bg-primary/10 text-primary"
                                                                 : r.source_type === "usda"
                                                                 ? "bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-300"
                                                                 : r.source_type === "fatsecret"
@@ -1587,17 +1638,25 @@ const FoodDiary: React.FC = () => {
                                                                 : "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300"
                                                         }`}
                                                     >
-                                                        {r.type === "recipe" ? "Công thức" : r.source_type === "usda" ? "USDA" : r.source_type === "fatsecret" ? "FS" : "Thực phẩm"}
+                                                        {r.type === "recipe" ? "Công thức" : r.source_type === "store_menu" ? "Menu quán" : r.source_type === "usda" ? "USDA" : r.source_type === "fatsecret" ? "FS" : "Thực phẩm"}
                                                     </span>
-                                                    <span className="truncate">{r.name}</span>
+                                                    <div className="min-w-0">
+                                                        <p className="truncate">{r.name}</p>
+                                                        {r.isStoreMenu && (
+                                                            <p className="truncate text-[10px] text-muted-foreground">
+                                                                {r.store_name}{r.price ? ` · ${Number(r.price).toLocaleString("vi-VN")}₫` : ""}
+                                                            </p>
+                                                        )}
+                                                    </div>
                                                     {r.isOwn && (
                                                         <span className="text-[10px] text-purple-600 dark:text-purple-300 shrink-0">
                                                             (My)
                                                         </span>
                                                     )}
                                                 </div>
-                                                <span className="text-muted-foreground text-xs whitespace-nowrap ml-2">
-                                                    {r.calories} kcal
+                                                <span className="text-muted-foreground text-xs whitespace-nowrap ml-2 text-right">
+                                                    {r.nutrition_available === false ? "Chưa có dinh dưỡng" : `${r.calories} kcal`}
+                                                    {r.isStoreMenu && r.nutrition_available !== false && <span className="block text-[10px]">/ khẩu phần</span>}
                                                 </span>
                                             </button>
                                         ))}
@@ -1794,26 +1853,33 @@ const FoodDiary: React.FC = () => {
                                             <div className="flex-1 min-w-0">
                                                 <p className="text-sm truncate">{item.name}</p>
                                                 <p className="text-[10px] text-muted-foreground">
-                                                    {Math.round(item.calories * (item.weight_grams ?? 100) / 100)} kcal
+                                                    {Math.round(item.calories * (item.nutrition_basis === "per_serving" ? 1 : (item.weight_grams ?? 100) / 100))} kcal
+                                                    {item.nutrition_basis === "per_serving"
+                                                        ? ` · 1 khẩu phần${item.store_name ? ` · ${item.store_name}` : ""}`
+                                                        : ""}
                                                 </p>
                                             </div>
-                                            <Input
-                                                type="number"
-                                                min={1}
-                                                step={1}
-                                                placeholder="100"
-                                                value={item.weight_grams ?? 100}
-                                                onChange={(e) =>
-                                                    updateLogWeight(
-                                                        i,
-                                                        parseInt(e.target.value) || 100,
-                                                    )
-                                                }
-                                                className="w-16 h-7 text-xs"
-                                            />
-                                            <span className="text-xs text-muted-foreground">
-                                                g
-                                            </span>
+                                            {item.nutrition_basis === "per_serving" ? (
+                                                <span className="rounded-md bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary">1 phần</span>
+                                            ) : (
+                                                <>
+                                                    <Input
+                                                        type="number"
+                                                        min={1}
+                                                        step={1}
+                                                        placeholder="100"
+                                                        value={item.weight_grams ?? 100}
+                                                        onChange={(e) =>
+                                                            updateLogWeight(
+                                                                i,
+                                                                parseInt(e.target.value) || 100,
+                                                            )
+                                                        }
+                                                        className="w-16 h-7 text-xs"
+                                                    />
+                                                    <span className="text-xs text-muted-foreground">g</span>
+                                                </>
+                                            )}
                                             <Button
                                                 variant="ghost"
                                                 size="icon"

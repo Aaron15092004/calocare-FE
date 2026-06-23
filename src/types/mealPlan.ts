@@ -30,6 +30,10 @@ export interface FoodInfo {
     name_vi: string;
     name_en: string;
     energy_kcal: number;
+    protein?: number;
+    lipid?: number;
+    glucid?: number;
+    fiber?: number;
     image_url?: string;
 }
 
@@ -56,8 +60,10 @@ export interface MealPlanItemAPI {
     meal_type: "breakfast" | "lunch" | "dinner" | "snack" | "morning_snack" | "afternoon_snack";
     recipe_id?: RecipeInfo;
     food_id?: FoodInfo;
+    usda_food_id?: FoodInfo & { description_vi?: string; description_en?: string };
     custom_food?: CustomFood;
     serving_size?: number;
+    calories?: number;
     sort_order: number;
 }
 
@@ -91,20 +97,35 @@ export interface DayPlanFromAPI {
 }
 
 export function getItemDisplayName(item: MealPlanItemAPI): string {
-    return item.recipe_id?.name_vi || item.custom_food?.name || item.food_id?.name_vi || "Unknown";
+    return item.recipe_id?.name_vi
+        || item.custom_food?.name
+        || item.food_id?.name_vi
+        || item.usda_food_id?.description_vi
+        || item.usda_food_id?.description_en
+        || "Unknown";
 }
 
 export function getItemCalories(item: MealPlanItemAPI): number {
-    return item.recipe_id?.calories || item.custom_food?.calories_kcal || item.food_id?.energy_kcal || 0;
+    const plannedCalories = Number(item.calories);
+    if (Number.isFinite(plannedCalories) && plannedCalories > 0) return Math.round(plannedCalories);
+    if (item.recipe_id) return Math.round(item.recipe_id.calories || 0);
+    if (item.custom_food) return Math.round(item.custom_food.calories_kcal || 0);
+    const food = item.food_id || item.usda_food_id;
+    if (!food) return 0;
+    return Math.round((food.energy_kcal || 0) * ((item.serving_size || 100) / 100));
 }
 
 export function getItemMacros(item: MealPlanItemAPI): { protein: number; carbs: number; fat: number; fiber: number } {
+    const plannedCalories = Number(item.calories);
     if (item.recipe_id) {
+        const scale = Number.isFinite(plannedCalories) && plannedCalories > 0 && item.recipe_id.calories > 0
+            ? plannedCalories / item.recipe_id.calories
+            : 1;
         return {
-            protein: item.recipe_id.protein ?? 0,
-            carbs:   item.recipe_id.carbs ?? 0,
-            fat:     item.recipe_id.fat ?? 0,
-            fiber:   item.recipe_id.fiber ?? 0,
+            protein: Math.round((item.recipe_id.protein ?? 0) * scale * 10) / 10,
+            carbs:   Math.round((item.recipe_id.carbs ?? 0) * scale * 10) / 10,
+            fat:     Math.round((item.recipe_id.fat ?? 0) * scale * 10) / 10,
+            fiber:   Math.round((item.recipe_id.fiber ?? 0) * scale * 10) / 10,
         };
     }
     if (item.custom_food) {
@@ -115,11 +136,24 @@ export function getItemMacros(item: MealPlanItemAPI): { protein: number; carbs: 
             fiber:   item.custom_food.fiber_g ?? 0,
         };
     }
+    const food = item.food_id || item.usda_food_id;
+    if (food) {
+        const baseCalories = food.energy_kcal || 0;
+        const scale = Number.isFinite(plannedCalories) && plannedCalories > 0 && baseCalories > 0
+            ? plannedCalories / baseCalories
+            : (item.serving_size || 100) / 100;
+        return {
+            protein: Math.round((food.protein ?? 0) * scale * 10) / 10,
+            carbs:   Math.round((food.glucid ?? 0) * scale * 10) / 10,
+            fat:     Math.round((food.lipid ?? 0) * scale * 10) / 10,
+            fiber:   Math.round((food.fiber ?? 0) * scale * 10) / 10,
+        };
+    }
     return { protein: 0, carbs: 0, fat: 0, fiber: 0 };
 }
 
 export function getItemId(item: MealPlanItemAPI): string {
-    return item.recipe_id?._id || item.food_id?._id || item._id;
+    return item.recipe_id?._id || item.food_id?._id || item.usda_food_id?._id || item._id;
 }
 
 export function getRecipeIngredients(item: MealPlanItemAPI): RecipeIngredient[] {

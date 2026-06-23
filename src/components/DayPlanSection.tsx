@@ -12,26 +12,15 @@ import {
     getItemDisplayName,
     getItemCalories,
     getItemMacros,
-    getItemId,
     getRecipeIngredients,
     getRecipeSteps,
 } from "@/types/mealPlan";
-
-interface DiaryData {
-    name: string;
-    calories: number;
-    protein?: number;
-    carbs?: number;
-    fat?: number;
-    fiber?: number;
-    notes?: string;
-}
 
 interface DayPlanSectionProps {
     dayPlan: DayPlanFromAPI;
     isToday: boolean;
     isMealCompleted?: (dayNumber: number, mealType: string) => boolean;
-    onToggleMeal?: (dayNumber: number, mealType: string, itemId: string, diaryData?: DiaryData) => void;
+    onToggleMeal?: (dayNumber: number, mealType: string, notes?: string) => void;
 }
 
 const mealConfig: Record<string, { label: string; Icon: React.ElementType; time: string; hours: [number, number] }> = {
@@ -243,17 +232,9 @@ export const DayPlanSection: React.FC<DayPlanSectionProps> = ({
 
     const handleToggleIntercept = (item: MealPlanItemAPI) => {
         const completed = isMealCompleted?.(dayPlan.day, item.meal_type);
-        const macros = getItemMacros(item);
         if (completed) {
-            // Uncomplete immediately without dialog
-            onToggleMeal?.(dayPlan.day, item.meal_type, getItemId(item), {
-                name: getItemDisplayName(item),
-                calories: getItemCalories(item),
-                protein: macros.protein,
-                carbs: macros.carbs,
-                fat: macros.fat,
-                fiber: macros.fiber,
-            });
+            // The backend also removes the diary entry linked to this meal.
+            onToggleMeal?.(dayPlan.day, item.meal_type);
         } else {
             setPendingNote("");
             setNoteItem(item);
@@ -262,21 +243,15 @@ export const DayPlanSection: React.FC<DayPlanSectionProps> = ({
 
     const handleConfirmComplete = () => {
         if (!noteItem) return;
-        const macros = getItemMacros(noteItem);
-        onToggleMeal?.(dayPlan.day, noteItem.meal_type, getItemId(noteItem), {
-            name: getItemDisplayName(noteItem),
-            calories: getItemCalories(noteItem),
-            protein: macros.protein,
-            carbs: macros.carbs,
-            fat: macros.fat,
-            fiber: macros.fiber,
-            notes: pendingNote.trim() || undefined,
-        });
+        // Completing any row completes and logs the entire planned meal group.
+        onToggleMeal?.(dayPlan.day, noteItem.meal_type, pendingNote.trim() || undefined);
         setNoteItem(null);
         setPendingNote("");
     };
 
     const noteItemConfig = noteItem ? (mealConfig[noteItem.meal_type] ?? mealConfig.snack) : null;
+    const pendingMealItems = noteItem ? grouped[noteItem.meal_type] ?? [] : [];
+    const pendingMealCalories = pendingMealItems.reduce((sum, item) => sum + getItemCalories(item), 0);
     const isMismatch = noteItem && noteItemConfig
         ? (() => {
             const h = new Date().getHours();
@@ -397,9 +372,9 @@ export const DayPlanSection: React.FC<DayPlanSectionProps> = ({
                             )}
 
                             <div className="bg-muted/50 rounded-xl p-3">
-                                <p className="text-sm font-semibold">{getItemDisplayName(noteItem)}</p>
+                                <p className="text-sm font-semibold">{noteItemConfig?.label}</p>
                                 <p className="text-xs text-muted-foreground mt-0.5">
-                                    {getItemCalories(noteItem)} kcal · {noteItemConfig?.label}
+                                    {pendingMealItems.length} món · {pendingMealCalories} kcal sẽ được ghi vào nhật ký
                                 </p>
                             </div>
 

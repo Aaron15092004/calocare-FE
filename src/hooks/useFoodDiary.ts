@@ -1,13 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { format, subDays, isSameDay, parseISO } from "date-fns";
 import api from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { NutritionAnalysis, FoodItem, VitaminInfo } from "@/hooks/useFoodAnalysis";
+import { FOOD_DIARY_UPDATED_EVENT } from "@/hooks/useMealProgress";
 
 export interface DiaryFoodItem {
     dish_name: string;
     matched_name?: string;
-    source?: "recipe" | "food" | "ai_estimate";
+    source?: "recipe" | "food" | "ai_estimate" | "usda" | "fatsecret" | "store_menu";
     nutrition: {
         calories: number;
         protein: number;
@@ -16,6 +17,9 @@ export interface DiaryFoodItem {
         fiber: number;
     };
     weight_grams?: number;
+    store_id?: string;
+    store_name?: string;
+    menu_item_id?: string;
 }
 
 export interface FoodDiaryEntry {
@@ -43,27 +47,7 @@ export const useFoodDiary = (userId: string | undefined, selectedDate?: Date) =>
 
     const targetDateStr = format(selectedDate ?? new Date(), "yyyy-MM-dd");
 
-    // Re-fetch entries whenever the viewed date changes
-    useEffect(() => {
-        if (userId) {
-            fetchEntries();
-        } else {
-            setEntries([]);
-            setLoading(false);
-        }
-    }, [userId, targetDateStr]);
-
-    // Summary fetched once on mount (last 30 days)
-    useEffect(() => {
-        if (userId) {
-            fetchSummary();
-        } else {
-            setSummaryEntries([]);
-            setSummaryLoading(false);
-        }
-    }, [userId]);
-
-    const fetchEntries = async () => {
+    const fetchEntries = useCallback(async () => {
         setLoading(true);
         try {
             const { data } = await api.get<{ data: FoodDiaryEntry[] }>("/food-diary", {
@@ -75,9 +59,9 @@ export const useFoodDiary = (userId: string | undefined, selectedDate?: Date) =>
         } finally {
             setLoading(false);
         }
-    };
+    }, [targetDateStr]);
 
-    const fetchSummary = async () => {
+    const fetchSummary = useCallback(async () => {
         setSummaryLoading(true);
         try {
             const endDate = format(new Date(), "yyyy-MM-dd");
@@ -91,7 +75,39 @@ export const useFoodDiary = (userId: string | undefined, selectedDate?: Date) =>
         } finally {
             setSummaryLoading(false);
         }
-    };
+    }, []);
+
+    // Re-fetch entries whenever the viewed date changes.
+    useEffect(() => {
+        if (userId) {
+            void fetchEntries();
+        } else {
+            setEntries([]);
+            setLoading(false);
+        }
+    }, [userId, fetchEntries]);
+
+    // Summary fetched once on mount (last 30 days).
+    useEffect(() => {
+        if (userId) {
+            void fetchSummary();
+        } else {
+            setSummaryEntries([]);
+            setSummaryLoading(false);
+        }
+    }, [userId, fetchSummary]);
+
+    // A completed meal-plan meal can be recorded from another page. Keep every
+    // mounted diary consumer (Home, Diary, reports) in sync without a reload.
+    useEffect(() => {
+        if (!userId) return;
+        const syncDiary = () => {
+            void fetchEntries();
+            void fetchSummary();
+        };
+        window.addEventListener(FOOD_DIARY_UPDATED_EVENT, syncDiary);
+        return () => window.removeEventListener(FOOD_DIARY_UPDATED_EVENT, syncDiary);
+    }, [userId, fetchEntries, fetchSummary]);
 
     const addEntry = async (analysis: NutritionAnalysis, imageUrl?: string | null) => {
         if (!userId) {
@@ -127,6 +143,7 @@ export const useFoodDiary = (userId: string | undefined, selectedDate?: Date) =>
 
             setEntries((prev) => [data, ...prev]);
             setSummaryEntries((prev) => [data, ...prev]);
+            window.dispatchEvent(new Event(FOOD_DIARY_UPDATED_EVENT));
             toast({ title: "Saved to diary! 📝", description: "Your meal has been logged." });
             return { data, error: null };
         } catch (err) {
@@ -185,6 +202,12 @@ export const useFoodDiary = (userId: string | undefined, selectedDate?: Date) =>
             fat: number;
             fiber: number;
             portion: string;
+            source?: "recipe" | "food" | "store_menu";
+            recipe_id?: string;
+            food_id?: string;
+            store_id?: string;
+            store_name?: string;
+            menu_item_id?: string;
         }[];
         totals: { calories: number; protein: number; carbs: number; fat: number; fiber: number };
         mealType: string;
@@ -203,7 +226,7 @@ export const useFoodDiary = (userId: string | undefined, selectedDate?: Date) =>
                 foods: data.foods.map((item) => ({
                     dish_name: item.name,
                     matched_name: item.name,
-                    source: "food",
+                    source: item.source || "food",
                     nutrition: {
                         calories: item.calories,
                         protein: item.protein,
@@ -211,6 +234,11 @@ export const useFoodDiary = (userId: string | undefined, selectedDate?: Date) =>
                         fat: item.fat,
                         fiber: item.fiber,
                     },
+                    ...(item.recipe_id ? { recipe_id: item.recipe_id } : {}),
+                    ...(item.food_id ? { food_id: item.food_id } : {}),
+                    ...(item.store_id ? { store_id: item.store_id } : {}),
+                    ...(item.store_name ? { store_name: item.store_name } : {}),
+                    ...(item.menu_item_id ? { menu_item_id: item.menu_item_id } : {}),
                 })),
                 totals: data.totals,
                 vitamins: [],
@@ -223,6 +251,7 @@ export const useFoodDiary = (userId: string | undefined, selectedDate?: Date) =>
 
             setEntries((prev) => [entry, ...prev]);
             setSummaryEntries((prev) => [entry, ...prev]);
+            window.dispatchEvent(new Event(FOOD_DIARY_UPDATED_EVENT));
             toast({ title: "Meal logged! 📝", description: "Your meal has been added to the diary." });
             return { data: entry, error: null };
         } catch (err) {

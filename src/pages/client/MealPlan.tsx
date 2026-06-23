@@ -127,10 +127,9 @@ const MealPlan: React.FC = () => {
     const handleToggleMeal = async (
         dayNumber: number,
         mealType: string,
-        itemId: string,
-        diaryData?: { name: string; calories: number; protein?: number; carbs?: number; fat?: number; fiber?: number; notes?: string },
+        notes?: string,
     ) => {
-        await toggleMealComplete(dayNumber, mealType, itemId, diaryData);
+        await toggleMealComplete(dayNumber, mealType, notes);
     };
 
     if (loading) {
