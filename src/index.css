@@ -87,6 +87,8 @@
   }
 
   .dark {
+    color-scheme: dark;
+
     --background: 193 54% 10%;
     --foreground: 132 28% 95%;
 
@@ -112,8 +114,26 @@
     --destructive-foreground: 0 0% 100%;
 
     --border: 191 24% 22%;
-    --input: 0 0% 88%;
+    --input: 191 24% 30%;
     --ring: 180 55% 58%;
+
+    /* Keep custom surfaces in the same color space as the dark tokens.
+       These utilities are used by the client pages, so they cannot retain
+       their light-mode gradients when the document switches theme. */
+    --gradient-fresh: linear-gradient(
+      180deg,
+      hsl(193 47% 13%) 0%,
+      hsl(193 48% 9%) 100%
+    );
+    --gradient-card: linear-gradient(
+      145deg,
+      hsl(193 42% 18%) 0%,
+      hsl(193 46% 13%) 100%
+    );
+
+    --shadow-sm: 0 2px 8px -2px hsl(193 70% 3% / 0.32);
+    --shadow-md: 0 8px 24px -8px hsl(193 70% 3% / 0.42);
+    --shadow-lg: 0 16px 48px -12px hsl(193 70% 3% / 0.54);
 
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
@@ -387,6 +407,11 @@ html {
   animation: calovie-drift var(--dur, 45s) ease-in-out infinite;
   will-change: transform;
   mix-blend-mode: multiply;
+}
+
+.dark .calovie-bg-icon {
+  mix-blend-mode: screen;
+  opacity: 0.62;
 }
 
 /* ── Auth / Welcome page ────────────────────────────────────────────── */

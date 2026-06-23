@@ -579,7 +579,7 @@ const Index = () => {
 
                         <button
                             type="button"
-                            className="w-full flex items-center gap-3.5 p-3.5 rounded-2xl border-2 border-amber-200 bg-amber-50 hover:bg-amber-100 active:scale-[0.98] transition-all text-left"
+                            className="w-full flex items-center gap-3.5 p-3.5 rounded-2xl border-2 border-amber-200 bg-amber-50 hover:bg-amber-100 dark:border-amber-400/30 dark:bg-amber-400/10 dark:hover:bg-amber-400/15 active:scale-[0.98] transition-all text-left"
                             onClick={() => {
                                 sessionStorage.setItem("post_scan_ad_shown", "1");
                                 setShowPostScanAd(false);
@@ -588,8 +588,8 @@ const Index = () => {
                         >
                             <Crown className="w-6 h-6 text-muted-foreground shrink-0" />
                             <div className="flex-1">
-                                <p className="text-sm font-bold text-amber-900">Family · 199.000₫/tháng</p>
-                                <p className="text-xs text-amber-700 mt-0.5">Scan không giới hạn · 5 thành viên · tư vấn chuyên gia</p>
+                                <p className="text-sm font-bold text-amber-900 dark:text-amber-100">Family · 199.000₫/tháng</p>
+                                <p className="text-xs text-amber-700 dark:text-amber-200 mt-0.5">Scan không giới hạn · 5 thành viên · tư vấn chuyên gia</p>
                             </div>
                             <span className="text-amber-400 text-lg">›</span>
                         </button>

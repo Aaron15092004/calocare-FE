@@ -214,12 +214,12 @@ const MealPlan: React.FC = () => {
                                 <button
                                     type="button"
                                     onClick={() => navigate("/subscription")}
-                                    className="w-full flex items-center gap-3 p-3.5 rounded-xl border border-amber-200 bg-amber-50"
+                                    className="w-full flex items-center gap-3 p-3.5 rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-400/30 dark:bg-amber-400/10"
                                 >
                                     <Zap className="w-5 h-5 text-amber-500 shrink-0" />
                                     <div className="flex-1 text-left">
-                                        <p className="text-xs font-semibold text-amber-700">Nâng Family → thực đơn 21 ngày</p>
-                                        <p className="text-xs text-amber-600">Hiện tại: 7 ngày với Premium</p>
+                                        <p className="text-xs font-semibold text-amber-700 dark:text-amber-200">Nâng Family → thực đơn 21 ngày</p>
+                                        <p className="text-xs text-amber-600 dark:text-amber-300">Hiện tại: 7 ngày với Premium</p>
                                     </div>
                                     <ChevronRight className="w-4 h-4 text-amber-400" />
                                 </button>
@@ -365,12 +365,12 @@ const MealPlan: React.FC = () => {
                         <button
                             type="button"
                             onClick={() => navigate("/subscription")}
-                            className="w-full flex items-center gap-3 p-3.5 rounded-xl border border-amber-200 bg-amber-50"
+                            className="w-full flex items-center gap-3 p-3.5 rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-400/30 dark:bg-amber-400/10"
                         >
                             <Zap className="w-5 h-5 text-amber-500 shrink-0" />
                             <div className="flex-1 text-left">
-                                <p className="text-xs font-semibold text-amber-700">Nâng Family → thực đơn 21 ngày</p>
-                                <p className="text-xs text-amber-600">Hiện tại: 7 ngày với Premium</p>
+                                <p className="text-xs font-semibold text-amber-700 dark:text-amber-200">Nâng Family → thực đơn 21 ngày</p>
+                                <p className="text-xs text-amber-600 dark:text-amber-300">Hiện tại: 7 ngày với Premium</p>
                             </div>
                             <ChevronRight className="w-4 h-4 text-amber-400" />
                         </button>

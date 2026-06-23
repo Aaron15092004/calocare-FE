@@ -1374,7 +1374,7 @@ const FoodDiary: React.FC = () => {
                                         </div>
                                         {score > 0 && (
                                             <div className="flex flex-col items-center shrink-0">
-                                                <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg ${score >= 8 ? "bg-primary/10 text-primary" : score >= 5 ? "bg-yellow-100 text-yellow-700" : "bg-red-100 text-red-600"}`}>
+                                                <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg ${score >= 8 ? "bg-primary/10 text-primary" : score >= 5 ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-500/15 dark:text-yellow-300" : "bg-red-100 text-red-600 dark:bg-red-500/15 dark:text-red-300"}`}>
                                                     {score}
                                                 </div>
                                                 <span className="text-[10px] text-muted-foreground mt-0.5">Health</span>
@@ -1385,10 +1385,10 @@ const FoodDiary: React.FC = () => {
                                     {/* Macro summary */}
                                     <div className="grid grid-cols-4 gap-2 text-center">
                                         {[
-                                            { v: e.totals.calories, u: "kcal", cls: "bg-orange-50 text-orange-600" },
-                                            { v: `${e.totals.protein}g`, u: "Protein", cls: "bg-blue-50 text-blue-600" },
-                                            { v: `${e.totals.carbs}g`, u: "Carbs", cls: "bg-yellow-50 text-yellow-700" },
-                                            { v: `${e.totals.fat}g`, u: "Fat", cls: "bg-pink-50 text-pink-600" },
+                                            { v: e.totals.calories, u: "kcal", cls: "bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-300" },
+                                            { v: `${e.totals.protein}g`, u: "Protein", cls: "bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-300" },
+                                            { v: `${e.totals.carbs}g`, u: "Carbs", cls: "bg-yellow-50 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-300" },
+                                            { v: `${e.totals.fat}g`, u: "Fat", cls: "bg-pink-50 text-pink-600 dark:bg-pink-500/10 dark:text-pink-300" },
                                         ].map(({ v, u, cls }) => (
                                             <div key={u} className={`rounded-xl p-3 ${cls}`}>
                                                 <p className="text-lg font-bold">{v}</p>
@@ -1421,7 +1421,7 @@ const FoodDiary: React.FC = () => {
                                                             )}
                                                         </div>
                                                         <div className="text-right shrink-0">
-                                                            <p className="text-sm font-semibold text-orange-600">{food.nutrition.calories} kcal</p>
+                                                            <p className="text-sm font-semibold text-orange-600 dark:text-orange-300">{food.nutrition.calories} kcal</p>
                                                             <p className="text-[10px] text-muted-foreground">
                                                                 P{food.nutrition.protein}g · C{food.nutrition.carbs}g · F{food.nutrition.fat}g
                                                             </p>
@@ -1533,8 +1533,8 @@ const FoodDiary: React.FC = () => {
                                         key={mt}
                                         className={`px-3 py-2 rounded-lg text-xs font-medium capitalize transition-colors ${
                                             logMealType === mt
-                                                ? "bg-primary text-white"
-                                                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                                ? "bg-primary text-primary-foreground"
+                                                : "bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                                         }`}
                                         onClick={() => setLogMealType(mt)}
                                     >
@@ -1564,11 +1564,11 @@ const FoodDiary: React.FC = () => {
                                 </div>
 
                                 {logSearchResults.length > 0 && (
-                                    <div className="mt-1 border rounded-lg max-h-48 overflow-y-auto bg-white">
+                                    <div className="mt-1 border rounded-lg max-h-48 overflow-y-auto bg-card">
                                         {logSearchResults.map((r) => (
                                             <button
                                                 key={`${r.type}-${r.id}`}
-                                                className="w-full text-left px-3 py-2.5 hover:bg-gray-50 text-sm flex justify-between border-b last:border-0"
+                                                className="w-full text-left px-3 py-2.5 hover:bg-muted text-sm flex justify-between border-b last:border-0"
                                                 onClick={() =>
                                                     r.type === "recipe"
                                                         ? selectRecipe(r)
@@ -1579,19 +1579,19 @@ const FoodDiary: React.FC = () => {
                                                     <span
                                                         className={`px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${
                                                             r.type === "recipe"
-                                                                ? "bg-orange-100 text-orange-700"
+                                                                ? "bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300"
                                                                 : r.source_type === "usda"
-                                                                ? "bg-green-100 text-green-700"
+                                                                ? "bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-300"
                                                                 : r.source_type === "fatsecret"
-                                                                ? "bg-purple-100 text-purple-700"
-                                                                : "bg-blue-100 text-blue-700"
+                                                                ? "bg-purple-100 text-purple-700 dark:bg-purple-500/15 dark:text-purple-300"
+                                                                : "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300"
                                                         }`}
                                                     >
                                                         {r.type === "recipe" ? "Công thức" : r.source_type === "usda" ? "USDA" : r.source_type === "fatsecret" ? "FS" : "Thực phẩm"}
                                                     </span>
                                                     <span className="truncate">{r.name}</span>
                                                     {r.isOwn && (
-                                                        <span className="text-[10px] text-purple-600 shrink-0">
+                                                        <span className="text-[10px] text-purple-600 dark:text-purple-300 shrink-0">
                                                             (My)
                                                         </span>
                                                     )}
@@ -1639,7 +1639,7 @@ const FoodDiary: React.FC = () => {
                                             {recipeIngredients.map((ing, i) => (
                                                 <div
                                                     key={i}
-                                                    className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg"
+                                                    className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg"
                                                 >
                                                     <div className="flex-1 min-w-0">
                                                         <p className="text-sm truncate">
@@ -1694,11 +1694,11 @@ const FoodDiary: React.FC = () => {
                                                 )}
                                             </div>
                                             {ingSearchResults.length > 0 && (
-                                                <div className="border rounded-lg max-h-32 overflow-y-auto bg-white">
+                                                <div className="border rounded-lg max-h-32 overflow-y-auto bg-card">
                                                     {ingSearchResults.map((f) => (
                                                         <button
                                                             key={f.id}
-                                                            className="w-full text-left px-3 py-1.5 hover:bg-gray-50 text-xs flex justify-between border-b last:border-0"
+                                                            className="w-full text-left px-3 py-1.5 hover:bg-muted text-xs flex justify-between border-b last:border-0"
                                                             onClick={() => addIngredientToRecipe(f)}
                                                         >
                                                             <span className="truncate">
@@ -1722,32 +1722,32 @@ const FoodDiary: React.FC = () => {
                                             const t = getRecipeTotals();
                                             return (
                                                 <>
-                                                    <div className="bg-orange-50 rounded p-1.5">
-                                                        <p className="text-sm font-bold text-orange-600">
+                                                    <div className="bg-orange-50 dark:bg-orange-500/10 rounded p-1.5">
+                                                        <p className="text-sm font-bold text-orange-600 dark:text-orange-300">
                                                             {t.calories}
                                                         </p>
                                                         <p className="text-[10px] text-muted-foreground">
                                                             kcal
                                                         </p>
                                                     </div>
-                                                    <div className="bg-blue-50 rounded p-1.5">
-                                                        <p className="text-sm font-bold text-blue-600">
+                                                    <div className="bg-blue-50 dark:bg-blue-500/10 rounded p-1.5">
+                                                        <p className="text-sm font-bold text-blue-600 dark:text-blue-300">
                                                             {t.protein}g
                                                         </p>
                                                         <p className="text-[10px] text-muted-foreground">
                                                             P
                                                         </p>
                                                     </div>
-                                                    <div className="bg-yellow-50 rounded p-1.5">
-                                                        <p className="text-sm font-bold text-yellow-600">
+                                                    <div className="bg-yellow-50 dark:bg-yellow-500/10 rounded p-1.5">
+                                                        <p className="text-sm font-bold text-yellow-600 dark:text-yellow-300">
                                                             {t.carbs}g
                                                         </p>
                                                         <p className="text-[10px] text-muted-foreground">
                                                             C
                                                         </p>
                                                     </div>
-                                                    <div className="bg-pink-50 rounded p-1.5">
-                                                        <p className="text-sm font-bold text-pink-600">
+                                                    <div className="bg-pink-50 dark:bg-pink-500/10 rounded p-1.5">
+                                                        <p className="text-sm font-bold text-pink-600 dark:text-pink-300">
                                                             {t.fat}g
                                                         </p>
                                                         <p className="text-[10px] text-muted-foreground">
@@ -1762,14 +1762,14 @@ const FoodDiary: React.FC = () => {
 
                                 {/* Edited indicator + submit to admin */}
                                 {editedIngredients && (
-                                    <div className="flex items-center justify-between p-2 bg-purple-50 rounded-lg">
-                                        <p className="text-xs text-purple-700">
+                                    <div className="flex items-center justify-between p-2 bg-purple-50 dark:bg-purple-500/10 rounded-lg">
+                                        <p className="text-xs text-purple-700 dark:text-purple-300">
                                             Modified — will save as My Recipe
                                         </p>
                                         <Button
                                             variant="ghost"
                                             size="sm"
-                                            className="text-xs text-purple-700 h-7"
+                                            className="text-xs text-purple-700 dark:text-purple-300 h-7"
                                             onClick={() => setShowSubmitConfirm(true)}
                                         >
                                             Submit to Public
@@ -1789,7 +1789,7 @@ const FoodDiary: React.FC = () => {
                                     {logItems.map((item, i) => (
                                         <div
                                             key={i}
-                                            className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg"
+                                            className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg"
                                         >
                                             <div className="flex-1 min-w-0">
                                                 <p className="text-sm truncate">{item.name}</p>
@@ -1835,32 +1835,32 @@ const FoodDiary: React.FC = () => {
                                     const t = getCombinedTotals();
                                     return (
                                         <>
-                                            <div className="bg-orange-50 rounded p-1.5">
-                                                <p className="text-sm font-bold text-orange-600">
+                                            <div className="bg-orange-50 dark:bg-orange-500/10 rounded p-1.5">
+                                                <p className="text-sm font-bold text-orange-600 dark:text-orange-300">
                                                     {t.calories}
                                                 </p>
                                                 <p className="text-[10px] text-muted-foreground">
                                                     Total kcal
                                                 </p>
                                             </div>
-                                            <div className="bg-blue-50 rounded p-1.5">
-                                                <p className="text-sm font-bold text-blue-600">
+                                            <div className="bg-blue-50 dark:bg-blue-500/10 rounded p-1.5">
+                                                <p className="text-sm font-bold text-blue-600 dark:text-blue-300">
                                                     {t.protein}g
                                                 </p>
                                                 <p className="text-[10px] text-muted-foreground">
                                                     Protein
                                                 </p>
                                             </div>
-                                            <div className="bg-yellow-50 rounded p-1.5">
-                                                <p className="text-sm font-bold text-yellow-600">
+                                            <div className="bg-yellow-50 dark:bg-yellow-500/10 rounded p-1.5">
+                                                <p className="text-sm font-bold text-yellow-600 dark:text-yellow-300">
                                                     {t.carbs}g
                                                 </p>
                                                 <p className="text-[10px] text-muted-foreground">
                                                     Carbs
                                                 </p>
                                             </div>
-                                            <div className="bg-pink-50 rounded p-1.5">
-                                                <p className="text-sm font-bold text-pink-600">
+                                            <div className="bg-pink-50 dark:bg-pink-500/10 rounded p-1.5">
+                                                <p className="text-sm font-bold text-pink-600 dark:text-pink-300">
                                                     {t.fat}g
                                                 </p>
                                                 <p className="text-[10px] text-muted-foreground">

@@ -44,11 +44,11 @@ const SCAN_TIPS = [
 ];
 
 const SCAN_SOURCE_LABELS: Record<string, { label: string; className: string }> = {
-  recipe: { label: "Công thức", className: "bg-emerald-500/10 text-emerald-700" },
-  food: { label: "Dữ liệu món", className: "bg-blue-500/10 text-blue-700" },
-  fatsecret: { label: "FatSecret", className: "bg-orange-500/10 text-orange-700" },
-  usda: { label: "USDA", className: "bg-purple-500/10 text-purple-700" },
-  ai_estimate: { label: "Ước tính", className: "bg-amber-500/10 text-amber-700" },
+  recipe: { label: "Công thức", className: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" },
+  food: { label: "Dữ liệu món", className: "bg-blue-500/10 text-blue-700 dark:text-blue-300" },
+  fatsecret: { label: "FatSecret", className: "bg-orange-500/10 text-orange-700 dark:text-orange-300" },
+  usda: { label: "USDA", className: "bg-purple-500/10 text-purple-700 dark:text-purple-300" },
+  ai_estimate: { label: "Ước tính", className: "bg-amber-500/10 text-amber-700 dark:text-amber-300" },
 };
 
 export const FoodScanner: React.FC<FoodScannerProps> = ({ onScanComplete, onSaved }) => {
