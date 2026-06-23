@@ -245,8 +245,7 @@ export const useFoodDiary = (userId: string | undefined, selectedDate?: Date) =>
                 health_tips: [],
                 meal_type: data.mealType,
                 health_score: 0,
-                image_url: null,
-                notes: data.notes || null,
+                ...(data.notes ? { notes: data.notes } : {}),
             });
 
             setEntries((prev) => [entry, ...prev]);

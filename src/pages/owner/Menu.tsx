@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import {
-    Plus, Pencil, Trash2, Zap, Upload, QrCode, BadgeCheck,
-    Sparkles, Loader2, Flame, Check, X, ChevronDown, ChevronUp,
-    ImagePlus,
+    Plus, Pencil, Trash2, Zap, Upload, QrCode,
+    Sparkles, Loader2, Flame, Check, X, ImagePlus, Search, Eye,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,12 +22,22 @@ interface MenuItem {
     name_en?: string;
     price?: number;
     description?: string;
+    ingredient_summary?: string;
     image_url?: string;
+    menu_category?: "breakfast" | "main" | "snack" | "drink" | "dessert" | "other";
+    serving_label?: string;
+    serving_weight_grams?: number;
+    search_keywords?: string[];
+    dietary_tags?: string[];
+    allergens?: string[];
     energy_kcal?: number;
     protein?: number;
     lipid?: number;
     glucid?: number;
     fiber?: number;
+    nutrition_status?: "not_provided" | "owner_provided" | "ai_estimated" | "admin_verified";
+    nutrition_source_reference?: string;
+    nutrition_updated_at?: string;
     nutrition_verified?: boolean;
     is_available: boolean;
 }
@@ -49,10 +58,56 @@ interface ApiError {
 
 const EMPTY_ITEM: Omit<MenuItem, "_id"> = {
     name_vi: "", name_en: "", price: undefined, description: "",
+    ingredient_summary: "", menu_category: "main", serving_label: "1 khẩu phần", serving_weight_grams: undefined,
+    search_keywords: [], dietary_tags: [], allergens: [], nutrition_status: "not_provided", nutrition_source_reference: "",
     image_url: "", energy_kcal: undefined, protein: undefined,
     lipid: undefined, glucid: undefined, fiber: undefined,
     nutrition_verified: false, is_available: true,
 };
+
+const MENU_CATEGORIES = [
+    { value: "breakfast", label: "Bữa sáng" },
+    { value: "main", label: "Món chính" },
+    { value: "snack", label: "Ăn nhẹ" },
+    { value: "drink", label: "Đồ uống" },
+    { value: "dessert", label: "Tráng miệng" },
+    { value: "other", label: "Khác" },
+] as const;
+
+const DIETARY_TAGS = [
+    { value: "vegetarian", label: "Chay" },
+    { value: "vegan", label: "Thuần chay" },
+    { value: "high_protein", label: "Giàu protein" },
+    { value: "low_carb", label: "Ít carb" },
+    { value: "gluten_free", label: "Không gluten" },
+    { value: "dairy_free", label: "Không sữa" },
+] as const;
+
+const ALLERGEN_TAGS = [
+    { value: "milk", label: "Sữa" },
+    { value: "egg", label: "Trứng" },
+    { value: "peanut", label: "Đậu phộng" },
+    { value: "nuts", label: "Hạt cây" },
+    { value: "shellfish", label: "Giáp xác" },
+    { value: "seafood", label: "Hải sản" },
+    { value: "soy", label: "Đậu nành" },
+    { value: "gluten", label: "Gluten" },
+] as const;
+
+const NUTRITION_STATUS: Record<NonNullable<MenuItem["nutrition_status"]>, { label: string; className: string }> = {
+    not_provided: { label: "Chưa có dữ liệu", className: "bg-muted text-muted-foreground" },
+    owner_provided: { label: "Quán cung cấp", className: "bg-sky-500/15 text-sky-700 dark:text-sky-300" },
+    ai_estimated: { label: "AI ước tính", className: "bg-violet-500/15 text-violet-700 dark:text-violet-300" },
+    admin_verified: { label: "Đã xác minh", className: "bg-emerald-600 text-white" },
+};
+
+const toggleTag = (tags: string[] | undefined, tag: string) => {
+    const current = tags ?? [];
+    return current.includes(tag) ? current.filter((value) => value !== tag) : [...current, tag];
+};
+
+const getNutritionStatus = (item: MenuItem) => item.nutrition_status
+    || (item.nutrition_verified ? "admin_verified" : Number(item.energy_kcal) > 0 ? "owner_provided" : "not_provided");
 
 const NutritionField = ({ label, value, onChange, unit = "g" }: {
     label: string; value: number | undefined; onChange: (v: number | undefined) => void; unit?: string;
@@ -84,7 +139,10 @@ const OwnerMenu = () => {
     const [bulkLoading, setBulkLoading] = useState(false);
     const [qrUrl, setQrUrl]           = useState<string | null>(null);
     const [showQr, setShowQr]         = useState(false);
-    const [expandedNutrition, setExpandedNutrition] = useState<string | null>(null);
+    const [detailItem, setDetailItem] = useState<MenuItem | null>(null);
+    const [menuQuery, setMenuQuery] = useState("");
+    const [availabilityFilter, setAvailabilityFilter] = useState<"all" | "available" | "unavailable">("all");
+    const [nutritionFilter, setNutritionFilter] = useState<"all" | "complete" | "missing">("all");
     const [imageUploading, setImageUploading] = useState(false);
     const imageInputRef = useRef<HTMLInputElement>(null);
 
@@ -92,6 +150,21 @@ const OwnerMenu = () => {
     const isBasic = !isPro;
     const menuLimit = 20;
     const atLimit = isBasic && items.length >= menuLimit;
+    const filteredItems = items.filter((item) => {
+        const searchText = [
+            item.name_vi, item.name_en, item.description, item.ingredient_summary,
+            ...(item.search_keywords ?? []), ...(item.dietary_tags ?? []),
+        ].filter(Boolean).join(" ").toLocaleLowerCase("vi-VN");
+        const matchesQuery = !menuQuery.trim() || searchText.includes(menuQuery.trim().toLocaleLowerCase("vi-VN"));
+        const matchesAvailability = availabilityFilter === "all"
+            || (availabilityFilter === "available" && item.is_available)
+            || (availabilityFilter === "unavailable" && !item.is_available);
+        const hasNutrition = Number(item.energy_kcal) > 0;
+        const matchesNutrition = nutritionFilter === "all"
+            || (nutritionFilter === "complete" && hasNutrition)
+            || (nutritionFilter === "missing" && !hasNutrition);
+        return matchesQuery && matchesAvailability && matchesNutrition;
+    });
 
     const loadStore = async () => {
         try {
@@ -258,87 +331,163 @@ const OwnerMenu = () => {
                 </div>
             )}
 
-            {/* Menu list */}
-            <div className="space-y-3">
-                {items.length === 0 && (
-                    <div className="text-center py-12 text-muted-foreground">
-                        <UtensilsIcon className="w-10 h-10 mx-auto mb-2 opacity-30" />
-                        <p>{t("owner.menu.noItems")} {t("owner.menu.addFirst")}</p>
+            <div className="flex flex-col gap-2 sm:flex-row">
+                <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input value={menuQuery} onChange={(event) => setMenuQuery(event.target.value)} className="pl-9" placeholder="Tìm tên món, tiếng Anh hoặc mô tả..." />
+                </div>
+                <select value={availabilityFilter} onChange={(event) => setAvailabilityFilter(event.target.value as typeof availabilityFilter)} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
+                    <option value="all">Tất cả trạng thái</option>
+                    <option value="available">Đang phục vụ</option>
+                    <option value="unavailable">Tạm hết</option>
+                </select>
+                <select value={nutritionFilter} onChange={(event) => setNutritionFilter(event.target.value as typeof nutritionFilter)} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
+                    <option value="all">Tất cả dinh dưỡng</option>
+                    <option value="complete">Đủ kcal để log</option>
+                    <option value="missing">Thiếu kcal</option>
+                </select>
+            </div>
+
+            <Card>
+                <CardContent className="p-0">
+                    <div className="overflow-x-auto">
+                        <table className="w-full min-w-[780px] text-sm">
+                            <thead>
+                                <tr className="border-b bg-muted/50 text-left text-xs font-medium text-muted-foreground">
+                                    <th className="px-4 py-3">Món</th>
+                                    <th className="px-4 py-3">Giá</th>
+                                    <th className="px-4 py-3">Dinh dưỡng / khẩu phần</th>
+                                    <th className="px-4 py-3">Trạng thái</th>
+                                    <th className="px-4 py-3 text-right">Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {items.length === 0 ? (
+                                    <tr><td colSpan={5} className="px-4 py-12 text-center text-muted-foreground"><UtensilsIcon className="mx-auto mb-2 h-10 w-10 opacity-30" />{t("owner.menu.noItems")} {t("owner.menu.addFirst")}</td></tr>
+                                ) : filteredItems.length === 0 ? (
+                                    <tr><td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">Không có món phù hợp với bộ lọc.</td></tr>
+                                ) : filteredItems.map((item) => (
+                                    <tr key={item._id} className="border-b last:border-0 hover:bg-muted/40">
+                                        <td className="px-4 py-3">
+                                            <button type="button" onClick={() => setDetailItem(item)} className="flex max-w-[300px] items-center gap-3 text-left">
+                                                {item.image_url ? <img src={item.image_url} alt="" className="h-11 w-11 rounded-lg object-cover" /> : <div className="grid h-11 w-11 place-items-center rounded-lg bg-muted text-muted-foreground"><UtensilsIcon className="h-5 w-5" /></div>}
+                                                <span className="min-w-0">
+                                                    <span className="block truncate font-semibold">{item.name_vi}</span>
+                                                    {item.name_en && <span className="block truncate text-xs text-muted-foreground">{item.name_en}</span>}
+                                                </span>
+                                            </button>
+                                        </td>
+                                        <td className="px-4 py-3 font-medium">{item.price != null ? `${item.price.toLocaleString("vi-VN")}₫` : "—"}</td>
+                                        <td className="px-4 py-3">
+                                            {item.energy_kcal ? (
+                                                <div>
+                                                    <p className="flex items-center gap-1 font-medium text-orange-500"><Flame className="h-3.5 w-3.5" />{item.energy_kcal} kcal</p>
+                                                    <p className="mt-0.5 text-xs text-muted-foreground">P {item.protein ?? 0}g · C {item.glucid ?? 0}g · F {item.lipid ?? 0}g · Xơ {item.fiber ?? 0}g</p>
+                                                    <p className="mt-0.5 text-xs text-muted-foreground">{item.serving_label || "1 khẩu phần"}{item.serving_weight_grams ? ` · ${item.serving_weight_grams}g` : ""}</p>
+                                                </div>
+                                            ) : <Badge variant="secondary">Chưa có kcal</Badge>}
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <div className="flex flex-wrap gap-1.5">
+                                                <Badge variant={item.is_available ? "default" : "secondary"}>{item.is_available ? "Đang phục vụ" : "Tạm hết"}</Badge>
+                                                <Badge className={NUTRITION_STATUS[getNutritionStatus(item)].className}>{NUTRITION_STATUS[getNutritionStatus(item)].label}</Badge>
+                                            </div>
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <div className="flex justify-end gap-1">
+                                                <Button size="icon" variant="ghost" className="h-8 w-8" title="Xem chi tiết" onClick={() => setDetailItem(item)}><Eye className="h-4 w-4" /></Button>
+                                                {isPro && <Button size="icon" variant="ghost" className="h-8 w-8" title="AI ước tính dinh dưỡng" onClick={() => handleAiNutrition(item._id)} disabled={aiLoading === item._id}>{aiLoading === item._id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4 text-purple-500" />}</Button>}
+                                                <Button size="icon" variant="ghost" className="h-8 w-8" title="Sửa món" onClick={() => openEdit(item)}><Pencil className="h-4 w-4" /></Button>
+                                                <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" title="Xóa món" onClick={() => handleDelete(item._id)}><Trash2 className="h-4 w-4" /></Button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
                     </div>
-                )}
-                {items.map((item) => (
-                    <Card key={item._id} className="overflow-hidden">
-                        <CardContent className="p-4">
-                            <div className="flex items-start gap-3">
-                                {item.image_url && (
-                                    <img src={item.image_url} alt={item.name_vi}
-                                        className="w-16 h-16 rounded-lg object-cover flex-shrink-0" />
-                                )}
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                        <p className="font-semibold">{item.name_vi}</p>
-                                        {item.name_en && <p className="text-xs text-muted-foreground">{item.name_en}</p>}
-                                        {item.nutrition_verified && (
-                                            <Badge className="gap-1 text-[10px] bg-green-500">
-                                                <BadgeCheck className="w-3 h-3" />Verified Nutrition
-                                            </Badge>
-                                        )}
-                                        {!item.is_available && <Badge variant="secondary" className="text-[10px]">Hết</Badge>}
-                                    </div>
-                                    {item.description && <p className="text-xs text-muted-foreground mt-0.5">{item.description}</p>}
-                                    <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                                        {item.price && <span className="font-medium text-foreground">{item.price.toLocaleString("vi-VN")}₫</span>}
-                                        {item.energy_kcal && (
-                                            <span className="flex items-center gap-0.5 text-orange-500">
-                                                <Flame className="w-3 h-3" />{item.energy_kcal} kcal
-                                            </span>
-                                        )}
-                                    </div>
+                    <p className="border-t px-4 py-3 text-xs text-muted-foreground">Hiển thị {filteredItems.length}/{items.length} món. Chỉ món có kcal mới có thể được người dùng ghi vào nhật ký.</p>
+                </CardContent>
+            </Card>
 
-                                    {/* Nutrition detail toggle */}
-                                    {(item.protein || item.lipid || item.glucid) && (
-                                        <button type="button"
-                                            className="text-xs text-primary mt-1 flex items-center gap-0.5"
-                                            onClick={() => setExpandedNutrition(expandedNutrition === item._id ? null : item._id)}>
-                                            Dinh dưỡng
-                                            {expandedNutrition === item._id ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                                        </button>
-                                    )}
-                                    {expandedNutrition === item._id && (
-                                        <div className="flex gap-3 mt-1 text-xs text-muted-foreground">
-                                            {item.protein  !== undefined && <span>Đạm: {item.protein}g</span>}
-                                            {item.lipid    !== undefined && <span>Béo: {item.lipid}g</span>}
-                                            {item.glucid   !== undefined && <span>Bột: {item.glucid}g</span>}
-                                            {item.fiber    !== undefined && <span>Xơ: {item.fiber}g</span>}
-                                        </div>
-                                    )}
+            <Dialog open={!!detailItem} onOpenChange={(open) => { if (!open) setDetailItem(null); }}>
+                <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+                    {detailItem && (
+                        <>
+                            <DialogHeader>
+                                <div className="flex items-start justify-between gap-3 pr-7">
+                                    <div>
+                                        <DialogTitle className="text-left text-xl">{detailItem.name_vi}</DialogTitle>
+                                        {detailItem.name_en && <p className="mt-1 text-sm text-muted-foreground">{detailItem.name_en}</p>}
+                                    </div>
+                                    <div className="flex gap-1">
+                                        {isPro && <Button size="icon" variant="outline" title="AI ước tính dinh dưỡng" onClick={() => handleAiNutrition(detailItem._id)} disabled={aiLoading === detailItem._id}>{aiLoading === detailItem._id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4 text-purple-500" />}</Button>}
+                                        <Button size="icon" variant="outline" title="Sửa món" onClick={() => { setDetailItem(null); openEdit(detailItem); }}><Pencil className="h-4 w-4" /></Button>
+                                    </div>
                                 </div>
+                            </DialogHeader>
 
-                                {/* Actions */}
-                                <div className="flex items-center gap-1 flex-shrink-0">
-                                    {isPro && (
-                                        <Button size="icon" variant="ghost" className="w-7 h-7"
-                                            title="AI ước tính dinh dưỡng"
-                                            onClick={() => handleAiNutrition(item._id)}
-                                            disabled={aiLoading === item._id}>
-                                            {aiLoading === item._id
-                                                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                                : <Sparkles className="w-3.5 h-3.5 text-purple-500" />}
-                                        </Button>
-                                    )}
-                                    <Button size="icon" variant="ghost" className="w-7 h-7" onClick={() => openEdit(item)}>
-                                        <Pencil className="w-3.5 h-3.5" />
-                                    </Button>
-                                    <Button size="icon" variant="ghost" className="w-7 h-7 text-red-500 hover:text-red-600"
-                                        onClick={() => handleDelete(item._id)}>
-                                        <Trash2 className="w-3.5 h-3.5" />
-                                    </Button>
+                            {detailItem.image_url && <img src={detailItem.image_url} alt={detailItem.name_vi} className="h-52 w-full rounded-xl object-cover" />}
+                            {detailItem.description && <p className="text-sm leading-6 text-muted-foreground">{detailItem.description}</p>}
+
+                            {detailItem.ingredient_summary && (
+                                <section className="rounded-xl border bg-muted/30 p-3">
+                                    <p className="text-xs font-semibold text-muted-foreground">Thành phần chính</p>
+                                    <p className="mt-1 text-sm">{detailItem.ingredient_summary}</p>
+                                </section>
+                            )}
+
+                            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                                <div className="rounded-xl bg-muted/60 p-3">
+                                    <p className="text-xs text-muted-foreground">Giá bán</p>
+                                    <p className="mt-1 text-lg font-bold">{detailItem.price != null ? `${detailItem.price.toLocaleString("vi-VN")}₫` : "Chưa cập nhật"}</p>
+                                </div>
+                                <div className="rounded-xl bg-muted/60 p-3">
+                                    <p className="text-xs text-muted-foreground">Khẩu phần</p>
+                                    <p className="mt-1 text-sm font-semibold">{detailItem.serving_label || "1 khẩu phần"}</p>
+                                    {detailItem.serving_weight_grams && <p className="text-xs text-muted-foreground">{detailItem.serving_weight_grams}g</p>}
+                                </div>
+                                <div className="rounded-xl bg-muted/60 p-3">
+                                    <p className="text-xs text-muted-foreground">Nhóm món</p>
+                                    <p className="mt-1 text-sm font-semibold">{MENU_CATEGORIES.find((category) => category.value === detailItem.menu_category)?.label || "Món chính"}</p>
+                                </div>
+                                <div className="rounded-xl bg-muted/60 p-3">
+                                    <p className="text-xs text-muted-foreground">Trạng thái</p>
+                                    <div className="mt-1 flex flex-wrap gap-1.5"><Badge variant={detailItem.is_available ? "default" : "secondary"}>{detailItem.is_available ? "Đang phục vụ" : "Tạm hết"}</Badge><Badge className={NUTRITION_STATUS[getNutritionStatus(detailItem)].className}>{NUTRITION_STATUS[getNutritionStatus(detailItem)].label}</Badge></div>
                                 </div>
                             </div>
-                        </CardContent>
-                    </Card>
-                ))}
-            </div>
+
+                            <section>
+                                <p className="mb-2 text-sm font-semibold">Dinh dưỡng mỗi khẩu phần</p>
+                                <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                                    {[
+                                        ["Năng lượng", detailItem.energy_kcal, "kcal", "bg-orange-500/10 text-orange-600 dark:text-orange-300"],
+                                        ["Protein", detailItem.protein, "g", "bg-blue-500/10 text-blue-600 dark:text-blue-300"],
+                                        ["Carbs", detailItem.glucid, "g", "bg-yellow-500/10 text-yellow-600 dark:text-yellow-300"],
+                                        ["Fat", detailItem.lipid, "g", "bg-pink-500/10 text-pink-600 dark:text-pink-300"],
+                                        ["Chất xơ", detailItem.fiber, "g", "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300"],
+                                    ].map(([label, value, unit, color]) => (
+                                        <div key={String(label)} className={`rounded-xl p-3 ${color}`}>
+                                            <p className="text-lg font-bold">{value ?? "—"}{value != null ? unit : ""}</p>
+                                            <p className="text-[10px] opacity-75">{label}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                                {!detailItem.energy_kcal && <p className="mt-3 text-xs text-amber-600 dark:text-amber-300">Bổ sung kcal để món này có thể xuất hiện như một lựa chọn log meal cho khách.</p>}
+                            </section>
+
+                            {(detailItem.dietary_tags?.length || detailItem.allergens?.length) && (
+                                <section className="space-y-2">
+                                    {detailItem.dietary_tags?.length ? <div><p className="text-xs font-semibold text-muted-foreground">Phù hợp chế độ ăn</p><div className="mt-1 flex flex-wrap gap-1.5">{detailItem.dietary_tags.map((tag) => <Badge key={tag} variant="secondary">{DIETARY_TAGS.find((item) => item.value === tag)?.label || tag}</Badge>)}</div></div> : null}
+                                    {detailItem.allergens?.length ? <div><p className="text-xs font-semibold text-muted-foreground">Có thể chứa</p><div className="mt-1 flex flex-wrap gap-1.5">{detailItem.allergens.map((tag) => <Badge key={tag} className="bg-amber-500/15 text-amber-700 dark:text-amber-300">{ALLERGEN_TAGS.find((item) => item.value === tag)?.label || tag}</Badge>)}</div></div> : null}
+                                </section>
+                            )}
+
+                            {detailItem.nutrition_source_reference && <p className="text-xs text-muted-foreground">Nguồn dinh dưỡng: {detailItem.nutrition_source_reference}</p>}
+                        </>
+                    )}
+                </DialogContent>
+            </Dialog>
 
             {/* Add/Edit Dialog */}
             <Dialog open={showForm} onOpenChange={setShowForm}>
@@ -365,10 +514,45 @@ const OwnerMenu = () => {
                                     placeholder="45000" />
                             </div>
                         </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                                <Label>Nhóm món</Label>
+                                <select
+                                    value={form.menu_category || "main"}
+                                    onChange={(e) => setForm((f) => ({ ...f, menu_category: e.target.value as MenuItem["menu_category"] }))}
+                                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                                >
+                                    {MENU_CATEGORIES.map((category) => <option key={category.value} value={category.value}>{category.label}</option>)}
+                                </select>
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label>Khẩu phần *</Label>
+                                <Input value={form.serving_label || ""} onChange={(e) => setForm((f) => ({ ...f, serving_label: e.target.value }))} placeholder="1 tô, 1 phần, 1 ly..." />
+                            </div>
+                            <div className="col-span-2 space-y-1.5">
+                                <Label>Khối lượng khẩu phần (g, tuỳ chọn)</Label>
+                                <Input type="number" min={0} value={form.serving_weight_grams ?? ""} onChange={(e) => setForm((f) => ({ ...f, serving_weight_grams: e.target.value ? Number(e.target.value) : undefined }))} placeholder="Ví dụ: 450" />
+                            </div>
+                        </div>
                         <div className="space-y-1.5">
                             <Label>Mô tả</Label>
                             <Textarea value={form.description || ""} rows={2}
                                 onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label>Thành phần chính</Label>
+                            <Textarea value={form.ingredient_summary || ""} rows={2}
+                                onChange={(e) => setForm((f) => ({ ...f, ingredient_summary: e.target.value }))}
+                                placeholder="Ví dụ: cơm gạo lứt, ức gà nướng, rau củ, sốt mè..." />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label>Từ khóa để khách tìm món</Label>
+                            <Input
+                                value={(form.search_keywords || []).join(", ")}
+                                onChange={(e) => setForm((f) => ({ ...f, search_keywords: e.target.value.split(",").map((keyword) => keyword.trim()).filter(Boolean) }))}
+                                placeholder="Ví dụ: cơm gà, chicken rice, eat clean"
+                            />
+                            <p className="text-xs text-muted-foreground">Ngăn cách bằng dấu phẩy. Giúp khách tìm đúng món khi log bữa ăn.</p>
                         </div>
                         <div className="space-y-2">
                             <Label>Hình ảnh món ăn</Label>
@@ -461,22 +645,33 @@ const OwnerMenu = () => {
                             </div>
                         </div>
 
+                        <div className="space-y-3 rounded-xl border bg-muted/20 p-3">
+                            <div>
+                                <p className="text-sm font-medium">Nhãn dinh dưỡng & dị ứng</p>
+                                <p className="text-xs text-muted-foreground">Thông tin này giúp CaloVie không gợi ý món không phù hợp với khách.</p>
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label className="text-xs">Phù hợp chế độ ăn</Label>
+                                <div className="flex flex-wrap gap-1.5">{DIETARY_TAGS.map((tag) => <Button key={tag.value} type="button" size="sm" variant={form.dietary_tags?.includes(tag.value) ? "default" : "outline"} className="h-7 px-2 text-xs" onClick={() => setForm((f) => ({ ...f, dietary_tags: toggleTag(f.dietary_tags, tag.value) }))}>{tag.label}</Button>)}</div>
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label className="text-xs">Có thể chứa chất gây dị ứng</Label>
+                                <div className="flex flex-wrap gap-1.5">{ALLERGEN_TAGS.map((tag) => <Button key={tag.value} type="button" size="sm" variant={form.allergens?.includes(tag.value) ? "destructive" : "outline"} className="h-7 px-2 text-xs" onClick={() => setForm((f) => ({ ...f, allergens: toggleTag(f.allergens, tag.value) }))}>{tag.label}</Button>)}</div>
+                            </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <Label>Nguồn dữ liệu dinh dưỡng (tuỳ chọn)</Label>
+                            <Input value={form.nutrition_source_reference || ""} onChange={(e) => setForm((f) => ({ ...f, nutrition_source_reference: e.target.value }))} placeholder="Ví dụ: công thức quán, nhãn nhà cung cấp..." />
+                            <p className="text-xs text-muted-foreground">CaloVie hiển thị nguồn này cho mục đích minh bạch. Chỉ quản trị viên mới có thể xác minh dinh dưỡng.</p>
+                        </div>
+
                         <div className="flex items-center gap-2">
                             <input type="checkbox" id="available" checked={form.is_available}
                                 onChange={(e) => setForm((f) => ({ ...f, is_available: e.target.checked }))} />
                             <Label htmlFor="available">Còn phục vụ</Label>
                         </div>
 
-                        {isPro && (
-                            <div className="flex items-center gap-2">
-                                <input type="checkbox" id="verified" checked={!!form.nutrition_verified}
-                                    onChange={(e) => setForm((f) => ({ ...f, nutrition_verified: e.target.checked }))} />
-                                <Label htmlFor="verified" className="flex items-center gap-1">
-                                    <BadgeCheck className="w-3.5 h-3.5 text-green-500" />
-                                    Badge "Verified Nutrition"
-                                </Label>
-                            </div>
-                        )}
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setShowForm(false)}>Huỷ</Button>

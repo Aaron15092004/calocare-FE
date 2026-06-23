@@ -26,7 +26,14 @@ interface MenuItem {
     name_en?: string;
     price?: number;
     description?: string;
+    ingredient_summary?: string;
     image_url?: string;
+    serving_label?: string;
+    serving_weight_grams?: number;
+    dietary_tags?: string[];
+    allergens?: string[];
+    nutrition_status?: "not_provided" | "owner_provided" | "ai_estimated" | "admin_verified";
+    nutrition_verified?: boolean;
     energy_kcal?: number;
     protein?: number;
     lipid?: number;
@@ -56,6 +63,16 @@ interface StoreDetailAPI {
 
 const formatVnd = (amount?: number) =>
     amount ? `${Math.round(amount).toLocaleString("vi-VN")}₫` : "Hỏi quán";
+
+const getNutritionStatus = (item: MenuItem) => item.nutrition_status
+    || (item.nutrition_verified ? "admin_verified" : Number(item.energy_kcal) > 0 ? "owner_provided" : "not_provided");
+
+const NUTRITION_STATUS_LABEL = {
+    not_provided: "Chưa có dữ liệu",
+    owner_provided: "Quán cung cấp",
+    ai_estimated: "AI ước tính",
+    admin_verified: "Đã xác minh",
+} as const;
 
 const normalizeExternalUrl = (url?: string) => {
     if (!url?.trim()) return "";
@@ -297,6 +314,7 @@ const StoreDetail: React.FC = () => {
                                         {item.description && (
                                             <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{item.description}</p>
                                         )}
+                                        <p className="mt-1 text-[11px] font-medium text-muted-foreground">Dinh dưỡng theo {item.serving_label || "1 khẩu phần"}{item.serving_weight_grams ? ` (${item.serving_weight_grams}g)` : ""}</p>
                                         <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] font-semibold">
                                             {item.energy_kcal != null && (
                                                 <span className="inline-flex items-center gap-1 rounded-full bg-orange-500/10 px-2 py-1 text-orange-600">
@@ -307,7 +325,10 @@ const StoreDetail: React.FC = () => {
                                             {item.protein != null && <span className="rounded-full bg-blue-500/10 px-2 py-1 text-blue-600">P {item.protein}g</span>}
                                             {item.glucid != null && <span className="rounded-full bg-amber-500/10 px-2 py-1 text-amber-700">C {item.glucid}g</span>}
                                             {item.lipid != null && <span className="rounded-full bg-red-500/10 px-2 py-1 text-red-600">F {item.lipid}g</span>}
+                                            {item.dietary_tags?.map((tag) => <span key={tag} className="rounded-full bg-emerald-500/10 px-2 py-1 text-emerald-700">{tag.replaceAll("_", " ")}</span>)}
+                                            {item.energy_kcal != null && <span className={`rounded-full px-2 py-1 ${getNutritionStatus(item) === "admin_verified" ? "bg-emerald-600 text-white" : "bg-muted text-muted-foreground"}`}>{NUTRITION_STATUS_LABEL[getNutritionStatus(item)]}</span>}
                                         </div>
+                                        {item.allergens?.length ? <p className="mt-2 text-[10px] text-amber-700 dark:text-amber-300">Có thể chứa: {item.allergens.join(", ")}</p> : null}
                                     </div>
                                 </CardContent>
                             </Card>

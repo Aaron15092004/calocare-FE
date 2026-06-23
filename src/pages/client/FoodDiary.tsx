@@ -392,7 +392,7 @@ const FoodDiary: React.FC = () => {
             const scale = isStoreMenu ? 1 : weight / 100;
             foods.push({
                 name: item.name,
-                portion: isStoreMenu ? "1 khẩu phần" : `${weight}g`,
+                portion: isStoreMenu ? (item.serving_label || "1 khẩu phần") : `${weight}g`,
                 calories: Math.round(item.calories * scale),
                 protein: Math.round(item.protein * scale),
                 carbs: Math.round(item.carbs * scale),
@@ -407,15 +407,19 @@ const FoodDiary: React.FC = () => {
             });
         });
 
-        await addManualEntry({
-            foods,
-            totals,
-            mealType: logMealType,
-            notes: logNotes || undefined,
-        });
-
-        resetLogModal();
-        setLogSaving(false);
+        try {
+            const result = await addManualEntry({
+                foods,
+                totals,
+                mealType: logMealType,
+                notes: logNotes || undefined,
+            });
+            if (!result.error) {
+                resetLogModal();
+            }
+        } finally {
+            setLogSaving(false);
+        }
     };
 
     // Submit My Recipe to admin for approval
@@ -1644,7 +1648,7 @@ const FoodDiary: React.FC = () => {
                                                         <p className="truncate">{r.name}</p>
                                                         {r.isStoreMenu && (
                                                             <p className="truncate text-[10px] text-muted-foreground">
-                                                                {r.store_name}{r.price ? ` · ${Number(r.price).toLocaleString("vi-VN")}₫` : ""}
+                                                                {r.store_name}{r.price ? ` · ${Number(r.price).toLocaleString("vi-VN")}₫` : ""}{r.serving_label ? ` · ${r.serving_label}${r.serving_weight_grams ? ` (${r.serving_weight_grams}g)` : ""}` : ""}
                                                             </p>
                                                         )}
                                                     </div>
@@ -1656,7 +1660,7 @@ const FoodDiary: React.FC = () => {
                                                 </div>
                                                 <span className="text-muted-foreground text-xs whitespace-nowrap ml-2 text-right">
                                                     {r.nutrition_available === false ? "Chưa có dinh dưỡng" : `${r.calories} kcal`}
-                                                    {r.isStoreMenu && r.nutrition_available !== false && <span className="block text-[10px]">/ khẩu phần</span>}
+                                                    {r.isStoreMenu && r.nutrition_available !== false && <span className="block text-[10px]">/ {r.serving_label || "khẩu phần"}</span>}
                                                 </span>
                                             </button>
                                         ))}

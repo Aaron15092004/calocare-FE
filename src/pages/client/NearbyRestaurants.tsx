@@ -22,6 +22,7 @@ interface MenuItem {
     name_vi: string;
     price?: number;
     energy_kcal?: number;
+    serving_label?: string;
     is_available: boolean;
 }
 
@@ -310,7 +311,7 @@ const StoreCard: React.FC<{ store: StoreAPI }> = ({ store }) => {
                                     <div className="flex items-center gap-2 flex-shrink-0">
                                         {item.energy_kcal && (
                                             <span className="flex items-center gap-0.5 text-xs text-orange-500 font-medium">
-                                                <Flame className="w-3 h-3" />{item.energy_kcal}
+                                                <Flame className="w-3 h-3" />{item.energy_kcal}{item.serving_label ? `/${item.serving_label}` : ""}
                                             </span>
                                         )}
                                         {item.price && (

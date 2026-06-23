@@ -49,7 +49,15 @@ interface MenuItem {
     name_en?: string;
     price?: number;
     description?: string;
+    ingredient_summary?: string;
     image_url?: string;
+    menu_category?: "breakfast" | "main" | "snack" | "drink" | "dessert" | "other";
+    serving_label?: string;
+    serving_weight_grams?: number;
+    search_keywords?: string[];
+    dietary_tags?: string[];
+    allergens?: string[];
+    nutrition_source_reference?: string;
     energy_kcal?: number;
     protein?: number;
     lipid?: number;
@@ -109,7 +117,15 @@ interface MenuForm {
     name_en: string;
     price: string;
     description: string;
+    ingredient_summary: string;
     image_url: string;
+    menu_category: string;
+    serving_label: string;
+    serving_weight_grams: string;
+    search_keywords: string;
+    dietary_tags: string;
+    allergens: string;
+    nutrition_source_reference: string;
     energy_kcal: string;
     protein: string;
     lipid: string;
@@ -122,7 +138,15 @@ const emptyMenuForm: MenuForm = {
     name_en: "",
     price: "",
     description: "",
+    ingredient_summary: "",
     image_url: "",
+    menu_category: "main",
+    serving_label: "1 khẩu phần",
+    serving_weight_grams: "",
+    search_keywords: "",
+    dietary_tags: "",
+    allergens: "",
+    nutrition_source_reference: "",
     energy_kcal: "",
     protein: "",
     lipid: "",
@@ -303,7 +327,15 @@ const StoreRegistration: React.FC = () => {
             name_en: item.name_en || "",
             price: item.price?.toString() || "",
             description: item.description || "",
+            ingredient_summary: item.ingredient_summary || "",
             image_url: item.image_url || "",
+            menu_category: item.menu_category || "main",
+            serving_label: item.serving_label || "1 khẩu phần",
+            serving_weight_grams: item.serving_weight_grams?.toString() || "",
+            search_keywords: item.search_keywords?.join(", ") || "",
+            dietary_tags: item.dietary_tags?.join(", ") || "",
+            allergens: item.allergens?.join(", ") || "",
+            nutrition_source_reference: item.nutrition_source_reference || "",
             energy_kcal: item.energy_kcal?.toString() || "",
             protein: item.protein?.toString() || "",
             lipid: item.lipid?.toString() || "",
@@ -322,7 +354,15 @@ const StoreRegistration: React.FC = () => {
                 name_en: menuForm.name_en.trim() || undefined,
                 price: menuForm.price ? parseFloat(menuForm.price) : undefined,
                 description: menuForm.description.trim() || undefined,
+                ingredient_summary: menuForm.ingredient_summary.trim() || undefined,
                 image_url: menuForm.image_url.trim() || undefined,
+                menu_category: menuForm.menu_category,
+                serving_label: menuForm.serving_label.trim() || "1 khẩu phần",
+                serving_weight_grams: menuForm.serving_weight_grams ? parseFloat(menuForm.serving_weight_grams) : undefined,
+                search_keywords: menuForm.search_keywords.split(",").map((value) => value.trim()).filter(Boolean),
+                dietary_tags: menuForm.dietary_tags.split(",").map((value) => value.trim()).filter(Boolean),
+                allergens: menuForm.allergens.split(",").map((value) => value.trim()).filter(Boolean),
+                nutrition_source_reference: menuForm.nutrition_source_reference.trim() || undefined,
                 energy_kcal: menuForm.energy_kcal ? parseFloat(menuForm.energy_kcal) : undefined,
                 protein: menuForm.protein ? parseFloat(menuForm.protein) : undefined,
                 lipid: menuForm.lipid ? parseFloat(menuForm.lipid) : undefined,
@@ -463,7 +503,7 @@ const StoreRegistration: React.FC = () => {
                                                 </p>
                                             )}
                                             {item.energy_kcal && (
-                                                <p className="text-xs text-muted-foreground">{item.energy_kcal} kcal/100g</p>
+                                                <p className="text-xs text-muted-foreground">{item.energy_kcal} kcal/{item.serving_label || "khẩu phần"}</p>
                                             )}
                                         </div>
                                         <div className="flex gap-1">
@@ -513,8 +553,24 @@ const StoreRegistration: React.FC = () => {
                                     <Input type="number" min={0} className="mt-1" value={menuForm.price} onChange={(e) => setMenuForm({ ...menuForm, price: e.target.value })} placeholder="45000" />
                                 </div>
                                 <div>
-                                    <Label className="text-xs">Calories (kcal/100g)</Label>
+                                    <Label className="text-xs">Năng lượng (kcal/khẩu phần)</Label>
                                     <Input type="number" min={0} className="mt-1" value={menuForm.energy_kcal} onChange={(e) => setMenuForm({ ...menuForm, energy_kcal: e.target.value })} />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                    <Label className="text-xs">Nhóm món</Label>
+                                    <select className="mt-1 h-9 w-full rounded-md border border-input bg-background px-2 text-sm" value={menuForm.menu_category} onChange={(e) => setMenuForm({ ...menuForm, menu_category: e.target.value })}>
+                                        <option value="breakfast">Bữa sáng</option><option value="main">Món chính</option><option value="snack">Ăn nhẹ</option><option value="drink">Đồ uống</option><option value="dessert">Tráng miệng</option><option value="other">Khác</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <Label className="text-xs">Khẩu phần</Label>
+                                    <Input className="mt-1" value={menuForm.serving_label} onChange={(e) => setMenuForm({ ...menuForm, serving_label: e.target.value })} placeholder="1 tô, 1 phần..." />
+                                </div>
+                                <div className="col-span-2">
+                                    <Label className="text-xs">Khối lượng khẩu phần (g, tuỳ chọn)</Label>
+                                    <Input type="number" min={0} className="mt-1" value={menuForm.serving_weight_grams} onChange={(e) => setMenuForm({ ...menuForm, serving_weight_grams: e.target.value })} placeholder="Ví dụ: 450" />
                                 </div>
                             </div>
                             <div>
@@ -522,10 +578,14 @@ const StoreRegistration: React.FC = () => {
                                 <Textarea rows={2} className="mt-1" value={menuForm.description} onChange={(e) => setMenuForm({ ...menuForm, description: e.target.value })} />
                             </div>
                             <div>
+                                <Label className="text-xs">Thành phần chính</Label>
+                                <Textarea rows={2} className="mt-1" value={menuForm.ingredient_summary} onChange={(e) => setMenuForm({ ...menuForm, ingredient_summary: e.target.value })} placeholder="Cơm gạo lứt, ức gà, rau củ..." />
+                            </div>
+                            <div>
                                 <Label className="text-xs">Ảnh (URL)</Label>
                                 <Input className="mt-1" value={menuForm.image_url} onChange={(e) => setMenuForm({ ...menuForm, image_url: e.target.value })} placeholder="https://..." />
                             </div>
-                            <p className="text-xs font-medium text-gray-500">Dinh dưỡng per 100g</p>
+                            <p className="text-xs font-medium text-gray-500">Dinh dưỡng theo khẩu phần</p>
                             <div className="grid grid-cols-3 gap-2">
                                 {(["protein", "lipid", "glucid", "fiber"] as const).map((field) => (
                                     <div key={field}>
@@ -533,6 +593,23 @@ const StoreRegistration: React.FC = () => {
                                         <Input type="number" min={0} step={0.1} className="mt-1" value={menuForm[field]} onChange={(e) => setMenuForm({ ...menuForm, [field]: e.target.value })} />
                                     </div>
                                 ))}
+                            </div>
+                            <div>
+                                <Label className="text-xs">Từ khóa tìm món</Label>
+                                <Input className="mt-1" value={menuForm.search_keywords} onChange={(e) => setMenuForm({ ...menuForm, search_keywords: e.target.value })} placeholder="cơm gà, chicken rice, eat clean" />
+                            </div>
+                            <div>
+                                <Label className="text-xs">Nhãn chế độ ăn (cách nhau bằng dấu phẩy)</Label>
+                                <Input className="mt-1" value={menuForm.dietary_tags} onChange={(e) => setMenuForm({ ...menuForm, dietary_tags: e.target.value })} placeholder="vegetarian, vegan, high_protein, low_carb..." />
+                            </div>
+                            <div>
+                                <Label className="text-xs">Có thể chứa chất gây dị ứng</Label>
+                                <Input className="mt-1" value={menuForm.allergens} onChange={(e) => setMenuForm({ ...menuForm, allergens: e.target.value })} placeholder="milk, egg, peanut, nuts, seafood, soy, gluten" />
+                            </div>
+                            <div>
+                                <Label className="text-xs">Nguồn dữ liệu dinh dưỡng</Label>
+                                <Input className="mt-1" value={menuForm.nutrition_source_reference} onChange={(e) => setMenuForm({ ...menuForm, nutrition_source_reference: e.target.value })} placeholder="Công thức quán, nhãn nhà cung cấp..." />
+                                <p className="mt-1 text-[11px] text-muted-foreground">Chỉ quản trị viên CaloVie mới có thể xác minh dinh dưỡng.</p>
                             </div>
                         </div>
                         <DialogFooter>
