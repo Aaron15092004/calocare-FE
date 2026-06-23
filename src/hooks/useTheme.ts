@@ -2,6 +2,9 @@ import { useState, useEffect } from "react";
 
 type Theme = "light" | "dark" | "system";
 
+const THEME_STORAGE_KEY = "CaloVie-theme";
+const LEGACY_THEME_STORAGE_KEY = "calovie-theme";
+
 function applyTheme(theme: Theme) {
     const root = document.documentElement;
     if (theme === "dark") {
@@ -17,7 +20,9 @@ function applyTheme(theme: Theme) {
 
 export function useTheme() {
     const [theme, setThemeState] = useState<Theme>(() => {
-        return (localStorage.getItem("calovie-theme") as Theme | null) ?? "system";
+        const storedTheme = localStorage.getItem(THEME_STORAGE_KEY)
+            ?? localStorage.getItem(LEGACY_THEME_STORAGE_KEY);
+        return (storedTheme as Theme | null) ?? "system";
     });
 
     useEffect(() => {
@@ -33,7 +38,7 @@ export function useTheme() {
     }, [theme]);
 
     const setTheme = (t: Theme) => {
-        localStorage.setItem("calovie-theme", t);
+        localStorage.setItem(THEME_STORAGE_KEY, t);
         setThemeState(t);
     };
 

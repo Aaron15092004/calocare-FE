@@ -17,6 +17,7 @@ import {
     Gift,
     Users,
     AlertTriangle,
+    Landmark,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
