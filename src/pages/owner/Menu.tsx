@@ -476,7 +476,7 @@ const OwnerMenu = () => {
                                 {!detailItem.energy_kcal && <p className="mt-3 text-xs text-amber-600 dark:text-amber-300">Bổ sung kcal để món này có thể xuất hiện như một lựa chọn log meal cho khách.</p>}
                             </section>
 
-                            {(detailItem.dietary_tags?.length || detailItem.allergens?.length) && (
+                            {Boolean(detailItem.dietary_tags?.length || detailItem.allergens?.length) && (
                                 <section className="space-y-2">
                                     {detailItem.dietary_tags?.length ? <div><p className="text-xs font-semibold text-muted-foreground">Phù hợp chế độ ăn</p><div className="mt-1 flex flex-wrap gap-1.5">{detailItem.dietary_tags.map((tag) => <Badge key={tag} variant="secondary">{DIETARY_TAGS.find((item) => item.value === tag)?.label || tag}</Badge>)}</div></div> : null}
                                     {detailItem.allergens?.length ? <div><p className="text-xs font-semibold text-muted-foreground">Có thể chứa</p><div className="mt-1 flex flex-wrap gap-1.5">{detailItem.allergens.map((tag) => <Badge key={tag} className="bg-amber-500/15 text-amber-700 dark:text-amber-300">{ALLERGEN_TAGS.find((item) => item.value === tag)?.label || tag}</Badge>)}</div></div> : null}
