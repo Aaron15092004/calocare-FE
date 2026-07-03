@@ -655,7 +655,7 @@ function HeightScreen({ value, onChange, onNext }: { value: number; onChange: (v
           <div
             ref={scrollRef}
             onScroll={handleScroll}
-            className="hide-scrollbar absolute left-0 top-1/2 h-[420px] w-36 -translate-y-1/2 overflow-y-auto"
+            className="hide-scrollbar absolute left-0 top-1/2 h-[420px] w-36 -translate-y-1/2 snap-y snap-mandatory overflow-y-auto"
           >
             <div style={{ paddingTop: `${centerPadding}px`, paddingBottom: `${centerPadding}px` }}>
               {reversedMarks.map((mark) => {
@@ -663,7 +663,7 @@ function HeightScreen({ value, onChange, onNext }: { value: number; onChange: (v
                 const isFive = mark % 5 === 0;
                 const active = mark === value;
                 return (
-                  <div key={mark} className="flex items-center justify-end gap-2" style={{ height: `${itemHeight}px` }}>
+                  <div key={mark} className="flex snap-center items-center justify-end gap-2" style={{ height: `${itemHeight}px` }}>
                     {isMeter && (
                       <span className={`w-11 text-right text-xs font-extrabold ${active ? "text-primary" : "text-slate-500"}`}>
                         {(mark / 100).toFixed(1)}m
@@ -679,11 +679,12 @@ function HeightScreen({ value, onChange, onNext }: { value: number; onChange: (v
             </div>
           </div>
           <div className="pointer-events-none absolute left-0 right-0 top-1/2 h-0.5 -translate-y-1/2 bg-primary" />
-          <div className="pointer-events-none relative ml-24 w-40 text-center">
-            <div className="mb-1">
-              <span className="text-6xl font-extrabold leading-none text-[#242833]">{value}</span>
-              <span className="ml-1 text-sm font-extrabold text-slate-500">CM</span>
-            </div>
+          <div className="pointer-events-none absolute left-24 right-0 top-1/2 -translate-y-full text-center">
+            <span className="text-6xl font-extrabold leading-none text-[#242833]">{value}</span>
+            <span className="ml-1 text-sm font-extrabold text-slate-500">CM</span>
+          </div>
+          {/* Anchored so the top of the head sits exactly on the indicator line above, matching where a real height mark touches the top of the head. */}
+          <div className="pointer-events-none absolute left-24 right-0 top-1/2 text-center">
             <HumanSilhouette />
           </div>
         </div>
@@ -739,14 +740,20 @@ function WeightScreen({
           <div
             ref={scrollRef}
             onScroll={handleScroll}
-            className="hide-scrollbar h-full overflow-x-auto"
+            className="hide-scrollbar h-full snap-x snap-mandatory overflow-x-auto"
           >
-            <div className="flex h-full items-end px-[50%] pb-8" style={{ width: `${marks.length * itemWidth + 320}px` }}>
+            <div
+              className="flex h-full items-end pb-8"
+              style={{
+                width: `${marks.length * itemWidth + 320}px`,
+                padding: `0 calc(50% - ${itemWidth / 2}px)`,
+              }}
+            >
               {marks.map((mark) => {
                 const isTen = mark % 10 === 0;
                 const isFive = mark % 5 === 0;
                 return (
-                  <div key={mark} className="relative flex shrink-0 justify-center" style={{ width: itemWidth }}>
+                  <div key={mark} className="relative flex shrink-0 snap-center justify-center" style={{ width: itemWidth }}>
                     {isTen && <span className="absolute -top-14 text-xs font-extrabold text-slate-500">{mark}</span>}
                     <span className={`${isTen ? "h-11 bg-slate-500" : isFive ? "h-8 bg-slate-400" : "h-5 bg-slate-300"} w-px`} />
                   </div>
@@ -777,7 +784,7 @@ function HumanSilhouette() {
       <img
         src="/height-body.svg"
         alt=""
-        className="h-full w-full object-contain opacity-14"
+        className="h-full w-full object-contain object-top opacity-14"
         aria-hidden="true"
       />
     </div>
