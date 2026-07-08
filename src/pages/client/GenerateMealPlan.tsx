@@ -12,6 +12,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useSSEMealPlan, type DayPlan as SSEDayPlan, type MealItem as SSEMealItem, type MealsPerDay, type CookingStyle } from "@/hooks/useSSEMealPlan";
@@ -263,6 +273,7 @@ const GenerateMealPlan: React.FC = () => {
     }, [profile]);
 
     const [activating, setActivating] = useState(false);
+    const [confirmActivate, setConfirmActivate] = useState(false);
     const [selectedMeal, setSelectedMeal] = useState<SSEMealItem | null>(null);
     const { isGenerating, progress, days, substitutions, result, error: genError, generate, reset } = useSSEMealPlan();
 
@@ -317,7 +328,7 @@ const GenerateMealPlan: React.FC = () => {
         if (!result || activating) return;
         setActivating(true);
         try {
-            await api.post("/user-meal-plans", { meal_plan_id: result.meal_plan_id });
+            await api.post(`/meal-plans/${result.meal_plan_id}/activate`);
             toast({ title: "Thực đơn đã kích hoạt!", description: "Bắt đầu hành trình ăn uống lành mạnh nhé." });
             invalidateMealPlanCache();
             navigate("/meal-plan");
@@ -325,6 +336,7 @@ const GenerateMealPlan: React.FC = () => {
             toast({ title: "Lỗi kích hoạt", description: "Không thể kích hoạt thực đơn, vui lòng thử lại.", variant: "destructive" });
         } finally {
             setActivating(false);
+            setConfirmActivate(false);
         }
     };
 
@@ -509,7 +521,7 @@ const GenerateMealPlan: React.FC = () => {
 
                 <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur border-t border-border p-4 space-y-2">
                     {result && (
-                        <Button className="w-full gradient-primary" size="lg" onClick={handleActivate} disabled={activating}>
+                        <Button className="w-full gradient-primary" size="lg" onClick={() => setConfirmActivate(true)} disabled={activating}>
                             {activating
                                 ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Đang kích hoạt...</>
                                 : <><CheckCircle2 className="w-4 h-4 mr-2" />Kích hoạt thực đơn này</>
@@ -520,6 +532,21 @@ const GenerateMealPlan: React.FC = () => {
                         <RefreshCw className="w-4 h-4" /> Tạo lại thực đơn khác
                     </Button>
                 </div>
+
+                <AlertDialog open={confirmActivate} onOpenChange={setConfirmActivate}>
+                    <AlertDialogContent className="max-w-sm rounded-2xl">
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Kích hoạt thực đơn mới?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Kế hoạch đang dùng hiện tại (nếu có) sẽ được thay thế. Tiến độ của kế hoạch cũ vẫn được lưu lại.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Hủy</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleActivate}>Kích hoạt</AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
             </div>
         );
     }

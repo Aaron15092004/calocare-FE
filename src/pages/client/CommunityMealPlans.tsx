@@ -59,16 +59,16 @@ const CommunityMealPlans: React.FC = () => {
         if (!cloneTarget) return;
         setCloning(true);
         try {
-            await api.post(`/meal-plans/${cloneTarget._id}/clone`);
+            await api.post(`/meal-plans/${cloneTarget._id}/activate`);
             toast({
-                title: "Plan activated!",
-                description: `"${cloneTarget.title}" is now your active meal plan.`,
+                title: "Đã kích hoạt!",
+                description: `"${cloneTarget.title}" là kế hoạch ăn đang dùng của bạn.`,
             });
             setCloneTarget(null);
             invalidateMealPlanCache();
             navigate("/meal-plan");
         } catch {
-            toast({ title: "Error", description: "Could not clone plan.", variant: "destructive" });
+            toast({ title: "Lỗi", description: "Không thể kích hoạt kế hoạch.", variant: "destructive" });
         } finally {
             setCloning(false);
         }

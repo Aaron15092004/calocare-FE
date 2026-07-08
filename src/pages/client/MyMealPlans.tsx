@@ -112,6 +112,7 @@ const MyMealPlans: React.FC = () => {
     const [showAddDialog, setShowAddDialog] = useState(false);
 
     const [deleteId, setDeleteId] = useState<string | null>(null);
+    const [activateId, setActivateId] = useState<string | null>(null);
     const [submitId, setSubmitId] = useState<string | null>(null);
     const [recipeDetailItem, setRecipeDetailItem] = useState<MealItem | null>(null);
     const [shoppingList, setShoppingList] = useState<{ name: string; sources: string[] }[] | null>(null);
@@ -264,14 +265,17 @@ const MyMealPlans: React.FC = () => {
         }
     };
 
-    const handleActivatePlan = async (planId: string) => {
+    const handleActivatePlan = async () => {
+        if (!activateId) return;
         try {
-            await api.post("/user-meal-plans", { meal_plan_id: planId });
-            toast({ title: "Plan activated!", description: "This is now your active meal plan." });
+            await api.post(`/meal-plans/${activateId}/activate`);
+            toast({ title: "Đã kích hoạt!", description: "Đây là kế hoạch ăn đang dùng của bạn." });
             invalidateMealPlanCache();
             navigate("/meal-plan");
         } catch {
-            toast({ title: "Error", description: "Could not activate plan.", variant: "destructive" });
+            toast({ title: "Lỗi", description: "Không thể kích hoạt kế hoạch.", variant: "destructive" });
+        } finally {
+            setActivateId(null);
         }
     };
 
@@ -739,8 +743,8 @@ const MyMealPlans: React.FC = () => {
                                 </div>
 
                                 <div className="flex gap-2 mt-3 flex-wrap">
-                                    <Button size="sm" variant="outline" onClick={() => handleActivatePlan(plan._id)}>
-                                        Set Active
+                                    <Button size="sm" variant="outline" onClick={() => setActivateId(plan._id)}>
+                                        Dùng kế hoạch này
                                     </Button>
                                     <Button
                                         size="sm"
@@ -775,6 +779,22 @@ const MyMealPlans: React.FC = () => {
                     ))
                 )}
             </main>
+
+            {/* Activate confirm — switching plans re-scopes progress, so warn first */}
+            <Dialog open={!!activateId} onOpenChange={() => setActivateId(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Dùng kế hoạch này?</DialogTitle>
+                    </DialogHeader>
+                    <p className="text-sm text-muted-foreground">
+                        Kế hoạch đang dùng hiện tại (nếu có) sẽ được thay thế. Tiến độ của kế hoạch cũ vẫn được lưu lại.
+                    </p>
+                    <DialogFooter className="gap-2">
+                        <Button variant="outline" onClick={() => setActivateId(null)}>Hủy</Button>
+                        <Button onClick={handleActivatePlan}>Kích hoạt</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             {/* Delete confirm */}
             <Dialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>

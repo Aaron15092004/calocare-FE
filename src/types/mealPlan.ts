@@ -170,6 +170,18 @@ export function getRecipeSteps(item: MealPlanItemAPI): string[] {
     return (block?.items ?? []) as string[];
 }
 
+// Canonical "which day of the plan is today" — calendar-based from start_date,
+// clamped to [1, totalDays]. Replaces the progress-based variant that jumped
+// ahead when a user completed one meal on a later day.
+export function computeCurrentDay(startDate: string | Date | undefined, totalDays: number): number {
+    if (!totalDays || totalDays < 1) return 1;
+    if (!startDate) return 1;
+    const start = new Date(startDate);
+    if (Number.isNaN(start.getTime())) return 1;
+    const elapsedDays = Math.floor((Date.now() - start.getTime()) / 86_400_000);
+    return Math.min(Math.max(elapsedDays + 1, 1), totalDays);
+}
+
 export function groupItemsByDay(items: MealPlanItemAPI[], totalDays: number): DayPlanFromAPI[] {
     const days: DayPlanFromAPI[] = [];
     for (let d = 1; d <= totalDays; d++) {

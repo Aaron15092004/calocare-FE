@@ -9,35 +9,22 @@ import { DayPlanSection } from "@/components/DayPlanSection";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useMealProgress } from "@/hooks/useMealProgress";
 import { BottomNav } from "@/components/BottomNav";
-import api from "@/lib/api";
+import { useActiveMealPlan, invalidateActiveMealPlan } from "@/hooks/useMealPlanQueries";
 import {
-    UserMealPlanAPI,
-    MealPlanItemAPI,
     DayPlanFromAPI,
+    computeCurrentDay,
     groupItemsByDay,
 } from "@/types/mealPlan";
 
-// ── Module-level SWR cache (survives React re-mounts, cleared on plan change) ──
-interface PlanCache {
-    userId: string;
-    plan: UserMealPlanAPI;
-    items: MealPlanItemAPI[];
-    at: number;
-}
-let _planCache: PlanCache | null = null;
-const CACHE_TTL = 3 * 60 * 1000; // 3 minutes — background refresh threshold
-
+// Deprecated alias — data now lives in the shared TanStack Query cache.
 export function invalidateMealPlanCache() {
-    _planCache = null;
+    invalidateActiveMealPlan();
 }
 
 const MealPlan: React.FC = () => {
     const navigate = useNavigate();
     const { user, profile, refreshProfile } = useAuthContext();
 
-    const [activePlan, setActivePlan] = useState<UserMealPlanAPI | null>(null);
-    const [dayPlans, setDayPlans] = useState<DayPlanFromAPI[]>([]);
-    const [loading, setLoading] = useState(true);
     const [selectedWeek, setSelectedWeek] = useState<string>("all");
     const [mainTab, setMainTab] = useState<"plan" | "ai">("plan");
 
@@ -45,7 +32,14 @@ const MealPlan: React.FC = () => {
     const isPremium = normalizedTier === "premium" || normalizedTier === "family";
     const isPro = normalizedTier === "family";
 
+    const { data: activeData, isLoading: loading } = useActiveMealPlan(Boolean(user));
+    const activePlan = activeData?.plan ?? null;
     const totalDays = activePlan?.meal_plan_id?.total_days ?? 0;
+
+    const dayPlans = useMemo<DayPlanFromAPI[]>(
+        () => (activePlan ? groupItemsByDay(activeData?.items ?? [], totalDays) : []),
+        [activePlan, activeData?.items, totalDays],
+    );
 
     const dayItemCounts = useMemo(() => {
         const counts = new Map<number, number>();
@@ -63,52 +57,9 @@ const MealPlan: React.FC = () => {
         void refreshProfile();
     }, [refreshProfile]);
 
-    useEffect(() => {
-        fetchActivePlan();
-    }, [user]);
-
-    const applyPlanData = (plan: UserMealPlanAPI, items: MealPlanItemAPI[]) => {
-        setActivePlan(plan);
-        setDayPlans(groupItemsByDay(items, plan.meal_plan_id.total_days));
-    };
-
-    const fetchActivePlan = async (background = false) => {
-        if (!user) {
-            setLoading(false);
-            return;
-        }
-
-        // Show cached data immediately (stale-while-revalidate)
-        const cached = _planCache;
-        if (cached && cached.userId === user.id) {
-            applyPlanData(cached.plan, cached.items);
-            setLoading(false);
-            // If cache is fresh enough, skip background refetch
-            if (Date.now() - cached.at < CACHE_TTL) return;
-            background = true;
-        }
-
-        try {
-            const { data } = await api.get<{ plan: UserMealPlanAPI | null; items: MealPlanItemAPI[] }>(
-                "/user-meal-plans/active-with-items",
-            );
-            if (data.plan) {
-                _planCache = { userId: user.id, plan: data.plan, items: data.items, at: Date.now() };
-                applyPlanData(data.plan, data.items);
-            } else {
-                _planCache = null;
-                setActivePlan(null);
-                setDayPlans([]);
-            }
-        } catch (err) {
-            console.error("Error fetching active plan:", err);
-        } finally {
-            if (!background) setLoading(false);
-        }
-    };
-
     const overallProgress = getOverallProgress();
-    const currentDay = Math.min(overallProgress.daysCompleted + 1, totalDays || 1);
+    // Calendar-based: same "today" everywhere (Home, plan page, mobile)
+    const currentDay = computeCurrentDay(activePlan?.start_date ?? activePlan?.created_at, totalDays);
 
     const getWeekDays = (week: string): DayPlanFromAPI[] => {
         switch (week) {
