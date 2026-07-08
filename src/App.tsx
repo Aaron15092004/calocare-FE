@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AdminRoute } from "@/components/admin/AdminRoute";
 import { StoreOwnerRoute } from "@/components/owner/StoreOwnerRoute";
@@ -40,7 +40,6 @@ import Dashboard from "./pages/admin/Dashboard";
 import AdminBanners from "./pages/admin/Banners";
 import Users from "./pages/admin/Users";
 import Payments from "./pages/admin/Payments";
-import Revenue from "./pages/admin/Revenue";
 import AdminStores from "./pages/admin/Stores";
 import DiscountCodes from "./pages/admin/DiscountCodes";
 import Recipes from "./pages/admin/Recipes";
@@ -126,7 +125,8 @@ const App = () => (
               <Route index element={<Dashboard />} />
               <Route path="users" element={<Users />} />
               <Route path="payments" element={<Payments />} />
-              <Route path="revenue" element={<Revenue />} />
+              {/* Revenue đã gộp vào Payments — giữ redirect cho link cũ */}
+              <Route path="revenue" element={<Navigate to="/admin/payments" replace />} />
               <Route path="stores" element={<AdminStores />} />
               <Route path="banners" element={<AdminBanners />} />
               <Route path="discount-codes" element={<DiscountCodes />} />

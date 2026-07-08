@@ -14,7 +14,6 @@ import {
     X,
     ChevronLeft,
     Layers,
-    CreditCard,
     WalletCards,
     Store,
     Tag,
@@ -31,8 +30,7 @@ import { useAdminBadges } from "@/hooks/useAdminBadges";
 const navItems = [
     { to: "/admin", icon: LayoutDashboard, label: "Dashboard", end: true },
     { to: "/admin/users", icon: Users, label: "Users" },
-    { to: "/admin/payments", icon: CreditCard, label: "Payments" },
-    { to: "/admin/revenue", icon: WalletCards, label: "Revenue" },
+    { to: "/admin/payments", icon: WalletCards, label: "Payments & Revenue" },
     { to: "/admin/stores", icon: Store, label: "Stores" },
     { to: "/admin/banners", icon: Image, label: "Banners" },
     { to: "/admin/discount-codes", icon: Tag, label: "Discount Codes" },
