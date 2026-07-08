@@ -25,6 +25,7 @@ import {
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useSSEMealPlan, type DayPlan as SSEDayPlan, type MealItem as SSEMealItem, type MealsPerDay, type CookingStyle } from "@/hooks/useSSEMealPlan";
+import { MEAL_ORDER } from "@/types/mealPlan";
 import api from "@/lib/api";
 import { AdSenseUnit } from "@/components/AdSenseUnit";
 import { MealPlanRecoveryBanner } from "@/components/MealPlanRecoveryBanner";
@@ -173,7 +174,7 @@ const MealDetailModal: React.FC<{
     );
 };
 
-/* ── Meal preview card ──────────────────────────────────────────── */
+/* ── Meal preview row (label lives in the group header, not per item) ── */
 const MealPreviewCard: React.FC<{ meal: SSEMealItem; onClick: () => void }> = ({ meal, onClick }) => (
     <button
         type="button"
@@ -182,10 +183,7 @@ const MealPreviewCard: React.FC<{ meal: SSEMealItem; onClick: () => void }> = ({
     >
         <div className="flex items-start justify-between px-3 py-2.5">
             <div className="flex-1 min-w-0 pr-3">
-                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
-                    {MEAL_LABELS[meal.meal_type]}
-                </span>
-                <p className="text-sm font-semibold text-foreground mt-0.5 leading-snug">{meal.food_name}</p>
+                <p className="text-sm font-semibold text-foreground leading-snug">{meal.food_name}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">{meal.weight_grams}g · nhấn để xem chi tiết</p>
             </div>
             <div className="text-right shrink-0 flex flex-col items-end gap-1">
@@ -204,9 +202,20 @@ const MealPreviewCard: React.FC<{ meal: SSEMealItem; onClick: () => void }> = ({
     </button>
 );
 
-/* ── Day preview ────────────────────────────────────────────────── */
+/* ── Day preview — meals grouped once per meal type like the plan page ── */
 const DayPreview: React.FC<{ day: SSEDayPlan; defaultOpen?: boolean; onMealClick: (meal: SSEMealItem) => void }> = ({ day, defaultOpen = false, onMealClick }) => {
     const [open, setOpen] = useState(defaultOpen);
+
+    const groupMap = new Map<string, SSEMealItem[]>();
+    for (const meal of day.meals) {
+        const bucket = groupMap.get(meal.meal_type);
+        if (bucket) bucket.push(meal);
+        else groupMap.set(meal.meal_type, [meal]);
+    }
+    const orderedTypes = [
+        ...MEAL_ORDER.filter((mt) => groupMap.has(mt)),
+        ...[...groupMap.keys()].filter((mt) => !MEAL_ORDER.includes(mt as typeof MEAL_ORDER[number])),
+    ];
 
     return (
         <div className="rounded-xl overflow-hidden shadow-ios-sm">
@@ -225,17 +234,35 @@ const DayPreview: React.FC<{ day: SSEDayPlan; defaultOpen?: boolean; onMealClick
                         <span>·</span>
                         <span>{day.day_totals.protein}g protein</span>
                         <span>·</span>
-                        <span>{day.meals.length} bữa</span>
+                        <span>{orderedTypes.length} bữa · {day.meals.length} món</span>
                     </div>
                 </div>
                 {open ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
             </button>
 
             {open && (
-                <div className="p-3 space-y-2 bg-muted/10">
-                    {day.meals.map((meal, i) => (
-                        <MealPreviewCard key={i} meal={meal} onClick={() => onMealClick(meal)} />
-                    ))}
+                <div className="p-3 space-y-3 bg-muted/10">
+                    {orderedTypes.map((mealType) => {
+                        const meals = groupMap.get(mealType)!;
+                        const groupCal = meals.reduce((s, m) => s + m.calories, 0);
+                        return (
+                            <div key={mealType}>
+                                <div className="flex items-center gap-1.5 px-1 mb-1">
+                                    <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+                                        {MEAL_LABELS[mealType] ?? mealType}
+                                    </span>
+                                    <div className="flex-1" />
+                                    <Flame className="w-3 h-3 text-orange-300" />
+                                    <span className="text-[11px] font-medium text-muted-foreground">{groupCal} kcal</span>
+                                </div>
+                                <div className="space-y-1.5">
+                                    {meals.map((meal, i) => (
+                                        <MealPreviewCard key={`${mealType}-${i}`} meal={meal} onClick={() => onMealClick(meal)} />
+                                    ))}
+                                </div>
+                            </div>
+                        );
+                    })}
                 </div>
             )}
         </div>

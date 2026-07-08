@@ -78,14 +78,24 @@ const emptyForm: PlanForm = {
 };
 
 const GOAL_TYPES = [
-    { value: "", label: "-- Select goal --" },
-    { value: "weight_loss", label: "Weight Loss" },
-    { value: "muscle_gain", label: "Muscle Gain" },
-    { value: "maintain", label: "Maintain" },
-    { value: "health", label: "General Health" },
+    { value: "", label: "-- Chọn mục tiêu --" },
+    { value: "weight_loss", label: "Giảm cân" },
+    { value: "muscle_gain", label: "Tăng cơ" },
+    { value: "maintain", label: "Duy trì" },
+    { value: "health", label: "Sức khỏe tổng quát" },
 ];
 
-const MEAL_TYPES = ["breakfast", "lunch", "dinner", "snack"];
+// Full 6 meal types — AI plans use snack subtypes; the old 4-type editor made
+// morning/afternoon_snack items invisible (but still silently saved)
+const MEAL_TYPES = ["breakfast", "morning_snack", "lunch", "afternoon_snack", "dinner", "snack"];
+const MEAL_TYPE_LABELS: Record<string, string> = {
+    breakfast: "Bữa sáng",
+    morning_snack: "Bữa phụ sáng",
+    lunch: "Bữa trưa",
+    afternoon_snack: "Bữa phụ chiều",
+    dinner: "Bữa tối",
+    snack: "Bữa phụ",
+};
 
 type ViewMode = "list" | "form";
 
@@ -231,11 +241,11 @@ const MyMealPlans: React.FC = () => {
             } else {
                 await api.post("/meal-plans", { ...planData, items: itemsPayload });
             }
-            toast({ title: "Saved", description: "Meal plan saved successfully." });
+            toast({ title: "Đã lưu", description: "Kế hoạch ăn đã được lưu." });
             setViewMode("list");
             fetchPlans();
         } catch (err) {
-            toast({ title: "Error", description: "Could not save meal plan.", variant: "destructive" });
+            toast({ title: "Lỗi", description: "Không lưu được kế hoạch.", variant: "destructive" });
         } finally {
             setSaving(false);
         }
@@ -245,11 +255,11 @@ const MyMealPlans: React.FC = () => {
         if (!deleteId) return;
         try {
             await api.delete(`/meal-plans/${deleteId}`);
-            toast({ title: "Deleted", description: "Meal plan deleted." });
+            toast({ title: "Đã xóa", description: "Kế hoạch ăn đã được xóa." });
             setDeleteId(null);
             fetchPlans();
         } catch {
-            toast({ title: "Error", description: "Could not delete plan.", variant: "destructive" });
+            toast({ title: "Lỗi", description: "Không xóa được kế hoạch.", variant: "destructive" });
         }
     };
 
@@ -257,11 +267,11 @@ const MyMealPlans: React.FC = () => {
         if (!submitId) return;
         try {
             await api.post(`/meal-plans/${submitId}/submit`);
-            toast({ title: "Submitted!", description: "Your plan is now pending admin review." });
+            toast({ title: "Đã gửi!", description: "Kế hoạch đang chờ quản trị viên duyệt." });
             setSubmitId(null);
             fetchPlans();
         } catch {
-            toast({ title: "Error", description: "Could not submit plan.", variant: "destructive" });
+            toast({ title: "Lỗi", description: "Không gửi được kế hoạch.", variant: "destructive" });
         }
     };
 
@@ -361,9 +371,9 @@ const MyMealPlans: React.FC = () => {
                         <Button variant="ghost" size="icon" onClick={() => setViewMode("list")} className="rounded-xl">
                             <ArrowLeft className="w-5 h-5" />
                         </Button>
-                        <h1 className="flex-1 page-title">{form.id ? "Edit Plan" : "New Plan"}</h1>
+                        <h1 className="flex-1 page-title">{form.id ? "Sửa kế hoạch" : "Kế hoạch mới"}</h1>
                         <Button onClick={handleSave} disabled={saving || !form.title.trim()} size="sm">
-                            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save"}
+                            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Lưu"}
                         </Button>
                     </div>
                 </header>
@@ -442,7 +452,7 @@ const MyMealPlans: React.FC = () => {
 
                     {/* Meals per day */}
                     <div className="space-y-3">
-                        <h2 className="font-semibold text-lg">Meals</h2>
+                        <h2 className="font-semibold text-lg">Các bữa ăn</h2>
                         {days.map((day) => {
                             const dayItems = items.filter((i) => i.day_number === day);
                             const collapsed = collapsedDays.has(day);
@@ -454,9 +464,9 @@ const MyMealPlans: React.FC = () => {
                                             className="w-full flex items-center justify-between mb-2"
                                             onClick={() => toggleDay(day)}
                                         >
-                                            <span className="font-medium">Day {day}</span>
+                                            <span className="font-medium">Ngày {day}</span>
                                             <div className="flex items-center gap-2">
-                                                <span className="text-xs text-muted-foreground">{dayItems.length} items</span>
+                                                <span className="text-xs text-muted-foreground">{dayItems.length} món</span>
                                                 {collapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
                                             </div>
                                         </button>
@@ -468,7 +478,7 @@ const MyMealPlans: React.FC = () => {
                                                     return (
                                                         <div key={mealType} className="mb-2">
                                                             <div className="flex items-center justify-between py-1">
-                                                                <span className="text-sm font-medium capitalize text-muted-foreground">{mealType}</span>
+                                                                <span className="text-sm font-medium text-muted-foreground">{MEAL_TYPE_LABELS[mealType] ?? mealType}</span>
                                                                 <Button
                                                                     type="button"
                                                                     variant="ghost"
@@ -482,7 +492,7 @@ const MyMealPlans: React.FC = () => {
                                                                         setShowAddDialog(true);
                                                                     }}
                                                                 >
-                                                                    <Plus className="w-3 h-3 mr-1" /> Add
+                                                                    <Plus className="w-3 h-3 mr-1" /> Thêm
                                                                 </Button>
                                                             </div>
                                                             {mealItems.map((item, idx) => {
@@ -623,7 +633,7 @@ const MyMealPlans: React.FC = () => {
                 <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
                     <DialogContent>
                         <DialogHeader>
-                            <DialogTitle>Add item — Day {addingDay}, {addingMeal}</DialogTitle>
+                            <DialogTitle>Thêm món — Ngày {addingDay}, {MEAL_TYPE_LABELS[addingMeal] ?? addingMeal}</DialogTitle>
                         </DialogHeader>
                         <div className="flex gap-2 mb-3">
                             <Button
@@ -687,7 +697,7 @@ const MyMealPlans: React.FC = () => {
                     <Button variant="ghost" size="icon" onClick={() => navigate("/")} className="rounded-xl">
                         <ArrowLeft className="w-5 h-5" />
                     </Button>
-                    <h1 className="flex-1 page-title">My Meal Plans</h1>
+                    <h1 className="flex-1 page-title">Kế hoạch của tôi</h1>
                     <Button size="sm" onClick={handleNew} className="gap-1">
                         <Plus className="w-4 h-4" /> New
                     </Button>
@@ -770,7 +780,7 @@ const MyMealPlans: React.FC = () => {
                                             className="gap-1"
                                             onClick={() => setSubmitId(plan._id)}
                                         >
-                                            <Send className="w-3 h-3" /> Submit for Review
+                                            <Send className="w-3 h-3" /> Gửi duyệt
                                         </Button>
                                     )}
                                 </div>
@@ -800,9 +810,9 @@ const MyMealPlans: React.FC = () => {
             <Dialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Delete this plan?</DialogTitle>
+                        <DialogTitle>Xóa kế hoạch này?</DialogTitle>
                     </DialogHeader>
-                    <p className="text-sm text-muted-foreground">This action cannot be undone.</p>
+                    <p className="text-sm text-muted-foreground">Hành động này không thể hoàn tác.</p>
                     <DialogFooter className="gap-2">
                         <Button variant="outline" onClick={() => setDeleteId(null)}>Cancel</Button>
                         <Button variant="destructive" onClick={handleDelete}>Delete</Button>
@@ -814,7 +824,7 @@ const MyMealPlans: React.FC = () => {
             <Dialog open={!!submitId} onOpenChange={() => setSubmitId(null)}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Submit plan for community review?</DialogTitle>
+                        <DialogTitle>Gửi kế hoạch cho cộng đồng?</DialogTitle>
                     </DialogHeader>
                     <p className="text-sm text-muted-foreground">
                         Your plan will be sent to admins for review. Once approved it will appear in the community feed.

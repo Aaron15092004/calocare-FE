@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { invalidateMealPlanCache } from "@/pages/client/MealPlan";
-import { ArrowLeft, Search, Users, Flame, Tag, Loader2, Copy } from "lucide-react";
+import { ArrowLeft, Search, Users, Flame, Tag, Loader2, Copy, CalendarDays, ChefHat, UserCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -20,40 +20,81 @@ import { MealPlanAPI } from "@/types/mealPlan";
 import { AdSenseUnit } from "@/components/AdSenseUnit";
 
 const GOAL_LABELS: Record<string, string> = {
-    weight_loss: "Weight Loss",
-    muscle_gain: "Muscle Gain",
-    maintain: "Maintain",
-    health: "General Health",
+    weight_loss: "Giảm cân",
+    muscle_gain: "Tăng cơ",
+    maintenance: "Duy trì",
+    maintain: "Duy trì",
+    health: "Sức khỏe",
+};
+
+const PAGE_SIZE = 20;
+
+// Community list enriches plans with author + nutrition summary + preview image
+type CommunityPlan = Omit<MealPlanAPI, "creator_id"> & {
+    creator_id?: { display_name?: string } | string | null;
+    avg_daily_kcal?: number | null;
+    item_count?: number;
+    preview_image?: string | null;
+};
+
+const authorName = (plan: CommunityPlan): string => {
+    if (plan.creator_id && typeof plan.creator_id === "object") {
+        return plan.creator_id.display_name || "Cộng đồng";
+    }
+    return "Cộng đồng";
 };
 
 const CommunityMealPlans: React.FC = () => {
     const navigate = useNavigate();
     const { toast } = useToast();
 
-    const [plans, setPlans] = useState<MealPlanAPI[]>([]);
+    const [plans, setPlans] = useState<CommunityPlan[]>([]);
+    const [total, setTotal] = useState(0);
     const [loading, setLoading] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [searchInput, setSearchInput] = useState("");
     const [search, setSearch] = useState("");
     const [goalFilter, setGoalFilter] = useState("");
-    const [cloneTarget, setCloneTarget] = useState<MealPlanAPI | null>(null);
+    const [cloneTarget, setCloneTarget] = useState<CommunityPlan | null>(null);
     const [cloning, setCloning] = useState(false);
+    const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+    // Debounced server-side search — the old version filtered a capped 100-row
+    // page on the client, hiding anything beyond the cap
     useEffect(() => {
-        fetchPlans();
-    }, []);
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+        debounceRef.current = setTimeout(() => setSearch(searchInput.trim()), 350);
+        return () => {
+            if (debounceRef.current) clearTimeout(debounceRef.current);
+        };
+    }, [searchInput]);
 
-    const fetchPlans = async () => {
-        setLoading(true);
+    const fetchPlans = useCallback(async (offset = 0) => {
+        if (offset === 0) setLoading(true);
+        else setLoadingMore(true);
         try {
             const { data } = await api.get("/meal-plans", {
-                params: { community: true, limit: 100 },
+                params: {
+                    community: true,
+                    limit: PAGE_SIZE,
+                    offset,
+                    q: search || undefined,
+                    goal_type: goalFilter || undefined,
+                },
             });
-            setPlans(data.data || []);
+            setTotal(data.total || 0);
+            setPlans((prev) => (offset === 0 ? data.data || [] : [...prev, ...(data.data || [])]));
         } catch (err) {
             console.error(err);
         } finally {
             setLoading(false);
+            setLoadingMore(false);
         }
-    };
+    }, [search, goalFilter]);
+
+    useEffect(() => {
+        fetchPlans(0);
+    }, [fetchPlans]);
 
     const handleClone = async () => {
         if (!cloneTarget) return;
@@ -74,16 +115,6 @@ const CommunityMealPlans: React.FC = () => {
         }
     };
 
-    const filtered = plans.filter((p) => {
-        const matchSearch =
-            !search ||
-            p.title.toLowerCase().includes(search.toLowerCase()) ||
-            p.description?.toLowerCase().includes(search.toLowerCase()) ||
-            p.tags?.some((t) => t.toLowerCase().includes(search.toLowerCase()));
-        const matchGoal = !goalFilter || p.goal_type === goalFilter;
-        return matchSearch && matchGoal;
-    });
-
     return (
         <div className="min-h-screen gradient-fresh pb-nav-safe">
             {/* Header */}
@@ -99,9 +130,9 @@ const CommunityMealPlans: React.FC = () => {
                             <ArrowLeft className="w-5 h-5" />
                         </Button>
                         <div className="flex-1">
-                            <h1 className="page-title text-foreground">Community Plans</h1>
+                            <h1 className="page-title text-foreground">Thực đơn cộng đồng</h1>
                             <p className="text-sm text-muted-foreground">
-                                Browse and use approved meal plans
+                                Khám phá và dùng các kế hoạch ăn đã được duyệt
                             </p>
                         </div>
                         <Users className="w-5 h-5 text-primary" />
@@ -116,13 +147,13 @@ const CommunityMealPlans: React.FC = () => {
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                         <Input
                             className="pl-9"
-                            placeholder="Search plans..."
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder="Tìm thực đơn theo tên, mô tả, tag..."
+                            value={searchInput}
+                            onChange={(e) => setSearchInput(e.target.value)}
                         />
                     </div>
                     <div className="flex gap-2 overflow-x-auto pb-1">
-                        {["", "weight_loss", "muscle_gain", "maintain", "health"].map((g) => (
+                        {["", "weight_loss", "muscle_gain", "maintenance"].map((g) => (
                             <button
                                 key={g}
                                 type="button"
@@ -133,16 +164,14 @@ const CommunityMealPlans: React.FC = () => {
                                         : "bg-background border-border text-muted-foreground hover:border-primary"
                                 }`}
                             >
-                                {g ? GOAL_LABELS[g] : "All Goals"}
+                                {g ? GOAL_LABELS[g] : "Tất cả mục tiêu"}
                             </button>
                         ))}
                     </div>
                 </div>
 
                 {/* Stats */}
-                <p className="text-sm text-muted-foreground">
-                    {filtered.length} plan{filtered.length !== 1 ? "s" : ""} available
-                </p>
+                <p className="text-sm text-muted-foreground">{total} thực đơn</p>
 
                 <AdSenseUnit
                     slot={import.meta.env.VITE_ADSENSE_SLOT_COMMUNITY ?? import.meta.env.VITE_ADSENSE_SLOT_INLINE ?? ""}
@@ -155,27 +184,45 @@ const CommunityMealPlans: React.FC = () => {
                     <div className="flex justify-center py-12">
                         <Loader2 className="w-6 h-6 animate-spin text-primary" />
                     </div>
-                ) : filtered.length === 0 ? (
+                ) : plans.length === 0 ? (
                     <Card>
                         <CardContent className="p-10 text-center text-muted-foreground">
-                            No community plans found.
+                            Chưa có thực đơn cộng đồng phù hợp.
                         </CardContent>
                     </Card>
                 ) : (
                     <div className="space-y-4">
-                        {filtered.map((plan) => (
-                            <Card key={plan._id} className="hover:shadow-md transition-shadow">
+                        {plans.map((plan) => (
+                            <Card key={plan._id} className="overflow-hidden hover:shadow-md transition-shadow">
+                                {plan.preview_image ? (
+                                    <div className="h-32 w-full overflow-hidden">
+                                        <img src={plan.preview_image} alt={plan.title} className="h-full w-full object-cover" />
+                                    </div>
+                                ) : (
+                                    <div className="h-20 w-full bg-gradient-to-r from-primary/15 via-primary/5 to-accent flex items-center justify-center">
+                                        <ChefHat className="w-8 h-8 text-primary/40" />
+                                    </div>
+                                )}
                                 <CardContent className="p-4">
                                     <div className="flex items-start justify-between gap-3">
                                         <div className="flex-1 min-w-0">
                                             <h3 className="font-semibold text-foreground truncate mb-1">
                                                 {plan.title}
                                             </h3>
-                                            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+                                            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2 flex-wrap">
                                                 <span className="flex items-center gap-1">
-                                                    <Flame className="w-3 h-3" />
-                                                    {plan.total_days} days
+                                                    <CalendarDays className="w-3 h-3" />
+                                                    {plan.total_days} ngày
                                                 </span>
+                                                {plan.avg_daily_kcal ? (
+                                                    <>
+                                                        <span>·</span>
+                                                        <span className="flex items-center gap-1">
+                                                            <Flame className="w-3 h-3 text-orange-400" />
+                                                            ~{plan.avg_daily_kcal.toLocaleString("vi-VN")} kcal/ngày
+                                                        </span>
+                                                    </>
+                                                ) : null}
                                                 {plan.goal_type && (
                                                     <>
                                                         <span>·</span>
@@ -183,6 +230,10 @@ const CommunityMealPlans: React.FC = () => {
                                                     </>
                                                 )}
                                             </div>
+                                            <p className="flex items-center gap-1 text-xs text-muted-foreground mb-2">
+                                                <UserCircle2 className="w-3.5 h-3.5" />
+                                                {authorName(plan)}
+                                            </p>
                                             {plan.description && (
                                                 <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
                                                     {plan.description}
@@ -190,7 +241,7 @@ const CommunityMealPlans: React.FC = () => {
                                             )}
                                             {plan.tags && plan.tags.length > 0 && (
                                                 <div className="flex gap-1 flex-wrap">
-                                                    {plan.tags.map((tag) => (
+                                                    {plan.tags.slice(0, 4).map((tag) => (
                                                         <Badge
                                                             key={tag}
                                                             variant="secondary"
@@ -209,12 +260,25 @@ const CommunityMealPlans: React.FC = () => {
                                             onClick={() => setCloneTarget(plan)}
                                         >
                                             <Copy className="w-3.5 h-3.5" />
-                                            Use Plan
+                                            Dùng ngay
                                         </Button>
                                     </div>
                                 </CardContent>
                             </Card>
                         ))}
+
+                        {plans.length < total && (
+                            <Button
+                                variant="outline"
+                                className="w-full"
+                                disabled={loadingMore}
+                                onClick={() => fetchPlans(plans.length)}
+                            >
+                                {loadingMore
+                                    ? <Loader2 className="w-4 h-4 animate-spin" />
+                                    : `Xem thêm (${total - plans.length})`}
+                            </Button>
+                        )}
                     </div>
                 )}
 
@@ -225,13 +289,13 @@ const CommunityMealPlans: React.FC = () => {
                             <span className="text-xl">✍️</span>
                         </div>
                         <div className="flex-1">
-                            <p className="text-sm font-medium">Create your own plan</p>
+                            <p className="text-sm font-medium">Tự tạo kế hoạch riêng</p>
                             <p className="text-xs text-muted-foreground">
-                                Build a custom plan and share with the community
+                                Xây dựng thực đơn của bạn và chia sẻ với cộng đồng
                             </p>
                         </div>
                         <Button size="sm" variant="outline" onClick={() => navigate("/my-meal-plans")}>
-                            Create
+                            Tạo mới
                         </Button>
                     </CardContent>
                 </Card>
@@ -241,18 +305,18 @@ const CommunityMealPlans: React.FC = () => {
             <Dialog open={!!cloneTarget} onOpenChange={() => setCloneTarget(null)}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Use this meal plan?</DialogTitle>
+                        <DialogTitle>Dùng kế hoạch này?</DialogTitle>
                     </DialogHeader>
                     <p className="text-sm text-muted-foreground">
-                        <strong>{cloneTarget?.title}</strong> will become your active meal plan.
-                        Any currently active plan will be deactivated.
+                        <strong>{cloneTarget?.title}</strong> sẽ trở thành kế hoạch ăn đang dùng của bạn.
+                        Kế hoạch hiện tại (nếu có) sẽ được thay thế.
                     </p>
                     <DialogFooter className="gap-2">
                         <Button variant="outline" onClick={() => setCloneTarget(null)}>
-                            Cancel
+                            Hủy
                         </Button>
                         <Button onClick={handleClone} disabled={cloning}>
-                            {cloning ? <Loader2 className="w-4 h-4 animate-spin" /> : "Confirm"}
+                            {cloning ? <Loader2 className="w-4 h-4 animate-spin" /> : "Xác nhận"}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

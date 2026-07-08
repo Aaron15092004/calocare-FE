@@ -12,6 +12,7 @@ import {
     getItemDisplayName,
     getItemCalories,
     getItemMacros,
+    getItemImage,
     getRecipeIngredients,
     getRecipeSteps,
 } from "@/types/mealPlan";
@@ -66,11 +67,11 @@ const RecipeSheet: React.FC<{ item: MealPlanItemAPI | null; open: boolean; onClo
                     )}
                 </SheetHeader>
 
-                {/* Recipe image */}
-                {item.recipe_id?.image_url && (
+                {/* Recipe / AI item image */}
+                {getItemImage(item) && (
                     <div className="w-full h-44 rounded-2xl overflow-hidden mb-4">
                         <img
-                            src={item.recipe_id.image_url}
+                            src={getItemImage(item)}
                             alt={name}
                             className="w-full h-full object-cover"
                         />
@@ -163,7 +164,7 @@ const MealRow: React.FC<MealRowProps> = ({ item, isCompleted, onToggle, onDetail
     const { Icon } = config;
     const hasDetail = (getRecipeIngredients(item).length > 0 || getRecipeSteps(item).length > 0)
         || !!item.recipe_id?.description || !!item.custom_food?.description;
-    const imgUrl = item.recipe_id?.image_url || (item.food_id as { image_url?: string })?.image_url;
+    const imgUrl = getItemImage(item);
 
     return (
         <div className={`flex items-center gap-3 px-2 py-2 rounded-xl transition-colors group ${

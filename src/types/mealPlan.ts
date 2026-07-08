@@ -64,6 +64,10 @@ export interface MealPlanItemAPI {
     custom_food?: CustomFood;
     serving_size?: number;
     calories?: number;
+    // AI cooking guidance for items without a linked Recipe
+    cooking_steps?: string[];
+    // Item-level image for AI items (recipe/food items carry their own)
+    image_url?: string;
     sort_order: number;
 }
 
@@ -165,9 +169,17 @@ export function getRecipeIngredients(item: MealPlanItemAPI): RecipeIngredient[] 
 
 export function getRecipeSteps(item: MealPlanItemAPI): string[] {
     const instr = item.recipe_id?.instructions;
-    if (!instr) return [];
-    const block = instr.find((b) => b.type === "steps");
-    return (block?.items ?? []) as string[];
+    if (instr) {
+        const block = instr.find((b) => b.type === "steps");
+        const steps = (block?.items ?? []) as string[];
+        if (steps.length) return steps;
+    }
+    // AI-generated items carry their own cooking guidance
+    return item.cooking_steps ?? [];
+}
+
+export function getItemImage(item: MealPlanItemAPI): string | undefined {
+    return item.recipe_id?.image_url || item.food_id?.image_url || item.image_url || undefined;
 }
 
 // Canonical "which day of the plan is today" — calendar-based from start_date,
