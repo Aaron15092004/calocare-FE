@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useFoodDiary } from "@/hooks/useFoodDiary";
 import { useAuthContext } from "@/contexts/AuthContext";
 import type { NutritionAnalysis } from "@/hooks/useFoodAnalysis";
+import { compressImage } from "@/utils/imageCompression";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:1509";
 
@@ -73,8 +74,22 @@ export const RagScannerModal: React.FC<RagScannerModalProps> = ({ open, onClose 
 
             try {
                 const token = localStorage.getItem("access_token");
+
+                // Downscale to ≤1024px / JPEG 0.7 before upload; fall back to the original on failure.
+                let uploadImage: Blob = file;
+                let uploadName = file.name || "calovie-scan.jpg";
+                try {
+                    const compressed = await compressImage(file);
+                    if (compressed.size < file.size) {
+                        uploadImage = compressed;
+                        uploadName = "calovie-scan.jpg";
+                    }
+                } catch {
+                    // upload original
+                }
+
                 const formData = new FormData();
-                formData.append("image", file);
+                formData.append("image", uploadImage, uploadName);
 
                 const res = await fetch(`${API_URL}/api/rag/scan-food`, {
                     method: "POST",
@@ -90,9 +105,11 @@ export const RagScannerModal: React.FC<RagScannerModalProps> = ({ open, onClose 
                 const data = await res.json() as ScanResult;
                 setResult(data);
             } catch (err) {
+                // Server messages are now friendly Vietnamese; anything long/raw gets a generic fallback.
+                const message = err instanceof Error ? err.message : "";
                 toast({
                     title: "Không thể quét ảnh",
-                    description: err instanceof Error ? err.message : "Lỗi không xác định",
+                    description: message && message.length <= 160 ? message : "Có lỗi xảy ra, bạn thử lại sau nhé.",
                     variant: "destructive",
                 });
                 setPreview(null);

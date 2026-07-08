@@ -4,6 +4,7 @@ import api from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
 import { AxiosError } from "axios";
+import { compressImage } from "@/utils/imageCompression";
 
 export interface FoodItem {
     name: string;
@@ -56,9 +57,11 @@ export interface AnalysisResult {
     };
     vitamins: VitaminInfo[];
     meal_type: string;
+    /** Medium-confidence lookalikes the user can swap in (single-item scans only). */
+    alternatives?: RagScanMatch[];
 }
 
-interface RagScanMatch {
+export interface RagScanMatch {
     source_id: string;
     source_type: "food" | "recipe" | "usda" | "fatsecret" | "ai_estimate";
     name: string;
@@ -116,8 +119,8 @@ export const useFoodAnalysis = () => {
     const { toast } = useToast();
     const { i18n } = useTranslation();
 
-    const MAX_SCAN_IMAGE_DIMENSION = 1280;
-    const SCAN_IMAGE_QUALITY = 0.82;
+    const MAX_SCAN_IMAGE_DIMENSION = 1024;
+    const SCAN_IMAGE_QUALITY = 0.7;
     const SKIP_CANVAS_TYPES = new Set(["image/gif", "image/heic", "image/heif"]);
 
     const throwIfAborted = (signal?: AbortSignal) => {
@@ -125,38 +128,6 @@ export const useFoodAnalysis = () => {
             throw new DOMException("Scan cancelled", "AbortError");
         }
     };
-
-    const loadImage = (src: string, signal?: AbortSignal): Promise<HTMLImageElement> =>
-        new Promise((resolve, reject) => {
-            const img = new Image();
-            const cleanup = () => {
-                img.onload = null;
-                img.onerror = null;
-                signal?.removeEventListener("abort", onAbort);
-            };
-            const onAbort = () => {
-                cleanup();
-                reject(new DOMException("Scan cancelled", "AbortError"));
-            };
-            img.onload = () => {
-                cleanup();
-                resolve(img);
-            };
-            img.onerror = () => {
-                cleanup();
-                reject(new Error("Could not read image"));
-            };
-            signal?.addEventListener("abort", onAbort, { once: true });
-            img.src = src;
-        });
-
-    const canvasToBlob = (canvas: HTMLCanvasElement, type: string, quality: number): Promise<Blob> =>
-        new Promise((resolve, reject) => {
-            canvas.toBlob((blob) => {
-                if (!blob) reject(new Error("Could not compress image"));
-                else resolve(blob);
-            }, type, quality);
-        });
 
     const imageDataUrlToFile = async (imageBase64: string, signal?: AbortSignal): Promise<File> => {
         throwIfAborted(signal);
@@ -166,40 +137,23 @@ export const useFoodAnalysis = () => {
 
         const originalType = blob.type || "image/jpeg";
         const originalExtension = originalType.split("/")[1]?.replace("jpeg", "jpg") || "jpg";
+        const originalFile = new File([blob], `calovie-scan.${originalExtension}`, { type: originalType });
 
         if (!originalType.startsWith("image/") || SKIP_CANVAS_TYPES.has(originalType)) {
-            return new File([blob], `calovie-scan.${originalExtension}`, { type: originalType });
+            return originalFile;
         }
 
         try {
-            const img = await loadImage(imageBase64, signal);
+            const compressedBlob = await compressImage(originalFile, MAX_SCAN_IMAGE_DIMENSION, SCAN_IMAGE_QUALITY);
             throwIfAborted(signal);
 
-            const largestSide = Math.max(img.naturalWidth, img.naturalHeight);
-            const scale = largestSide > MAX_SCAN_IMAGE_DIMENSION
-                ? MAX_SCAN_IMAGE_DIMENSION / largestSide
-                : 1;
-            const width = Math.max(1, Math.round(img.naturalWidth * scale));
-            const height = Math.max(1, Math.round(img.naturalHeight * scale));
-
-            const canvas = document.createElement("canvas");
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext("2d");
-            if (!ctx) throw new Error("Canvas not supported");
-            ctx.drawImage(img, 0, 0, width, height);
-
-            const compressedBlob = await canvasToBlob(canvas, "image/jpeg", SCAN_IMAGE_QUALITY);
-            throwIfAborted(signal);
-
-            if (compressedBlob.size >= blob.size && largestSide <= MAX_SCAN_IMAGE_DIMENSION) {
-                return new File([blob], `calovie-scan.${originalExtension}`, { type: originalType });
-            }
+            // Keep the original if re-encoding didn't actually help.
+            if (compressedBlob.size >= blob.size) return originalFile;
 
             return new File([compressedBlob], "calovie-scan.jpg", { type: "image/jpeg" });
         } catch (error) {
             if ((error as DOMException).name === "AbortError") throw error;
-            return new File([blob], `calovie-scan.${originalExtension}`, { type: originalType });
+            return originalFile;
         }
     };
 
@@ -212,6 +166,12 @@ export const useFoodAnalysis = () => {
     };
 
     const round1 = (value: number) => Math.round(value * 10) / 10;
+
+    const FRIENDLY_SCAN_ERROR = "Có lỗi xảy ra, bạn thử lại sau nhé.";
+
+    /** Server errors are now friendly Vietnamese; anything long/raw gets a generic fallback. */
+    const friendlyError = (message?: string | null): string =>
+        message && message.length <= 160 ? message : FRIENDLY_SCAN_ERROR;
 
     const mapRagScanToAnalysis = (data: RagScanResult): AnalysisResult | null => {
         if (Array.isArray(data.dishes) && data.dishes.length > 0 && data.totals) {
@@ -318,6 +278,9 @@ export const useFoodAnalysis = () => {
             }
 
             const mapped = mapRagScanToAnalysis(data);
+            if (mapped && mapped.dishes.length === 1 && (data.alternatives?.length ?? 0) > 0) {
+                mapped.alternatives = data.alternatives;
+            }
             if (!mapped) {
                 toast({
                     title: "Chưa có dữ liệu phù hợp",
@@ -368,8 +331,8 @@ export const useFoodAnalysis = () => {
 
             console.error("Food analysis error:", error);
             toast({
-                title: "Analysis Failed",
-                description: error.response?.data?.message || error.response?.data?.error || error.message || "Please try again",
+                title: "Không thể phân tích ảnh",
+                description: friendlyError(error.response?.data?.message || error.response?.data?.error),
                 variant: "destructive",
             });
             return null;
@@ -397,5 +360,38 @@ export const useFoodAnalysis = () => {
 
     const clearResult = () => setResult(null);
 
-    return { analyzeFood, isAnalyzing, result, clearResult, toNutritionAnalysis };
+    /**
+     * Swap the single scanned dish for one of the medium-confidence
+     * alternatives before the user confirms logging. Nutrition is recomputed
+     * from the alternative's per-100g values at the dish's reference weight.
+     */
+    const applyAlternative = (alt: RagScanMatch) => {
+        setResult((prev) => {
+            if (!prev || prev.dishes.length !== 1) return prev;
+            const dish = prev.dishes[0];
+            const grams = dish.weight_grams ?? 100;
+            const scale = grams / 100;
+            const nutrition = {
+                calories: Math.round((alt.energy_kcal ?? 0) * scale),
+                protein: round1((alt.protein_g ?? 0) * scale),
+                carbs: round1((alt.carbs_g ?? 0) * scale),
+                fat: round1((alt.fat_g ?? 0) * scale),
+                fiber: round1((alt.fiber_g ?? 0) * scale),
+            };
+            return {
+                ...prev,
+                dishes: [{
+                    ...dish,
+                    source: alt.source_type,
+                    matched_name: alt.name_vi || alt.name,
+                    nutrition,
+                    confidence: alt.score,
+                    fs_food_id: alt.source_type === "fatsecret" ? alt.source_id : undefined,
+                }],
+                totals: nutrition,
+            };
+        });
+    };
+
+    return { analyzeFood, isAnalyzing, result, clearResult, toNutritionAnalysis, applyAlternative };
 };

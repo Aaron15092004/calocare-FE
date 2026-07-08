@@ -63,7 +63,7 @@ export const FoodScanner: React.FC<FoodScannerProps> = ({ onScanComplete, onSave
   const fileInputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  const { analyzeFood, isAnalyzing, result, clearResult, toNutritionAnalysis } = useFoodAnalysis();
+  const { analyzeFood, isAnalyzing, result, clearResult, toNutritionAnalysis, applyAlternative } = useFoodAnalysis();
   const { user, profile } = useAuthContext();
   const { addEntry } = useFoodDiary(user?.id);
 
@@ -380,6 +380,30 @@ export const FoodScanner: React.FC<FoodScannerProps> = ({ onScanComplete, onSave
               );
             })}
           </div>
+
+          {/* Medium-confidence alternatives — tap to swap the result */}
+          {result.dishes.length === 1 && (result.alternatives?.length ?? 0) > 0 && (
+            <div className="mb-4">
+              <p className="mb-2 text-xs font-semibold text-muted-foreground">Có phải món này không?</p>
+              <div className="space-y-1.5">
+                {result.alternatives!.slice(0, 3).map((alt, i) => {
+                  const grams = dishGrams[0] ?? (result.dishes[0].weight_grams ?? 100);
+                  const kcal = Math.round(((alt.energy_kcal ?? 0) * grams) / 100);
+                  return (
+                    <button
+                      key={`${alt.source_type}-${alt.source_id}-${i}`}
+                      type="button"
+                      onClick={() => applyAlternative(alt)}
+                      className="w-full flex items-center justify-between gap-2 p-2.5 bg-gray-50 dark:bg-muted/40 hover:bg-muted/70 rounded-xl text-left transition-colors"
+                    >
+                      <span className="text-sm font-medium truncate">{alt.name_vi || alt.name}</span>
+                      <span className="text-sm font-bold text-primary whitespace-nowrap">{kcal} kcal</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Adjusted totals */}
           <div className="grid grid-cols-4 gap-2 mb-4 text-center">

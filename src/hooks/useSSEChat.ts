@@ -251,9 +251,12 @@ export function useSSEChat() {
         } catch (err) {
             const isAbort = (err as Error).name === "AbortError";
             if (isAbort && !timedOut) return; // user-initiated stop, no error shown
+            // Server SSE `error` events now carry friendly Vietnamese messages —
+            // show them as-is, but guard against raw/technical text leaking through.
+            const raw = err instanceof Error ? err.message : "";
             const msg = isAbort
                 ? "Yêu cầu hết thời gian chờ. Vui lòng thử lại."
-                : err instanceof Error ? err.message : "Chat failed";
+                : raw && raw.length <= 160 ? raw : "Có lỗi xảy ra, bạn thử lại sau nhé.";
             setError(msg);
         } finally {
             clearTimeout(timeoutId);
