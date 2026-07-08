@@ -31,6 +31,50 @@ export interface GenerateProgress {
 export interface MealPlanResult {
     meal_plan_id: string;
     days_generated: number;
+    // Additive fields from the resumable-generation backend (older responses omit them)
+    plan_status?: "completed" | "partial";
+    requested_days?: number;
+}
+
+// Marker persisted while a generation is in flight so the plan can be recovered
+// after a reload/navigation (the backend keeps generating and stores progress).
+const PENDING_KEY = "calovie:generating-plan";
+
+export interface PendingGenerationMarker {
+    planId: string;
+    startedAt: number;
+}
+
+export function getPendingGenerationMarker(): PendingGenerationMarker | null {
+    try {
+        const raw = localStorage.getItem(PENDING_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw) as PendingGenerationMarker;
+        // Expire markers older than 24h (matches the BE recovery window)
+        if (!parsed.planId || Date.now() - parsed.startedAt > 24 * 3600 * 1000) {
+            localStorage.removeItem(PENDING_KEY);
+            return null;
+        }
+        return parsed;
+    } catch {
+        return null;
+    }
+}
+
+export function clearPendingGenerationMarker(): void {
+    try {
+        localStorage.removeItem(PENDING_KEY);
+    } catch {
+        /* storage unavailable */
+    }
+}
+
+function setPendingGenerationMarker(planId: string): void {
+    try {
+        localStorage.setItem(PENDING_KEY, JSON.stringify({ planId, startedAt: Date.now() } satisfies PendingGenerationMarker));
+    } catch {
+        /* storage unavailable */
+    }
 }
 
 export type MealsPerDay = 3 | 4 | 5;
@@ -117,7 +161,12 @@ export function useSSEMealPlan() {
                         continue;
                     }
 
-                    if (lastEvent === "progress") {
+                    if (lastEvent === "created") {
+                        // Plan doc exists server-side from this point — persist the id
+                        // so a reload/navigation can recover it.
+                        const created = parsed as { meal_plan_id?: string };
+                        if (created.meal_plan_id) setPendingGenerationMarker(created.meal_plan_id);
+                    } else if (lastEvent === "progress") {
                         setProgress(parsed as GenerateProgress);
                     } else if (lastEvent === "day") {
                         const dayData = parsed as { plan: DayPlan; substitutions?: string[] };
@@ -127,7 +176,10 @@ export function useSSEMealPlan() {
                         }
                     } else if (lastEvent === "done") {
                         setResult(parsed as MealPlanResult);
+                        clearPendingGenerationMarker();
                     } else if (lastEvent === "error") {
+                        // Total failure: the backend deleted the empty plan and refunded quota
+                        clearPendingGenerationMarker();
                         throw new Error((parsed as { message?: string }).message || "Generation failed");
                     }
                 }

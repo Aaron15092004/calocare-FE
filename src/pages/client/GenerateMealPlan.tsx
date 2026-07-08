@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useSSEMealPlan, type DayPlan as SSEDayPlan, type MealItem as SSEMealItem, type MealsPerDay, type CookingStyle } from "@/hooks/useSSEMealPlan";
 import api from "@/lib/api";
 import { AdSenseUnit } from "@/components/AdSenseUnit";
+import { MealPlanRecoveryBanner } from "@/components/MealPlanRecoveryBanner";
 
 /* ── Types ──────────────────────────────────────────────────────── */
 type GeneratedMeal = SSEMealItem & { food_name: string };
@@ -429,7 +430,9 @@ const GenerateMealPlan: React.FC = () => {
                         />
                     </div>
                 )}
-                <p className="text-xs text-muted-foreground">Mỗi ngày mất khoảng 15–30 giây, vui lòng chờ...</p>
+                <p className="text-xs text-muted-foreground text-center px-6">
+                    Mỗi ngày mất khoảng 15–30 giây. Bạn có thể rời trang — quá trình tạo vẫn tiếp tục và thực đơn sẽ được lưu tự động.
+                </p>
             </div>
         );
     }
@@ -550,6 +553,9 @@ const GenerateMealPlan: React.FC = () => {
             </header>
 
             <main className="container px-5 py-5 space-y-4 max-w-lg mx-auto">
+                {/* Recover a plan whose generation survived a reload/navigation */}
+                <MealPlanRecoveryBanner />
+
                 {/* Intro banner */}
                 <div className="rounded-2xl gradient-primary p-4 text-primary-foreground flex gap-4 items-center shadow-md shadow-primary/20">
                     <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center shrink-0">

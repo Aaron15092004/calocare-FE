@@ -29,6 +29,7 @@ import { useFoodDiary } from "@/hooks/useFoodDiary";
 import api from "@/lib/api";
 import { AdBanner } from "@/components/AdBanner";
 import { HomeBannerCarousel } from "@/components/HomeBannerCarousel";
+import { MealPlanRecoveryBanner } from "@/components/MealPlanRecoveryBanner";
 import { AdSenseUnit } from "@/components/AdSenseUnit";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Crown, Zap, X, Sparkles, ChevronRight } from "lucide-react";
@@ -338,6 +339,9 @@ const Index = () => {
             </div>
 
             <main className="container px-5 pt-4 space-y-5">
+                {/* AI meal plan finished/still generating after user left the page */}
+                <MealPlanRecoveryBanner />
+
                 {/* Macros — P, C, F individual rings */}
                 <section className="animate-slide-up-delay-2">
                     <div className="grid grid-cols-3 gap-3">
