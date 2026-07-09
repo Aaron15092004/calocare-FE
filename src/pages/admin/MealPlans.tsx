@@ -94,8 +94,12 @@ const GOAL_TYPES = [
 ];
 
 const MEAL_TYPES = ["breakfast", "lunch", "dinner", "snack"];
+// Detail view must render all 6 types — AI plans use snack subtypes
+const DETAIL_MEAL_TYPES = ["breakfast", "morning_snack", "lunch", "afternoon_snack", "dinner", "snack"];
 
 const MEAL_LABELS: Record<string, string> = {
+    morning_snack: "Morning snack",
+    afternoon_snack: "Afternoon snack",
     breakfast: "Breakfast",
     lunch: "Lunch",
     dinner: "Dinner",
@@ -251,12 +255,25 @@ const MealPlans = () => {
         setDetailPlan(plan);
         const { data } = await api.get(`/meal-plans/${plan._id || plan.id}`);
         setDetailItems(
-            (data.items || []).map((item: any) => ({
-                ...item,
-                recipe_name: item.recipe_id?.name_vi,
-                food_name: item.food_id?.name_vi,
-                calories: item.recipe_id?.calories || item.food_id?.energy_kcal || 0,
-            })),
+            (data.items || []).map((item: any) => {
+                // Display name across ALL sources (usda/custom_food were "Unknown" before)
+                const name = item.recipe_id?.name_vi
+                    || item.custom_food?.name
+                    || item.food_id?.name_vi
+                    || item.usda_food_id?.description_vi
+                    || item.usda_food_id?.description_en
+                    || "Unknown";
+                // AI plans store the final kcal on the item (serving_size is grams,
+                // NOT a multiplier — multiplying here showed 260 kcal as 52,000)
+                const storedKcal = Number(item.calories);
+                const display_kcal = Number.isFinite(storedKcal) && storedKcal > 0
+                    ? Math.round(storedKcal)
+                    : Math.round(
+                        item.recipe_id?.calories
+                        ?? ((item.food_id?.energy_kcal ?? item.usda_food_id?.energy_kcal ?? 0) * (item.serving_size || 100)) / 100,
+                    );
+                return { ...item, recipe_name: name, display_kcal };
+            }),
         );
         setViewMode("detail");
     };
@@ -448,7 +465,7 @@ const MealPlans = () => {
                 {/* Days */}
                 {days.map((day) => {
                     const dayItems = detailItems.filter((i) => i.day_number === day);
-                    const dayCal = getDayCalories(day, detailItems);
+                    const dayCal = dayItems.reduce((sum, i: any) => sum + (i.display_kcal || 0), 0);
                     return (
                         <Card key={day}>
                             <CardContent className="p-4">
@@ -464,7 +481,7 @@ const MealPlans = () => {
                                     </p>
                                 ) : (
                                     <div className="space-y-2">
-                                        {MEAL_TYPES.map((mt) => {
+                                        {DETAIL_MEAL_TYPES.map((mt) => {
                                             const meals = dayItems.filter(
                                                 (i) => i.meal_type === mt,
                                             );
@@ -472,24 +489,20 @@ const MealPlans = () => {
                                             return (
                                                 <div key={mt}>
                                                     <p className="text-xs font-medium text-muted-foreground uppercase mb-1">
-                                                        {MEAL_LABELS[mt]}
+                                                        {MEAL_LABELS[mt] ?? mt}
                                                     </p>
-                                                    {meals.map((m, i) => (
+                                                    {meals.map((m: any, i) => (
                                                         <div
                                                             key={i}
                                                             className="flex justify-between items-center text-sm py-1 pl-3 border-l-2 border-primary/20"
                                                         >
                                                             <div>
-                                                                <span>
-                                                                    {m.recipe_name ||
-                                                                        m.food_name ||
-                                                                        "Unknown"}
-                                                                </span>
-                                                                {m.serving_size !== 1 && (
-                                                                    <span className="text-muted-foreground ml-1">
-                                                                        x{m.serving_size}
+                                                                <span>{m.recipe_name || "Unknown"}</span>
+                                                                {m.serving_size ? (
+                                                                    <span className="text-muted-foreground ml-1 text-xs">
+                                                                        {m.serving_size}g
                                                                     </span>
-                                                                )}
+                                                                ) : null}
                                                                 {m.note && (
                                                                     <span className="text-muted-foreground ml-2 text-xs">
                                                                         ({m.note})
@@ -497,11 +510,7 @@ const MealPlans = () => {
                                                                 )}
                                                             </div>
                                                             <span className="text-muted-foreground">
-                                                                {Math.round(
-                                                                    (m.calories || 0) *
-                                                                        (m.serving_size || 1),
-                                                                )}{" "}
-                                                                kcal
+                                                                {m.display_kcal ?? 0} kcal
                                                             </span>
                                                         </div>
                                                     ))}

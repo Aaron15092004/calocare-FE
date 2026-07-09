@@ -302,6 +302,9 @@ const GenerateMealPlan: React.FC = () => {
     const [activating, setActivating] = useState(false);
     const [confirmActivate, setConfirmActivate] = useState(false);
     const [selectedMeal, setSelectedMeal] = useState<SSEMealItem | null>(null);
+    // Onboarding already collected goal/diet/allergies — settings are derived
+    // from the profile and the pickers live behind this optional toggle
+    const [showAdvanced, setShowAdvanced] = useState(false);
     const { isGenerating, progress, days, substitutions, result, error: genError, generate, reset } = useSSEMealPlan();
 
     useEffect(() => {
@@ -663,6 +666,54 @@ const GenerateMealPlan: React.FC = () => {
                     </CardContent>
                 </Card>
 
+                {/* Settings derived from the profile — no re-picking required */}
+                <Card className="border-primary/20">
+                    <CardHeader className="pb-2 pt-4">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                            <Sparkles className="w-4 h-4 text-primary" /> AI đã hiểu bạn
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pb-4">
+                        <div className="flex flex-wrap gap-1.5">
+                            <Badge variant="secondary" className="gap-1 font-normal">
+                                <Target className="w-3 h-3 text-primary" />
+                                {GOAL_OPTIONS.find((g) => g.value === goalType)?.label ?? goalType}
+                            </Badge>
+                            <Badge variant="secondary" className="gap-1 font-normal">
+                                <Leaf className="w-3 h-3 text-emerald-500" />
+                                {DIET_OPTIONS.find((d) => d.value === dietType)?.label ?? dietType}
+                            </Badge>
+                            {calories && (
+                                <Badge variant="secondary" className="gap-1 font-normal">
+                                    <Flame className="w-3 h-3 text-orange-400" />
+                                    {calories.toLocaleString("vi-VN")} kcal/ngày
+                                </Badge>
+                            )}
+                            <Badge variant="secondary" className="gap-1 font-normal">
+                                <Utensils className="w-3 h-3 text-primary" />
+                                {mealsPerDay} bữa/ngày
+                            </Badge>
+                            {foodsToAvoid.trim() && (
+                                <Badge variant="secondary" className="font-normal">
+                                    Tránh: {foodsToAvoid}
+                                </Badge>
+                            )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-2.5">
+                            Thiết lập lấy tự động từ hồ sơ của bạn — chỉ cần bấm tạo. Muốn đổi gì đó?
+                        </p>
+                        <button
+                            type="button"
+                            onClick={() => setShowAdvanced((v) => !v)}
+                            className="mt-1.5 inline-flex items-center gap-1 text-xs font-semibold text-primary"
+                        >
+                            {showAdvanced ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                            {showAdvanced ? "Ẩn tùy chỉnh" : "Tùy chỉnh thêm (không bắt buộc)"}
+                        </button>
+                    </CardContent>
+                </Card>
+
+                {showAdvanced && (<>
                 {/* Goal */}
                 <Card>
                     <CardHeader className="pb-2 pt-4">
@@ -799,12 +850,6 @@ const GenerateMealPlan: React.FC = () => {
                     </CardContent>
                 </Card>
 
-                <AdSenseUnit
-                    slot={import.meta.env.VITE_ADSENSE_SLOT_GENERATE ?? import.meta.env.VITE_ADSENSE_SLOT_INLINE ?? ""}
-                    format="auto"
-                    className="min-h-[100px]"
-                />
-
                 {/* Foods to avoid */}
                 <Card>
                     <CardHeader className="pb-2 pt-4">
@@ -821,6 +866,13 @@ const GenerateMealPlan: React.FC = () => {
                         </p>
                     </CardContent>
                 </Card>
+                </>)}
+
+                <AdSenseUnit
+                    slot={import.meta.env.VITE_ADSENSE_SLOT_GENERATE ?? import.meta.env.VITE_ADSENSE_SLOT_INLINE ?? ""}
+                    format="auto"
+                    className="min-h-[100px]"
+                />
 
                 {/* Pro nudge for premium users */}
                 {tier === "premium" && (
